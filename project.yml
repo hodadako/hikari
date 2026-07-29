@@ -46,6 +46,7 @@ targets:
     dependencies:
       - target: LuminaCore
       - target: LuminaScreenSaver
+        embed: false
     postBuildScripts:
       - name: Embed Lumina Screen Saver
         script: |
