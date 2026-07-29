@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible Lumina problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and hardware
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Video and display details
+      description: Include codec, resolution, duration, and display count. Do not upload private media.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell
