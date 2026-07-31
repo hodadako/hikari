@@ -89,13 +89,6 @@ struct MenuBarView: View {
         } message: {
             Text(model.presentedError ?? "")
         }
-        .onAppear {
-            if model.contents.isEmpty {
-                DispatchQueue.main.async {
-                    showSettings()
-                }
-            }
-        }
     }
 
     @ViewBuilder
@@ -152,12 +145,7 @@ struct MenuBarView: View {
     }
 
     private func showSettings() {
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        NSApplication.shared.sendAction(
-            Selector(("showSettingsWindow:")),
-            to: nil,
-            from: nil
-        )
+        SettingsWindowPresenter.shared.show(model: model)
     }
 }
 

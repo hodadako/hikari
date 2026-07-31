@@ -12,8 +12,23 @@ final class WallpaperController {
         self.renderer = renderer
     }
 
-    func rebuildWindows() {
+    func setContentAvailable(_ isAvailable: Bool) {
+        if isAvailable {
+            if windows.isEmpty {
+                rebuildWindows()
+            }
+        } else {
+            closeWindows()
+        }
+    }
+
+    func rebuildWindowsIfContentAvailable(_ isAvailable: Bool) {
         closeWindows()
+        guard isAvailable else { return }
+        rebuildWindows()
+    }
+
+    private func rebuildWindows() {
         windows = NSScreen.screens.map { screen in
             let window = NSWindow(
                 contentRect: screen.frame,

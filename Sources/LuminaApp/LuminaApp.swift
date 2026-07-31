@@ -10,12 +10,13 @@ struct LuminaApp: App {
             MenuBarView(model: model)
         } label: {
             Label("Lumina", systemImage: "sparkles.tv")
+                .onAppear {
+                    DispatchQueue.main.async {
+                        SettingsWindowPresenter.shared
+                            .showInitialSetupIfNeeded(model: model)
+                    }
+                }
         }
         .menuBarExtraStyle(.window)
-
-        Settings {
-            SettingsView(model: model)
-                .frame(minWidth: 560, minHeight: 460)
-        }
     }
 }
