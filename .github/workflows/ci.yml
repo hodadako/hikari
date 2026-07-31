@@ -3,10 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-test:
@@ -28,3 +30,55 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             test
+      - name: Build portable app
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
+          test -d "${app_path}"
+          codesign --force --deep --sign - "${app_path}"
+
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${app_path}" \
+            "dist/Lumina-macOS-portable.zip"
+          pushd dist
+          shasum -a 256 "Lumina-macOS-portable.zip" \
+            > "Lumina-macOS-portable.zip.sha256"
+          popd
+      - name: Upload portable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lumina-macOS-portable
+          path: |
+            dist/Lumina-macOS-portable.zip
+            dist/Lumina-macOS-portable.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" \
+              dist/Lumina-macOS-portable.zip \
+              dist/Lumina-macOS-portable.zip.sha256 \
+              --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              dist/Lumina-macOS-portable.zip \
+              dist/Lumina-macOS-portable.zip.sha256 \
+              --title "Lumina ${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi

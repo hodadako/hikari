@@ -28,6 +28,25 @@ Lumina screen saver.
 - Xcode 15 or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
+## Download the portable app
+
+Download `Lumina-macOS-portable.zip` from the
+[latest release](https://github.com/hodadako/lumina/releases/latest), unzip it,
+and move `Lumina.app` to Applications.
+
+Portable builds are ad-hoc signed but not Apple-notarized. On first launch,
+Control-click `Lumina.app`, choose **Open**, then confirm **Open**. Lumina appears
+in the menu bar rather than the Dock.
+
+Each release includes `Lumina-macOS-portable.zip.sha256`. Verify the download
+before opening it:
+
+```sh
+shasum -a 256 -c Lumina-macOS-portable.zip.sha256
+```
+
+Every GitHub Actions run also uploads the same ZIP as a 30-day build artifact.
+
 ## Build
 
 ```sh
