@@ -58,7 +58,7 @@ struct MenuBarView: View {
             } label: {
                 Label(
                     model.isScreenSaverInstalled
-                        ? "Open Screen Saver Settings"
+                        ? "Finish Screen Saver Setup"
                         : "Set Up Screen Saver",
                     systemImage: "rectangle.inset.filled.and.person.filled"
                 )
