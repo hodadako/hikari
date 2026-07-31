@@ -13,7 +13,7 @@ settings:
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.1.1
+    MARKETING_VERSION: 0.1.2
 targets:
   LuminaCore:
     type: framework.static
@@ -31,6 +31,10 @@ targets:
     sources:
       - Sources/LuminaApp
       - path: Resources/Assets.xcassets
+      - path: Resources/en.lproj
+        buildPhase: resources
+      - path: Resources/ko.lproj
+        buildPhase: resources
     info:
       path: Resources/Lumina-Info.plist
       properties:

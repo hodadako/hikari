@@ -49,6 +49,14 @@ public enum ScalingMode: String, Codable, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
 }
 
+public enum AppIconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
+    case blue
+    case pink
+    case purple
+
+    public var id: String { rawValue }
+}
+
 public struct LuminaSettings: Codable, Equatable, Sendable {
     public var selectedContentID: UUID?
     public var playbackPreference: PlaybackPreference
@@ -57,6 +65,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var pauseOnBattery: Bool
     public var launchAtLogin: Bool
     public var lastKnownScreenSaverInstalled: Bool
+    public var appIconStyle: AppIconStyle
 
     public init(
         selectedContentID: UUID? = nil,
@@ -65,7 +74,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         isMuted: Bool = true,
         pauseOnBattery: Bool = false,
         launchAtLogin: Bool = false,
-        lastKnownScreenSaverInstalled: Bool = false
+        lastKnownScreenSaverInstalled: Bool = false,
+        appIconStyle: AppIconStyle = .blue
     ) {
         self.selectedContentID = selectedContentID
         self.playbackPreference = playbackPreference
@@ -74,6 +84,51 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         self.pauseOnBattery = pauseOnBattery
         self.launchAtLogin = launchAtLogin
         self.lastKnownScreenSaverInstalled = lastKnownScreenSaverInstalled
+        self.appIconStyle = appIconStyle
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case selectedContentID
+        case playbackPreference
+        case scalingMode
+        case isMuted
+        case pauseOnBattery
+        case launchAtLogin
+        case lastKnownScreenSaverInstalled
+        case appIconStyle
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        selectedContentID = try values.decodeIfPresent(
+            UUID.self,
+            forKey: .selectedContentID
+        )
+        playbackPreference = try values.decodeIfPresent(
+            PlaybackPreference.self,
+            forKey: .playbackPreference
+        ) ?? .playing
+        scalingMode = try values.decodeIfPresent(
+            ScalingMode.self,
+            forKey: .scalingMode
+        ) ?? .fill
+        isMuted = try values.decodeIfPresent(Bool.self, forKey: .isMuted) ?? true
+        pauseOnBattery = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .pauseOnBattery
+        ) ?? false
+        launchAtLogin = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .launchAtLogin
+        ) ?? false
+        lastKnownScreenSaverInstalled = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .lastKnownScreenSaverInstalled
+        ) ?? false
+        appIconStyle = try values.decodeIfPresent(
+            AppIconStyle.self,
+            forKey: .appIconStyle
+        ) ?? .blue
     }
 }
 
@@ -97,17 +152,38 @@ public enum LuminaError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .unsupportedFile:
-            return "Lumina currently supports MP4 files only."
+            return NSLocalizedString(
+                "Lumina currently supports MP4 files only.",
+                comment: ""
+            )
         case .unreadableVideo:
-            return "This video cannot be read or does not contain a playable video track."
+            return NSLocalizedString(
+                "This video cannot be read or does not contain a playable video track.",
+                comment: ""
+            )
         case .duplicateContent:
-            return "This video is already in your Lumina library."
+            return NSLocalizedString(
+                "This video is already in your Lumina library.",
+                comment: ""
+            )
         case let .fileCopyFailed(reason):
-            return "The video could not be copied: \(reason)"
+            return String(
+                format: NSLocalizedString(
+                    "The video could not be copied: %@",
+                    comment: ""
+                ),
+                reason
+            )
         case .contentNotFound:
-            return "The selected video is no longer available."
+            return NSLocalizedString(
+                "The selected video is no longer available.",
+                comment: ""
+            )
         case .screenSaverBundleMissing:
-            return "The Lumina screen saver is missing from this app build."
+            return NSLocalizedString(
+                "The Lumina screen saver is missing from this app build.",
+                comment: ""
+            )
         }
     }
 }

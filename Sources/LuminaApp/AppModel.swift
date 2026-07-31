@@ -48,6 +48,7 @@ final class AppModel: ObservableObject {
         settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
+        applyApplicationIcon()
         wallpaperController.setScalingMode(settings.scalingMode)
         reconcilePlayback()
         terminationToken = NotificationCenter.default.addObserver(
@@ -75,6 +76,10 @@ final class AppModel: ObservableObject {
 
     var isScreenSaverInstalled: Bool {
         screenSaverInstaller.isInstalled
+    }
+
+    var appIconAssetName: String {
+        settings.appIconStyle.assetName
     }
 
     func importVideo(from url: URL) async {
@@ -134,6 +139,17 @@ final class AppModel: ObservableObject {
         saveAndReconcile()
     }
 
+    func setAppIconStyle(_ style: AppIconStyle) {
+        settings.appIconStyle = style
+        applyApplicationIcon()
+        do {
+            try persistSettings()
+        } catch {
+            presentedError = error.localizedDescription
+        }
+        objectWillChange.send()
+    }
+
     func setMuted(_ muted: Bool) {
         settings.isMuted = muted
         renderer.setMuted(muted)
@@ -155,7 +171,13 @@ final class AppModel: ObservableObject {
             settings.launchAtLogin = enabled
             try persistSettings()
         } catch {
-            presentedError = "Login item could not be updated: \(error.localizedDescription)"
+            presentedError = String(
+                format: NSLocalizedString(
+                    "Login item could not be updated: %@",
+                    comment: "Login item update error"
+                ),
+                error.localizedDescription
+            )
         }
     }
 
@@ -237,5 +259,11 @@ final class AppModel: ObservableObject {
 
     private func persistSettings() throws {
         try settingsStore.save(settings)
+    }
+
+    private func applyApplicationIcon() {
+        NSApplication.shared.applicationIconImage = NSImage(
+            named: settings.appIconStyle.assetName
+        )
     }
 }
