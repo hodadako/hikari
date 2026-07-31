@@ -39,14 +39,16 @@ final class AppModel: ObservableObject {
             self?.reconcilePlayback()
         }
         stateMonitor.onDisplaysChanged = { [weak self] in
-            self?.wallpaperController.rebuildWindows()
+            guard let self else { return }
+            self.wallpaperController.rebuildWindowsIfContentAvailable(
+                self.hasPlayableContent
+            )
         }
         stateMonitor.start()
         settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
         wallpaperController.setScalingMode(settings.scalingMode)
-        wallpaperController.rebuildWindows()
         reconcilePlayback()
         terminationToken = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -190,11 +192,10 @@ final class AppModel: ObservableObject {
     }
 
     private func reconcilePlayback() {
-        let content = selectedContent
-        let mediaURL = content.map(container.mediaURL(for:))
-        let hasContent = mediaURL.map {
-            FileManager.default.fileExists(atPath: $0.path)
-        } ?? false
+        let mediaURL = selectedMediaURL
+        let hasContent = hasPlayableContent
+
+        wallpaperController.setContentAvailable(hasContent)
 
         if let mediaURL, hasContent {
             renderer.load(url: mediaURL, muted: settings.isMuted)
@@ -218,6 +219,11 @@ final class AppModel: ObservableObject {
             renderer.pause()
         }
         objectWillChange.send()
+    }
+
+    private var hasPlayableContent: Bool {
+        guard let mediaURL = selectedMediaURL else { return false }
+        return FileManager.default.fileExists(atPath: mediaURL.path)
     }
 
     private func saveAndReconcile() {

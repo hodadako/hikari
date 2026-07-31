@@ -64,6 +64,19 @@ private struct WelcomeView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }
+            VStack(spacing: 6) {
+                Label("Choose an MP4 from anywhere on your Mac", systemImage: "folder")
+                    .font(.headline)
+                Text("You do not need to move it manually. Lumina stores its copy in:")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Text("~/Library/Application Support/Lumina/Media")
+                    .font(.system(.callout, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+            .padding(14)
+            .frame(maxWidth: 460)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
             Button {
                 chooseVideo()
             } label: {
