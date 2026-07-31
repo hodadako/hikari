@@ -270,35 +270,88 @@ private struct ScreenSaverSettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Installation") {
+                LabeledContent("Status") {
                     Label(
-                        model.isScreenSaverInstalled ? "Installed" : "Not installed",
+                        model.isScreenSaverInstalled
+                            ? "Installed — selection required"
+                            : "Not installed",
                         systemImage: model.isScreenSaverInstalled
-                            ? "checkmark.circle.fill"
+                            ? "exclamationmark.circle.fill"
                             : "exclamationmark.circle"
                     )
-                    .foregroundStyle(model.isScreenSaverInstalled ? .green : .secondary)
+                    .foregroundStyle(model.isScreenSaverInstalled ? .orange : .secondary)
                 }
-                HStack {
+
+                if model.isScreenSaverInstalled {
+                    VStack(alignment: .leading, spacing: 12) {
+                        setupStep(
+                            number: 1,
+                            title: "Open System Settings",
+                            detail: "Lumina opens the macOS Screen Saver panel."
+                        )
+                        setupStep(
+                            number: 2,
+                            title: "Select Lumina",
+                            detail: "Choose Lumina under Custom or Other."
+                        )
+                        setupStep(
+                            number: 3,
+                            title: "Set the start time",
+                            detail: "In Lock Screen settings, allow the screen saver "
+                                + "to start before the display turns off."
+                        )
+                    }
+                    .padding(.vertical, 6)
+
+                    Button("Choose Lumina in System Settings") {
+                        model.openScreenSaverSettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
                     Button(
-                        model.isScreenSaverInstalled ? "Reinstall" : "Install Screen Saver"
+                        "Install Screen Saver"
                     ) {
                         model.installScreenSaver()
                     }
-                    Button("Open System Settings") {
-                        model.openScreenSaverSettings()
+                }
+
+                if model.isScreenSaverInstalled {
+                    Button("Reinstall Lumina Screen Saver") {
+                        model.installScreenSaver()
                     }
                 }
             } header: {
                 Text("Lumina Screen Saver")
             } footer: {
                 Text(
-                    "After installation, select Lumina in System Settings. "
-                        + "It uses the same video and scaling setting as your wallpaper."
+                    "macOS requires you to confirm the screen saver selection. "
+                        + "Immediately after locking, the existing Lock Screen background "
+                        + "may remain visible until the screen saver starts."
                 )
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func setupStep(
+        number: Int,
+        title: String,
+        detail: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(.tint, in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
@@ -311,7 +364,7 @@ private struct AboutView: View {
                 .foregroundStyle(.tint)
             Text("Lumina")
                 .font(.title.bold())
-            Text("Version 0.1.0")
+            Text("Version \(appVersion)")
                 .foregroundStyle(.secondary)
             Text("Native live wallpaper and screen saver for macOS.")
                 .foregroundStyle(.secondary)
@@ -325,5 +378,11 @@ private struct AboutView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? "Development"
     }
 }
