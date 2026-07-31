@@ -9,7 +9,10 @@ struct LuminaApp: App {
         MenuBarExtra {
             MenuBarView(model: model)
         } label: {
-            Label("Lumina", systemImage: "sparkles.tv")
+            Image(model.appIconAssetName)
+                .resizable()
+                .frame(width: 18, height: 18)
+                .accessibilityLabel("Lumina")
                 .onAppear {
                     DispatchQueue.main.async {
                         SettingsWindowPresenter.shared

@@ -53,10 +53,9 @@ private struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            Image(systemName: "sparkles.tv")
-                .font(.system(size: 54, weight: .light))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tint)
+            Image(model.appIconAssetName)
+                .resizable()
+                .frame(width: 82, height: 82)
             VStack(spacing: 8) {
                 Text("Welcome to Lumina")
                     .font(.largeTitle.bold())
@@ -81,7 +80,7 @@ private struct WelcomeView: View {
                 chooseVideo()
             } label: {
                 Label(
-                    model.isImporting ? "Importing…" : "Choose MP4…",
+                    localized(model.isImporting ? "Importing…" : "Choose MP4…"),
                     systemImage: "plus"
                 )
                 .frame(minWidth: 150)
@@ -163,6 +162,58 @@ private struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
+            Section("App Icon") {
+                HStack(spacing: 16) {
+                    ForEach(AppIconStyle.allCases) { style in
+                        Button {
+                            model.setAppIconStyle(style)
+                        } label: {
+                            VStack(spacing: 8) {
+                                Image(style.assetName)
+                                    .resizable()
+                                    .frame(width: 64, height: 64)
+                                Text(style.localizedName)
+                                    .font(.caption)
+                            }
+                            .padding(8)
+                            .background(
+                                model.settings.appIconStyle == style
+                                    ? Color.accentColor.opacity(0.16)
+                                    : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        model.settings.appIconStyle == style
+                                            ? Color.accentColor
+                                            : Color.clear,
+                                        lineWidth: 2
+                                    )
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            String(
+                                format: NSLocalizedString(
+                                    "%@ app icon",
+                                    comment: "App icon option accessibility label"
+                                ),
+                                style.localizedName
+                            )
+                        )
+                    }
+                }
+                Text(
+                    localized(
+                        "Blue remains the Finder icon. Your choice is used by Lumina "
+                            + "while it is running and in the menu bar."
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Section("Scaling") {
                 Picker(
                     "Video scaling",
@@ -176,9 +227,11 @@ private struct AppearanceSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 Text(
-                    model.settings.scalingMode == .fill
-                        ? "Fills each display; some edges may be cropped."
-                        : "Shows the whole video; letterboxing may appear."
+                    localized(
+                        model.settings.scalingMode == .fill
+                            ? "Fills each display; some edges may be cropped."
+                            : "Shows the whole video; letterboxing may appear."
+                    )
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -272,9 +325,11 @@ private struct ScreenSaverSettingsView: View {
             Section {
                 LabeledContent("Status") {
                     Label(
-                        model.isScreenSaverInstalled
-                            ? "Installed — selection required"
-                            : "Not installed",
+                        localized(
+                            model.isScreenSaverInstalled
+                                ? "Installed — selection required"
+                                : "Not installed"
+                        ),
                         systemImage: model.isScreenSaverInstalled
                             ? "exclamationmark.circle.fill"
                             : "exclamationmark.circle"
@@ -324,9 +379,11 @@ private struct ScreenSaverSettingsView: View {
                 Text("Lumina Screen Saver")
             } footer: {
                 Text(
-                    "macOS requires you to confirm the screen saver selection. "
-                        + "Immediately after locking, the existing Lock Screen background "
-                        + "may remain visible until the screen saver starts."
+                    localized(
+                        "macOS requires you to confirm the screen saver selection. "
+                            + "Immediately after locking, the existing Lock Screen "
+                            + "background may remain visible until the screen saver starts."
+                    )
                 )
             }
         }
@@ -345,9 +402,9 @@ private struct ScreenSaverSettingsView: View {
                 .frame(width: 22, height: 22)
                 .background(.tint, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
+                Text(localized(title))
                     .font(.headline)
-                Text(detail)
+                Text(localized(detail))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -355,13 +412,17 @@ private struct ScreenSaverSettingsView: View {
     }
 }
 
+private func localized(_ key: String) -> String {
+    NSLocalizedString(key, comment: "")
+}
+
 private struct AboutView: View {
     var body: some View {
         VStack(spacing: 14) {
             Spacer()
-            Image(systemName: "sparkles.tv")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.tint)
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 78, height: 78)
             Text("Lumina")
                 .font(.title.bold())
             Text("Version \(appVersion)")

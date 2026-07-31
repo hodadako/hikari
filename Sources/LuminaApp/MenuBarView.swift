@@ -15,7 +15,9 @@ struct MenuBarView: View {
                 model.togglePlayback()
             } label: {
                 Label(
-                    model.isPlaying ? "Pause Wallpaper" : "Play Wallpaper",
+                    localized(
+                        model.isPlaying ? "Pause Wallpaper" : "Play Wallpaper"
+                    ),
                     systemImage: model.isPlaying ? "pause.fill" : "play.fill"
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,9 +59,11 @@ struct MenuBarView: View {
                 model.openScreenSaverSettings()
             } label: {
                 Label(
-                    model.isScreenSaverInstalled
-                        ? "Finish Screen Saver Setup"
-                        : "Set Up Screen Saver",
+                    localized(
+                        model.isScreenSaverInstalled
+                            ? "Finish Screen Saver Setup"
+                            : "Set Up Screen Saver"
+                    ),
                     systemImage: "rectangle.inset.filled.and.person.filled"
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -124,12 +128,20 @@ struct MenuBarView: View {
     }
 
     private var pauseStatus: String {
-        if model.pauseReasons.contains(.user) { return "Paused" }
-        if model.pauseReasons.contains(.battery) { return "Paused on battery" }
-        if model.pauseReasons.contains(.screenSaver) { return "Screen saver active" }
-        if model.pauseReasons.contains(.screenLock) { return "Screen locked" }
-        if model.pauseReasons.contains(.sleep) { return "Display asleep" }
-        return "Ready"
+        if model.pauseReasons.contains(.user) { return localized("Paused") }
+        if model.pauseReasons.contains(.battery) {
+            return localized("Paused on battery")
+        }
+        if model.pauseReasons.contains(.screenSaver) {
+            return localized("Screen saver active")
+        }
+        if model.pauseReasons.contains(.screenLock) {
+            return localized("Screen locked")
+        }
+        if model.pauseReasons.contains(.sleep) {
+            return localized("Display asleep")
+        }
+        return localized("Ready")
     }
 
     private func chooseVideo() {
@@ -137,7 +149,7 @@ struct MenuBarView: View {
         panel.allowedContentTypes = [.mpeg4Movie]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = "Choose an MP4 video for your Lumina wallpaper."
+        panel.message = localized("Choose an MP4 video for your Lumina wallpaper.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             await model.importVideo(from: url)
@@ -146,6 +158,10 @@ struct MenuBarView: View {
 
     private func showSettings() {
         SettingsWindowPresenter.shared.show(model: model)
+    }
+
+    private func localized(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
     }
 }
 

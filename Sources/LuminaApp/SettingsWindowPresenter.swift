@@ -28,7 +28,10 @@ final class SettingsWindowPresenter {
         let window = NSWindow(
             contentViewController: NSHostingController(rootView: rootView)
         )
-        window.title = model.contents.isEmpty ? "Set Up Lumina" : "Lumina Settings"
+        window.title = NSLocalizedString(
+            model.contents.isEmpty ? "Set Up Lumina" : "Lumina Settings",
+            comment: ""
+        )
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 620, height: 520))
         window.isReleasedWhenClosed = false

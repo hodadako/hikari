@@ -37,12 +37,33 @@ final class StoreTests: XCTestCase {
             isMuted: false,
             pauseOnBattery: true,
             launchAtLogin: true,
-            lastKnownScreenSaverInstalled: true
+            lastKnownScreenSaverInstalled: true,
+            appIconStyle: .purple
         )
 
         try store.save(expected)
 
         XCTAssertEqual(store.load(), expected)
+    }
+
+    func testLegacySettingsDefaultToBlueIcon() throws {
+        let container = try SharedContainer(rootURL: temporaryURL)
+        let legacyJSON = """
+        {
+          "isMuted": true,
+          "lastKnownScreenSaverInstalled": false,
+          "launchAtLogin": false,
+          "pauseOnBattery": false,
+          "playbackPreference": "playing",
+          "scalingMode": "fill"
+        }
+        """
+        try Data(legacyJSON.utf8).write(to: container.settingsURL)
+
+        XCTAssertEqual(
+            SettingsStore(container: container).load().appIconStyle,
+            .blue
+        )
     }
 
     func testContentDeleteOnlyRemovesManagedCopy() throws {

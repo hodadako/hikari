@@ -1,5 +1,7 @@
 # Lumina
 
+[English](README.md) | [한국어](README.ko.md)
+
 **Bring your desktop to life.**
 
 Lumina is a native, open-source live wallpaper and screen saver for macOS. Import
