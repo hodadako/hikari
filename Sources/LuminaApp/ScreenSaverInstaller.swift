@@ -1,4 +1,5 @@
 import AppKit
+import CoreFoundation
 import LuminaCore
 
 struct ScreenSaverInstaller {
@@ -14,6 +15,28 @@ struct ScreenSaverInstaller {
         fileManager.fileExists(atPath: installedURL.path)
     }
 
+    var isSelected: Bool {
+        guard
+            let module = currentHostValue(forKey: "moduleDict")
+                as? [String: Any],
+            module["moduleName"] as? String == "Lumina",
+            let path = module["path"] as? String
+        else {
+            return false
+        }
+        return URL(fileURLWithPath: path).standardizedFileURL
+            == installedURL.standardizedFileURL
+    }
+
+    var startDelay: Int {
+        (currentHostValue(forKey: "idleTime") as? NSNumber)?.intValue ?? 0
+    }
+
+    var needsUpdate: Bool {
+        guard isInstalled else { return false }
+        return version(at: installedURL) != bundledScreenSaverURL.flatMap(version(at:))
+    }
+
     func install() throws {
         guard let bundledURL = bundledScreenSaverURL else {
             throw LuminaError.screenSaverBundleMissing
@@ -26,9 +49,27 @@ struct ScreenSaverInstaller {
         try fileManager.copyItem(at: bundledURL, to: installedURL)
     }
 
+    func updateIfNeeded() throws {
+        guard needsUpdate else { return }
+        try install()
+    }
+
+    func startPreview() -> Bool {
+        NSWorkspace.shared.open(
+            URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app")
+        )
+    }
+
     func openSystemSettings() {
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func openLockScreenSettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension"
         ) else { return }
         NSWorkspace.shared.open(url)
     }
@@ -41,5 +82,20 @@ struct ScreenSaverInstaller {
         return candidates.compactMap { $0 }.first {
             fileManager.fileExists(atPath: $0.path)
         }
+    }
+
+    private func version(at url: URL) -> String? {
+        Bundle(url: url)?.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String
+    }
+
+    private func currentHostValue(forKey key: String) -> Any? {
+        CFPreferencesCopyValue(
+            key as CFString,
+            "com.apple.screensaver" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
     }
 }
