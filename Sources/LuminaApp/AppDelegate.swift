@@ -5,7 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var model = AppModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        SettingsWindowPresenter.shared.showOnLaunch(model: model)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            SettingsWindowPresenter.shared.showOnLaunch(model: self.model)
+        }
     }
 
     func applicationShouldHandleReopen(

@@ -21,7 +21,7 @@ struct SettingsView: View {
                 ScreenSaverSettingsView(model: model)
                     .tabItem { Label("Screen Saver", systemImage: "display") }
                     .tag(SettingsSection.screenSaver)
-                AboutView()
+                AboutView(model: model)
                     .tabItem { Label("About", systemImage: "info.circle") }
                     .tag(SettingsSection.about)
             }
@@ -502,12 +502,15 @@ private func localized(_ key: String) -> String {
 }
 
 private struct AboutView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
         VStack(spacing: 14) {
             Spacer()
-            Image(nsImage: NSApplication.shared.applicationIconImage)
-                .resizable()
-                .frame(width: 78, height: 78)
+            LuminaIconPreview(
+                image: model.appIconImage,
+                size: 78
+            )
             Text("Lumina")
                 .font(.title.bold())
             Text("Version \(appVersion)")
