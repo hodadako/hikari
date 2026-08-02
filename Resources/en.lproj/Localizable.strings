@@ -102,3 +102,15 @@
 "The Lock Screen video storage could not be prepared." = "The Lock Screen video storage could not be prepared.";
 "The Lock Screen video could not be synchronized: %@" = "The Lock Screen video could not be synchronized: %@";
 "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute.";
+"Accessibility permission required" = "Accessibility permission required";
+"Active" = "Active";
+"Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically." = "Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically.";
+"Enable" = "Enable";
+"Import an MP4 before using Lumina Lock." = "Import an MP4 before using Lumina Lock.";
+"Lock with Lumina" = "Lock with Lumina";
+"Lumina Lock could not start the screen saver." = "Lumina Lock could not start the screen saver.";
+"Lumina Lock starts the video screen saver immediately. For a secure lock, set Require password after screen saver begins to Immediately. The optional shortcut override needs Accessibility permission." = "Lumina Lock starts the video screen saver immediately. For a secure lock, set Require password after screen saver begins to Immediately. The optional shortcut override needs Accessibility permission.";
+"Lumina will replace the standard Mac lock shortcut while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina will replace the standard Mac lock shortcut while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.";
+"Shortcut Status" = "Shortcut Status";
+"Use Control-Command-Q for Lumina Lock" = "Use Control-Command-Q for Lumina Lock";
+"Use Control-Command-Q for Lumina Lock?" = "Use Control-Command-Q for Lumina Lock?";

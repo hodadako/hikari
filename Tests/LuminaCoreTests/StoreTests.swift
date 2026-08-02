@@ -41,7 +41,8 @@ final class StoreTests: XCTestCase {
             pauseOnBattery: true,
             launchAtLogin: true,
             lastKnownScreenSaverInstalled: true,
-            appIconStyle: .purple
+            appIconStyle: .purple,
+            overrideSystemLockShortcut: true
         )
 
         try store.save(expected)
@@ -66,6 +67,9 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(
             SettingsStore(container: container).load().appIconStyle,
             .blue
+        )
+        XCTAssertFalse(
+            SettingsStore(container: container).load().overrideSystemLockShortcut
         )
     }
 

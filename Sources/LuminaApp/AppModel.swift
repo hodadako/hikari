@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     private let renderer = VideoRenderer()
     private let stateMonitor = SystemStateMonitor()
     private let screenSaverInstaller = ScreenSaverInstaller()
+    private let lockShortcutController = LockShortcutController()
     private lazy var screenSaverContentSynchronizer: ScreenSaverContentSynchronizer? = {
         guard let destination = try? SharedContainer(
             rootURL: screenSaverInstaller.contentContainerURL
@@ -52,6 +53,7 @@ final class AppModel: ObservableObject {
 
         stateMonitor.onStateChanged = { [weak self] in
             self?.reconcilePlayback()
+            self?.refreshLockShortcutIfNeeded()
         }
         stateMonitor.onDisplaysChanged = { [weak self] in
             guard let self else { return }
@@ -86,6 +88,12 @@ final class AppModel: ObservableObject {
         wallpaperController.setScalingMode(settings.scalingMode)
         reconcilePlayback()
         synchronizeScreenSaverContent()
+        lockShortcutController.onShortcut = { [weak self] in
+            Task { @MainActor in
+                self?.lockWithLumina()
+            }
+        }
+        refreshLockShortcutIfNeeded()
         terminationToken = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -127,6 +135,10 @@ final class AppModel: ObservableObject {
 
     var appIconAssetName: String {
         settings.appIconStyle.assetName
+    }
+
+    var isLockShortcutOverrideActive: Bool {
+        lockShortcutController.isActive
     }
 
     func importVideo(from url: URL) async {
@@ -277,6 +289,105 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    func lockWithLumina() {
+        guard isScreenSaverInstalled, isScreenSaverSelected else {
+            presentedError = NSLocalizedString(
+                "Install and select Lumina as your screen saver first.",
+                comment: "Lumina Lock requires the screen saver"
+            )
+            screenSaverInstaller.openSystemSettings()
+            return
+        }
+        guard selectedContent != nil else {
+            presentedError = NSLocalizedString(
+                "Import an MP4 before using Lumina Lock.",
+                comment: "Lumina Lock requires content"
+            )
+            return
+        }
+        guard let synchronizer = screenSaverContentSynchronizer else {
+            presentedError = NSLocalizedString(
+                "The Lock Screen video storage could not be prepared.",
+                comment: "Screen saver content container preparation error"
+            )
+            return
+        }
+        let content = selectedContent
+        let settings = settings
+        screenSaverSyncTask?.cancel()
+        screenSaverSyncTask = Task { [weak self] in
+            do {
+                try await synchronizer.synchronize(
+                    content: content,
+                    settings: settings,
+                    force: true
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                guard let self else { return }
+                self.presentedError = String(
+                    format: NSLocalizedString(
+                        "The Lock Screen video could not be synchronized: %@",
+                        comment: "Screen saver content synchronization error"
+                    ),
+                    error.localizedDescription
+                )
+                return
+            }
+            guard let self, self.screenSaverInstaller.startPreview() else {
+                self?.presentedError = NSLocalizedString(
+                    "Lumina Lock could not start the screen saver.",
+                    comment: "Lumina Lock launch error"
+                )
+                return
+            }
+        }
+    }
+
+    func setLockShortcutOverride(_ enabled: Bool) {
+        if enabled {
+            let alert = NSAlert()
+            alert.messageText = NSLocalizedString(
+                "Use Control-Command-Q for Lumina Lock?",
+                comment: "Lock shortcut override confirmation title"
+            )
+            alert.informativeText = NSLocalizedString(
+                "Lumina will replace the standard Mac lock shortcut while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.",
+                comment: "Lock shortcut override confirmation message"
+            )
+            alert.addButton(withTitle: NSLocalizedString("Enable", comment: "Enable action"))
+            alert.addButton(withTitle: NSLocalizedString("Cancel", comment: "Cancel action"))
+            guard alert.runModal() == .alertFirstButtonReturn else {
+                objectWillChange.send()
+                return
+            }
+        }
+
+        settings.overrideSystemLockShortcut = enabled
+        do {
+            try persistSettings()
+        } catch {
+            presentedError = error.localizedDescription
+        }
+
+        if enabled {
+            let trusted = LockShortcutController.isAccessibilityTrusted
+                || LockShortcutController.requestAccessibilityPermission()
+            if trusted {
+                refreshLockShortcutIfNeeded()
+            } else {
+                presentedError = NSLocalizedString(
+                    "Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically.",
+                    comment: "Accessibility permission instructions"
+                )
+            }
+        } else {
+            lockShortcutController.stop()
+        }
+        objectWillChange.send()
+    }
+
     func previewScreenSaver() {
         guard isScreenSaverInstalled, isScreenSaverSelected else {
             presentedError = NSLocalizedString(
@@ -301,6 +412,7 @@ final class AppModel: ObservableObject {
 
     func shutdown() {
         stateMonitor.stop()
+        lockShortcutController.stop()
         systemWallpaperSynchronizer.cancelPendingWork()
         screenSaverSyncTask?.cancel()
         renderer.stopAndRelease()
@@ -375,6 +487,17 @@ final class AppModel: ObservableObject {
                 )
             }
         }
+    }
+
+    private func refreshLockShortcutIfNeeded() {
+        guard settings.overrideSystemLockShortcut else {
+            lockShortcutController.stop()
+            return
+        }
+        if LockShortcutController.isAccessibilityTrusted {
+            _ = lockShortcutController.start()
+        }
+        objectWillChange.send()
     }
 
     private func synchronizeSystemWallpaper(force: Bool = false) {

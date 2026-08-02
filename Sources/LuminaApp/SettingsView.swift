@@ -379,6 +379,37 @@ private struct ScreenSaverSettingsView: View {
                         || !model.isScreenSaverSelected
                 )
 
+                Toggle(
+                    "Use Control-Command-Q for Lumina Lock",
+                    isOn: Binding(
+                        get: { model.settings.overrideSystemLockShortcut },
+                        set: model.setLockShortcutOverride
+                    )
+                )
+                .disabled(
+                    !model.isScreenSaverInstalled
+                        || !model.isScreenSaverSelected
+                        || model.selectedContent == nil
+                )
+
+                LabeledContent("Shortcut Status") {
+                    Label(
+                        localized(
+                            model.isLockShortcutOverrideActive
+                                ? "Active"
+                                : model.settings.overrideSystemLockShortcut
+                                    ? "Accessibility permission required"
+                                    : "Mac default"
+                        ),
+                        systemImage: model.isLockShortcutOverrideActive
+                            ? "checkmark.circle.fill"
+                            : "keyboard"
+                    )
+                    .foregroundStyle(
+                        model.isLockShortcutOverrideActive ? .green : .secondary
+                    )
+                }
+
                 if model.isScreenSaverInstalled {
                     HStack {
                         Button("Preview Lumina") {
@@ -396,6 +427,10 @@ private struct ScreenSaverSettingsView: View {
 
                         Button("Set Start Time") {
                             model.openLockScreenSettings()
+                        }
+
+                        Button("Lock with Lumina") {
+                            model.lockWithLumina()
                         }
                     }
                 } else {
@@ -415,9 +450,9 @@ private struct ScreenSaverSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "macOS shows the static password screen first. When Lock Screen "
-                            + "playback is enabled, the Lumina screen saver starts after "
-                            + "1 minute. The display sleep time must be longer than 1 minute."
+                        "Lumina Lock starts the video screen saver immediately. For a secure "
+                            + "lock, set Require password after screen saver begins to Immediately. "
+                            + "The optional shortcut override needs Accessibility permission."
                     )
                 )
             }

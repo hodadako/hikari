@@ -24,6 +24,7 @@ Lumina screen saver.
 - Pause and recovery around sleep, screen lock, screen saver, and display changes
 - A separate `.saver` bundle with preview and full-screen playback
 - Optional Lock Screen playback through the Lumina screen saver after 1 minute
+- Immediate Lumina Lock action with an optional Control-Command-Q override
 - Shared atomic JSON storage in `~/Library/Application Support/Lumina`
 
 ## Requirements
