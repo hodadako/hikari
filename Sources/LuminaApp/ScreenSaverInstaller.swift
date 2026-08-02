@@ -5,6 +5,14 @@ import LuminaCore
 struct ScreenSaverInstaller {
     private let fileManager = FileManager.default
 
+    var contentContainerURL: URL {
+        fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(
+                "Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Application Support/Lumina",
+                isDirectory: true
+            )
+    }
+
     var installedURL: URL {
         fileManager.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Screen Savers", isDirectory: true)
@@ -32,6 +40,10 @@ struct ScreenSaverInstaller {
         (currentHostValue(forKey: "idleTime") as? NSNumber)?.intValue ?? 0
     }
 
+    var isLockScreenPlaybackEnabled: Bool {
+        startDelay > 0
+    }
+
     var needsUpdate: Bool {
         guard isInstalled else { return false }
         return version(at: installedURL) != bundledScreenSaverURL.flatMap(version(at:))
@@ -57,6 +69,22 @@ struct ScreenSaverInstaller {
     func startPreview() -> Bool {
         NSWorkspace.shared.open(
             URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app")
+        )
+    }
+
+    func setLockScreenPlaybackEnabled(_ enabled: Bool) -> Bool {
+        let delay = enabled ? 60 : 0
+        CFPreferencesSetValue(
+            "idleTime" as CFString,
+            NSNumber(value: delay),
+            "com.apple.screensaver" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        )
+        return CFPreferencesSynchronize(
+            "com.apple.screensaver" as CFString,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
         )
     }
 

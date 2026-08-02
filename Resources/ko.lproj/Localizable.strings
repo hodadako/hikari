@@ -96,3 +96,9 @@
 "The Lumina screen saver preview could not be opened." = "Lumina 화면 보호기 미리보기를 열 수 없습니다.";
 "Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep." = "투명 메뉴 막대와 잠금 화면이 영상과 어울리도록 Lumina가 대표 프레임을 macOS 배경화면에 동기화합니다. Mac이 잠기거나 잠자기 상태일 때 영상 재생은 일시정지합니다.";
 "The menu bar background could not be updated: %@" = "메뉴 막대 배경을 업데이트할 수 없습니다: %@";
+"Install and select Lumina as your screen saver first." = "먼저 Lumina 화면 보호기를 설치하고 선택하세요.";
+"Play video on Lock Screen" = "잠금 화면에서 영상 재생";
+"The Lock Screen playback setting could not be updated." = "잠금 화면 재생 설정을 변경할 수 없습니다.";
+"The Lock Screen video storage could not be prepared." = "잠금 화면 영상 저장소를 준비할 수 없습니다.";
+"The Lock Screen video could not be synchronized: %@" = "잠금 화면 영상을 동기화할 수 없습니다: %@";
+"macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS는 먼저 정지된 암호 화면을 표시합니다. 잠금 화면 재생을 켜면 1분 후 Lumina 화면 보호기가 시작됩니다. 디스플레이 끄기 시간은 1분보다 길어야 합니다.";
