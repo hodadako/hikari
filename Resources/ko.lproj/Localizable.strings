@@ -114,3 +114,12 @@
 "Shortcut Status" = "단축키 상태";
 "Use Control-Command-Q for Lumina Lock" = "Control-Command-Q를 Lumina 잠금에 사용";
 "Use Control-Command-Q for Lumina Lock?" = "Control-Command-Q를 Lumina 잠금에 사용할까요?";
+"Choose a preset or import your own image. Your choice is used by Lumina while it is running and in the menu bar. Finder and Spotlight keep the signed Blue icon." = "기본 아이콘을 선택하거나 원하는 이미지를 가져오세요. 선택한 아이콘은 Lumina 실행 중과 메뉴 막대에 적용됩니다. Finder와 Spotlight에는 앱 서명을 유지하기 위해 블루 아이콘이 표시됩니다.";
+"Choose an image for your custom Lumina icon." = "사용자 지정 Lumina 아이콘으로 사용할 이미지를 선택하세요.";
+"Control Command Q" = "Control Command Q";
+"Custom" = "사용자 지정";
+"The custom icon could not be prepared." = "사용자 지정 아이콘을 준비할 수 없습니다.";
+"The selected custom icon could not be read." = "선택한 사용자 지정 아이콘을 읽을 수 없습니다.";
+"Use ^ + Command + Q for Lumina Lock?" = "^ + Command + Q를 Lumina 잠금에 사용할까요?";
+"Use shortcut for Lumina Lock" = "단축키를 Lumina 잠금에 사용";
+"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina가 실행 중일 때 Mac의 기본 잠금 단축키(^ + Command + Q)를 대신합니다. 손쉬운 사용 권한이 필요하며, Lumina가 실행 중이 아니면 기본 단축키가 정상 작동합니다.";

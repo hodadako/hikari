@@ -114,3 +114,12 @@
 "Shortcut Status" = "Shortcut Status";
 "Use Control-Command-Q for Lumina Lock" = "Use Control-Command-Q for Lumina Lock";
 "Use Control-Command-Q for Lumina Lock?" = "Use Control-Command-Q for Lumina Lock?";
+"Choose a preset or import your own image. Your choice is used by Lumina while it is running and in the menu bar. Finder and Spotlight keep the signed Blue icon." = "Choose a preset or import your own image. Your choice is used by Lumina while it is running and in the menu bar. Finder and Spotlight keep the signed Blue icon.";
+"Choose an image for your custom Lumina icon." = "Choose an image for your custom Lumina icon.";
+"Control Command Q" = "Control Command Q";
+"Custom" = "Custom";
+"The custom icon could not be prepared." = "The custom icon could not be prepared.";
+"The selected custom icon could not be read." = "The selected custom icon could not be read.";
+"Use ^ + Command + Q for Lumina Lock?" = "Use ^ + Command + Q for Lumina Lock?";
+"Use shortcut for Lumina Lock" = "Use shortcut for Lumina Lock";
+"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.";
