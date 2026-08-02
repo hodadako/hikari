@@ -20,6 +20,9 @@ final class AppModel: ObservableObject {
     private let stateMonitor = SystemStateMonitor()
     private let screenSaverInstaller = ScreenSaverInstaller()
     private lazy var wallpaperController = WallpaperController(renderer: renderer)
+    private lazy var systemWallpaperSynchronizer = SystemWallpaperSynchronizer(
+        container: container
+    )
     private var terminationToken: NSObjectProtocol?
 
     init() {
@@ -43,6 +46,14 @@ final class AppModel: ObservableObject {
             self.wallpaperController.rebuildWindowsIfContentAvailable(
                 self.hasPlayableContent
             )
+            self.synchronizeSystemWallpaper(force: true)
+        }
+        stateMonitor.onActiveSpaceChanged = { [weak self] in
+            guard let self else { return }
+            self.wallpaperController.rebuildWindowsIfContentAvailable(
+                self.hasPlayableContent
+            )
+            self.synchronizeSystemWallpaper(force: true)
         }
         stateMonitor.start()
         do {
@@ -244,6 +255,7 @@ final class AppModel: ObservableObject {
 
     func shutdown() {
         stateMonitor.stop()
+        systemWallpaperSynchronizer.cancelPendingWork()
         renderer.stopAndRelease()
         wallpaperController.closeWindows()
     }
@@ -259,6 +271,7 @@ final class AppModel: ObservableObject {
         let hasContent = hasPlayableContent
 
         wallpaperController.setContentAvailable(hasContent)
+        synchronizeSystemWallpaper()
 
         if let mediaURL, hasContent {
             renderer.load(url: mediaURL, muted: settings.isMuted)
@@ -282,6 +295,24 @@ final class AppModel: ObservableObject {
             renderer.pause()
         }
         objectWillChange.send()
+    }
+
+    private func synchronizeSystemWallpaper(force: Bool = false) {
+        systemWallpaperSynchronizer.synchronize(
+            content: selectedContent,
+            mediaURL: selectedMediaURL,
+            thumbnailURL: selectedContent.flatMap(container.thumbnailURL(for:)),
+            scalingMode: settings.scalingMode,
+            force: force
+        ) { [weak self] error in
+            self?.presentedError = String(
+                format: NSLocalizedString(
+                    "The menu bar background could not be updated: %@",
+                    comment: "System wallpaper synchronization error"
+                ),
+                error.localizedDescription
+            )
+        }
     }
 
     private var hasPlayableContent: Bool {

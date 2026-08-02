@@ -38,7 +38,7 @@ final class WallpaperController {
                 screen: screen
             )
             window.level = NSWindow.Level(
-                rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1
+                rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) - 1
             )
             window.collectionBehavior = [
                 .canJoinAllSpaces,

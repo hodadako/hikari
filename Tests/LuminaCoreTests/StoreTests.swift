@@ -24,6 +24,9 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: container.thumbnailsDirectoryURL.path)
         )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: container.desktopPostersDirectoryURL.path)
+        )
     }
 
     func testSettingsRoundTrip() throws {
@@ -87,6 +90,9 @@ final class StoreTests: XCTestCase {
         if let thumbnailURL = container.thumbnailURL(for: content) {
             try Data("thumbnail".utf8).write(to: thumbnailURL)
         }
+        try Data("poster".utf8).write(
+            to: container.desktopPosterURL(for: content)
+        )
         try store.save([content])
 
         let updated = try store.delete(content, from: [content])
@@ -95,6 +101,11 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: originalURL.path))
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: container.mediaURL(for: content).path)
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: container.desktopPosterURL(for: content).path
+            )
         )
         try? FileManager.default.removeItem(at: originalURL)
     }

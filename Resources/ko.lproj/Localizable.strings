@@ -94,3 +94,5 @@
 "Set Start Time" = "시작 시간 설정";
 "The Lumina screen saver could not be updated: %@" = "Lumina 화면 보호기를 업데이트할 수 없습니다: %@";
 "The Lumina screen saver preview could not be opened." = "Lumina 화면 보호기 미리보기를 열 수 없습니다.";
+"Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep." = "투명 메뉴 막대와 잠금 화면이 영상과 어울리도록 Lumina가 대표 프레임을 macOS 배경화면에 동기화합니다. Mac이 잠기거나 잠자기 상태일 때 영상 재생은 일시정지합니다.";
+"The menu bar background could not be updated: %@" = "메뉴 막대 배경을 업데이트할 수 없습니다: %@";

@@ -6,6 +6,7 @@ import LuminaCore
 final class SystemStateMonitor {
     var onStateChanged: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
+    var onActiveSpaceChanged: (() -> Void)?
 
     private(set) var isSleeping = false
     private(set) var isScreenLocked = false
@@ -35,6 +36,9 @@ final class SystemStateMonitor {
             self?.isSleeping = false
             self?.isScreenSaverRunning = false
             self?.notifyStateChanged()
+        }
+        observe(workspaceCenter, name: NSWorkspace.activeSpaceDidChangeNotification) { [weak self] in
+            self?.onActiveSpaceChanged?()
         }
 
         let defaultCenter = NotificationCenter.default

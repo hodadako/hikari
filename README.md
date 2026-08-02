@@ -17,6 +17,7 @@ Lumina screen saver.
   thumbnail generation
 - Low-overhead looping playback with `AVQueuePlayer` and `AVPlayerLooper`
 - Borderless wallpaper windows across all Spaces and connected displays
+- A synchronized still frame for the translucent menu bar and Lock Screen
 - Fill and Fit scaling
 - Menu bar playback and content controls
 - Native settings for mute, battery pause, launch at login, and library management
