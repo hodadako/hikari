@@ -66,6 +66,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var launchAtLogin: Bool
     public var lastKnownScreenSaverInstalled: Bool
     public var appIconStyle: AppIconStyle
+    public var overrideSystemLockShortcut: Bool
 
     public init(
         selectedContentID: UUID? = nil,
@@ -75,7 +76,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         pauseOnBattery: Bool = false,
         launchAtLogin: Bool = false,
         lastKnownScreenSaverInstalled: Bool = false,
-        appIconStyle: AppIconStyle = .blue
+        appIconStyle: AppIconStyle = .blue,
+        overrideSystemLockShortcut: Bool = false
     ) {
         self.selectedContentID = selectedContentID
         self.playbackPreference = playbackPreference
@@ -85,6 +87,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         self.launchAtLogin = launchAtLogin
         self.lastKnownScreenSaverInstalled = lastKnownScreenSaverInstalled
         self.appIconStyle = appIconStyle
+        self.overrideSystemLockShortcut = overrideSystemLockShortcut
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -96,6 +99,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         case launchAtLogin
         case lastKnownScreenSaverInstalled
         case appIconStyle
+        case overrideSystemLockShortcut
     }
 
     public init(from decoder: Decoder) throws {
@@ -129,6 +133,10 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
             AppIconStyle.self,
             forKey: .appIconStyle
         ) ?? .blue
+        overrideSystemLockShortcut = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .overrideSystemLockShortcut
+        ) ?? false
     }
 }
 

@@ -102,3 +102,15 @@
 "The Lock Screen video storage could not be prepared." = "잠금 화면 영상 저장소를 준비할 수 없습니다.";
 "The Lock Screen video could not be synchronized: %@" = "잠금 화면 영상을 동기화할 수 없습니다: %@";
 "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS는 먼저 정지된 암호 화면을 표시합니다. 잠금 화면 재생을 켜면 1분 후 Lumina 화면 보호기가 시작됩니다. 디스플레이 끄기 시간은 1분보다 길어야 합니다.";
+"Accessibility permission required" = "손쉬운 사용 권한 필요";
+"Active" = "활성";
+"Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically." = "개인정보 보호 및 보안 > 손쉬운 사용에서 Lumina를 허용한 뒤 Lumina로 돌아오세요. 단축키가 자동으로 활성화됩니다.";
+"Enable" = "활성화";
+"Import an MP4 before using Lumina Lock." = "Lumina 잠금을 사용하기 전에 MP4를 가져오세요.";
+"Lock with Lumina" = "Lumina로 잠그기";
+"Lumina Lock could not start the screen saver." = "Lumina 잠금이 화면 보호기를 시작하지 못했습니다.";
+"Lumina Lock starts the video screen saver immediately. For a secure lock, set Require password after screen saver begins to Immediately. The optional shortcut override needs Accessibility permission." = "Lumina 잠금은 영상 화면 보호기를 즉시 시작합니다. 안전하게 잠그려면 화면 보호기 시작 후 암호 요구를 즉시로 설정하세요. 선택형 단축키 재정의에는 손쉬운 사용 권한이 필요합니다.";
+"Lumina will replace the standard Mac lock shortcut while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina가 실행 중일 때 Mac의 기본 잠금 단축키를 대신합니다. 손쉬운 사용 권한이 필요하며, Lumina가 실행 중이 아니면 기본 단축키가 정상 작동합니다.";
+"Shortcut Status" = "단축키 상태";
+"Use Control-Command-Q for Lumina Lock" = "Control-Command-Q를 Lumina 잠금에 사용";
+"Use Control-Command-Q for Lumina Lock?" = "Control-Command-Q를 Lumina 잠금에 사용할까요?";

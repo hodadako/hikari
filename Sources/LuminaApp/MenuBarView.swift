@@ -88,6 +88,18 @@ struct MenuBarView: View {
                     || model.selectedContent == nil
             )
 
+            Button {
+                model.lockWithLumina()
+            } label: {
+                Label("Lock with Lumina", systemImage: "lock.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(
+                !model.isScreenSaverInstalled
+                    || !model.isScreenSaverSelected
+                    || model.selectedContent == nil
+            )
+
             Divider()
             Button {
                 model.shutdown()
