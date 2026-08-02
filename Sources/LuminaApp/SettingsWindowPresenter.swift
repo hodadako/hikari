@@ -19,6 +19,9 @@ final class SettingsWindowPresenter {
     func show(model: AppModel) {
         if let window = windowController?.window {
             NSApplication.shared.activate(ignoringOtherApps: true)
+            if window.isMiniaturized {
+                window.deminiaturize(nil)
+            }
             window.makeKeyAndOrderFront(nil)
             return
         }
@@ -32,9 +35,10 @@ final class SettingsWindowPresenter {
             model.contents.isEmpty ? "Set Up Lumina" : "Lumina Settings",
             comment: ""
         )
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.styleMask = [.titled, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 620, height: 520))
         window.isReleasedWhenClosed = false
+        window.collectionBehavior.insert(.moveToActiveSpace)
         window.center()
 
         let controller = NSWindowController(window: window)
