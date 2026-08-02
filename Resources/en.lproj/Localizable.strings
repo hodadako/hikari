@@ -96,3 +96,9 @@
 "The Lumina screen saver preview could not be opened." = "The Lumina screen saver preview could not be opened.";
 "Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep." = "Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep.";
 "The menu bar background could not be updated: %@" = "The menu bar background could not be updated: %@";
+"Install and select Lumina as your screen saver first." = "Install and select Lumina as your screen saver first.";
+"Play video on Lock Screen" = "Play video on Lock Screen";
+"The Lock Screen playback setting could not be updated." = "The Lock Screen playback setting could not be updated.";
+"The Lock Screen video storage could not be prepared." = "The Lock Screen video storage could not be prepared.";
+"The Lock Screen video could not be synchronized: %@" = "The Lock Screen video could not be synchronized: %@";
+"macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute.";

@@ -367,6 +367,18 @@ private struct ScreenSaverSettingsView: View {
                     )
                 }
 
+                Toggle(
+                    "Play video on Lock Screen",
+                    isOn: Binding(
+                        get: { model.isLockScreenPlaybackEnabled },
+                        set: model.setLockScreenPlayback
+                    )
+                )
+                .disabled(
+                    !model.isScreenSaverInstalled
+                        || !model.isScreenSaverSelected
+                )
+
                 if model.isScreenSaverInstalled {
                     HStack {
                         Button("Preview Lumina") {
@@ -403,9 +415,9 @@ private struct ScreenSaverSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "Lumina updates its installed screen saver automatically. "
-                            + "If Automatic Start is Never, macOS continues to show "
-                            + "the existing Lock Screen background."
+                        "macOS shows the static password screen first. When Lock Screen "
+                            + "playback is enabled, the Lumina screen saver starts after "
+                            + "1 minute. The display sleep time must be longer than 1 minute."
                     )
                 )
             }

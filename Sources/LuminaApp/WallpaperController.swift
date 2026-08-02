@@ -28,6 +28,20 @@ final class WallpaperController {
         rebuildWindows()
     }
 
+    func refreshWindowsForActiveSpaceIfContentAvailable(_ isAvailable: Bool) {
+        guard isAvailable else {
+            closeWindows()
+            return
+        }
+        if windows.isEmpty {
+            rebuildWindows()
+            return
+        }
+        for window in windows {
+            window.orderFrontRegardless()
+        }
+    }
+
     private func rebuildWindows() {
         windows = NSScreen.screens.map { screen in
             let window = NSWindow(

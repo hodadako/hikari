@@ -23,6 +23,7 @@ Lumina screen saver.
 - Native settings for mute, battery pause, launch at login, and library management
 - Pause and recovery around sleep, screen lock, screen saver, and display changes
 - A separate `.saver` bundle with preview and full-screen playback
+- Optional Lock Screen playback through the Lumina screen saver after 1 minute
 - Shared atomic JSON storage in `~/Library/Application Support/Lumina`
 
 ## Requirements
