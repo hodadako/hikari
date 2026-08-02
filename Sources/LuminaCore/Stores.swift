@@ -58,12 +58,16 @@ public final class ContentStore {
         let fileManager = FileManager.default
         let mediaURL = container.mediaURL(for: content)
         let thumbnailURL = container.thumbnailURL(for: content)
+        let desktopPosterURL = container.desktopPosterURL(for: content)
 
         if fileManager.fileExists(atPath: mediaURL.path) {
             try fileManager.removeItem(at: mediaURL)
         }
         if let thumbnailURL, fileManager.fileExists(atPath: thumbnailURL.path) {
             try fileManager.removeItem(at: thumbnailURL)
+        }
+        if fileManager.fileExists(atPath: desktopPosterURL.path) {
+            try fileManager.removeItem(at: desktopPosterURL)
         }
         try save(updated)
         return updated

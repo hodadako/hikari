@@ -149,7 +149,13 @@ private struct GeneralSettingsView: View {
             } header: {
                 Text("Playback")
             } footer: {
-                Text("Lumina always pauses while the Mac is locked or asleep.")
+                Text(
+                    localized(
+                        "Lumina syncs a still frame to the macOS wallpaper so the "
+                            + "translucent menu bar and Lock Screen match the video. "
+                            + "Playback still pauses while the Mac is locked or asleep."
+                    )
+                )
             }
         }
         .formStyle(.grouped)
