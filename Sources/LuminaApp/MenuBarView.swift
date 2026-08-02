@@ -56,7 +56,11 @@ struct MenuBarView: View {
             }
 
             Button {
-                model.openScreenSaverSettings()
+                if model.isScreenSaverInstalled {
+                    model.openScreenSaverSettings()
+                } else {
+                    model.installScreenSaver()
+                }
             } label: {
                 Label(
                     localized(
@@ -68,6 +72,21 @@ struct MenuBarView: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            Button {
+                model.previewScreenSaver()
+            } label: {
+                Label(
+                    "Preview Lumina Screen Saver",
+                    systemImage: "play.rectangle.on.rectangle"
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(
+                !model.isScreenSaverInstalled
+                    || !model.isScreenSaverSelected
+                    || model.selectedContent == nil
+            )
 
             Divider()
             Button {

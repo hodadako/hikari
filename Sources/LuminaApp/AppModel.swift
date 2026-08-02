@@ -45,6 +45,17 @@ final class AppModel: ObservableObject {
             )
         }
         stateMonitor.start()
+        do {
+            try screenSaverInstaller.updateIfNeeded()
+        } catch {
+            presentedError = String(
+                format: NSLocalizedString(
+                    "The Lumina screen saver could not be updated: %@",
+                    comment: "Screen saver automatic update error"
+                ),
+                error.localizedDescription
+            )
+        }
         settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
@@ -76,6 +87,14 @@ final class AppModel: ObservableObject {
 
     var isScreenSaverInstalled: Bool {
         screenSaverInstaller.isInstalled
+    }
+
+    var isScreenSaverSelected: Bool {
+        screenSaverInstaller.isSelected
+    }
+
+    var screenSaverStartDelay: Int {
+        screenSaverInstaller.startDelay
     }
 
     var appIconAssetName: String {
@@ -195,6 +214,28 @@ final class AppModel: ObservableObject {
 
     func openScreenSaverSettings() {
         screenSaverInstaller.openSystemSettings()
+    }
+
+    func openLockScreenSettings() {
+        screenSaverInstaller.openLockScreenSettings()
+    }
+
+    func previewScreenSaver() {
+        guard isScreenSaverInstalled, isScreenSaverSelected else {
+            presentedError = NSLocalizedString(
+                "Select Lumina as your screen saver in System Settings first.",
+                comment: "Screen saver preview requires selection"
+            )
+            screenSaverInstaller.openSystemSettings()
+            return
+        }
+        guard screenSaverInstaller.startPreview() else {
+            presentedError = NSLocalizedString(
+                "The Lumina screen saver preview could not be opened.",
+                comment: "Screen saver preview launch error"
+            )
+            return
+        }
     }
 
     func thumbnailURL(for content: LiveContent) -> URL? {

@@ -323,51 +323,68 @@ private struct ScreenSaverSettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Status") {
+                LabeledContent("Installation") {
                     Label(
-                        localized(
-                            model.isScreenSaverInstalled
-                                ? "Installed — selection required"
-                                : "Not installed"
-                        ),
+                        localized(model.isScreenSaverInstalled ? "Installed" : "Not installed"),
                         systemImage: model.isScreenSaverInstalled
-                            ? "exclamationmark.circle.fill"
+                            ? "checkmark.circle.fill"
                             : "exclamationmark.circle"
                     )
-                    .foregroundStyle(model.isScreenSaverInstalled ? .orange : .secondary)
+                    .foregroundStyle(model.isScreenSaverInstalled ? .green : .secondary)
+                }
+
+                LabeledContent("Selected Screen Saver") {
+                    Label(
+                        localized(
+                            model.isScreenSaverSelected
+                                ? "Lumina"
+                                : "Mac default"
+                        ),
+                        systemImage: model.isScreenSaverSelected
+                            ? "checkmark.circle.fill"
+                            : "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(model.isScreenSaverSelected ? .green : .orange)
+                }
+
+                LabeledContent("Automatic Start") {
+                    Label(
+                        startDelayText,
+                        systemImage: model.screenSaverStartDelay > 0
+                            ? "timer"
+                            : "timer.square"
+                    )
+                    .foregroundStyle(
+                        model.screenSaverStartDelay > 0
+                            ? Color.primary
+                            : Color.orange
+                    )
                 }
 
                 if model.isScreenSaverInstalled {
-                    VStack(alignment: .leading, spacing: 12) {
-                        setupStep(
-                            number: 1,
-                            title: "Open System Settings",
-                            detail: "Lumina opens the macOS Screen Saver panel."
+                    HStack {
+                        Button("Preview Lumina") {
+                            model.previewScreenSaver()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            !model.isScreenSaverSelected
+                                || model.selectedContent == nil
                         )
-                        setupStep(
-                            number: 2,
-                            title: "Select Lumina",
-                            detail: "Choose Lumina under Custom or Other."
-                        )
-                        setupStep(
-                            number: 3,
-                            title: "Set the start time",
-                            detail: "In Lock Screen settings, allow the screen saver "
-                                + "to start before the display turns off."
-                        )
-                    }
-                    .padding(.vertical, 6)
 
-                    Button("Choose Lumina in System Settings") {
-                        model.openScreenSaverSettings()
+                        Button("Choose Screen Saver") {
+                            model.openScreenSaverSettings()
+                        }
+
+                        Button("Set Start Time") {
+                            model.openLockScreenSettings()
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
                 } else {
-                    Button(
-                        "Install Screen Saver"
-                    ) {
+                    Button("Install Screen Saver") {
                         model.installScreenSaver()
                     }
+                    .buttonStyle(.borderedProminent)
                 }
 
                 if model.isScreenSaverInstalled {
@@ -380,9 +397,9 @@ private struct ScreenSaverSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "macOS requires you to confirm the screen saver selection. "
-                            + "Immediately after locking, the existing Lock Screen "
-                            + "background may remain visible until the screen saver starts."
+                        "Lumina updates its installed screen saver automatically. "
+                            + "If Automatic Start is Never, macOS continues to show "
+                            + "the existing Lock Screen background."
                     )
                 )
             }
@@ -390,25 +407,17 @@ private struct ScreenSaverSettingsView: View {
         .formStyle(.grouped)
     }
 
-    private func setupStep(
-        number: Int,
-        title: String,
-        detail: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text("\(number)")
-                .font(.caption.bold())
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(.tint, in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(localized(title))
-                    .font(.headline)
-                Text(localized(detail))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    private var startDelayText: String {
+        guard model.screenSaverStartDelay > 0 else {
+            return localized("Never")
         }
+        return String(
+            format: NSLocalizedString(
+                "After %d minutes",
+                comment: "Screen saver automatic start delay"
+            ),
+            max(1, model.screenSaverStartDelay / 60)
+        )
     }
 }
 
