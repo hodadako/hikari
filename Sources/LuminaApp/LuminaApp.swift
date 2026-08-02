@@ -4,25 +4,25 @@ import SwiftUI
 @main
 struct LuminaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = AppModel()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarView(model: model)
+            MenuBarView(model: appDelegate.model)
         } label: {
-            LuminaIconPreview(
-                image: model.appIconImage,
-                size: 18
-            )
-                .accessibilityLabel("Lumina")
-                .onAppear {
-                    DispatchQueue.main.async {
-                        appDelegate.model = model
-                        SettingsWindowPresenter.shared
-                            .showOnLaunch(model: model)
-                    }
-                }
+            MenuBarIconView(model: appDelegate.model)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+private struct MenuBarIconView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        LuminaIconPreview(
+            image: model.appIconImage,
+            size: 18
+        )
+        .accessibilityLabel("Lumina")
     }
 }
