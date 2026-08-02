@@ -91,7 +91,11 @@ struct MenuBarView: View {
             Button {
                 model.lockWithLumina()
             } label: {
-                Label("Lock with Lumina", systemImage: "lock.fill")
+                HStack {
+                    Label("Lock with Lumina", systemImage: "lock.fill")
+                    Spacer()
+                    ShortcutKeyCapsView(compact: true)
+                }
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .disabled(

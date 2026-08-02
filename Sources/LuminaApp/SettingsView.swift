@@ -1,6 +1,7 @@
 import AppKit
 import LuminaCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
@@ -53,9 +54,10 @@ private struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            Image(model.appIconAssetName)
-                .resizable()
-                .frame(width: 82, height: 82)
+            LuminaIconPreview(
+                image: model.appIconImage,
+                size: 82
+            )
             VStack(spacing: 8) {
                 Text("Welcome to Lumina")
                     .font(.largeTitle.bold())
@@ -172,12 +174,17 @@ private struct AppearanceSettingsView: View {
                 HStack(spacing: 16) {
                     ForEach(AppIconStyle.allCases) { style in
                         Button {
-                            model.setAppIconStyle(style)
+                            if style == .custom {
+                                chooseCustomIcon()
+                            } else {
+                                model.setAppIconStyle(style)
+                            }
                         } label: {
                             VStack(spacing: 8) {
-                                Image(style.assetName)
-                                    .resizable()
-                                    .frame(width: 64, height: 64)
+                                LuminaIconPreview(
+                                    image: model.appIconImage(for: style),
+                                    size: 64
+                                )
                                 Text(style.localizedName)
                                     .font(.caption)
                             }
@@ -212,8 +219,9 @@ private struct AppearanceSettingsView: View {
                 }
                 Text(
                     localized(
-                        "Blue remains the Finder icon. Your choice is used by Lumina "
-                            + "while it is running and in the menu bar."
+                        "Choose a preset or import your own image. Your choice is used "
+                            + "by Lumina while it is running and in the menu bar. Finder "
+                            + "and Spotlight keep the signed Blue icon."
                     )
                 )
                 .font(.caption)
@@ -317,6 +325,16 @@ private struct AppearanceSettingsView: View {
         }
     }
 
+    private func chooseCustomIcon() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = localized("Choose an image for your custom Lumina icon.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        model.importCustomAppIcon(from: url)
+    }
+
     private func durationText(_ duration: Double) -> String {
         let seconds = Int(duration.rounded())
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
@@ -380,12 +398,17 @@ private struct ScreenSaverSettingsView: View {
                 )
 
                 Toggle(
-                    "Use Control-Command-Q for Lumina Lock",
                     isOn: Binding(
                         get: { model.settings.overrideSystemLockShortcut },
                         set: model.setLockShortcutOverride
                     )
-                )
+                ) {
+                    HStack {
+                        Text("Use shortcut for Lumina Lock")
+                        Spacer()
+                        ShortcutKeyCapsView()
+                    }
+                }
                 .disabled(
                     !model.isScreenSaverInstalled
                         || !model.isScreenSaverSelected

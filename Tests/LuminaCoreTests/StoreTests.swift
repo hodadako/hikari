@@ -27,6 +27,10 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: container.desktopPostersDirectoryURL.path)
         )
+        XCTAssertEqual(
+            container.customAppIconURL.lastPathComponent,
+            "CustomAppIcon.png"
+        )
     }
 
     func testSettingsRoundTrip() throws {
@@ -41,7 +45,8 @@ final class StoreTests: XCTestCase {
             pauseOnBattery: true,
             launchAtLogin: true,
             lastKnownScreenSaverInstalled: true,
-            appIconStyle: .purple,
+            appIconStyle: .custom,
+            customAppIconRelativePath: "CustomAppIcon.png",
             overrideSystemLockShortcut: true
         )
 
@@ -64,13 +69,10 @@ final class StoreTests: XCTestCase {
         """
         try Data(legacyJSON.utf8).write(to: container.settingsURL)
 
-        XCTAssertEqual(
-            SettingsStore(container: container).load().appIconStyle,
-            .blue
-        )
-        XCTAssertFalse(
-            SettingsStore(container: container).load().overrideSystemLockShortcut
-        )
+        let settings = SettingsStore(container: container).load()
+        XCTAssertEqual(settings.appIconStyle, .blue)
+        XCTAssertNil(settings.customAppIconRelativePath)
+        XCTAssertFalse(settings.overrideSystemLockShortcut)
     }
 
     func testContentDeleteOnlyRemovesManagedCopy() throws {

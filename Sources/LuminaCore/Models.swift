@@ -53,6 +53,7 @@ public enum AppIconStyle: String, Codable, CaseIterable, Identifiable, Sendable 
     case blue
     case pink
     case purple
+    case custom
 
     public var id: String { rawValue }
 }
@@ -66,6 +67,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var launchAtLogin: Bool
     public var lastKnownScreenSaverInstalled: Bool
     public var appIconStyle: AppIconStyle
+    public var customAppIconRelativePath: String?
     public var overrideSystemLockShortcut: Bool
 
     public init(
@@ -77,6 +79,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         launchAtLogin: Bool = false,
         lastKnownScreenSaverInstalled: Bool = false,
         appIconStyle: AppIconStyle = .blue,
+        customAppIconRelativePath: String? = nil,
         overrideSystemLockShortcut: Bool = false
     ) {
         self.selectedContentID = selectedContentID
@@ -87,6 +90,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         self.launchAtLogin = launchAtLogin
         self.lastKnownScreenSaverInstalled = lastKnownScreenSaverInstalled
         self.appIconStyle = appIconStyle
+        self.customAppIconRelativePath = customAppIconRelativePath
         self.overrideSystemLockShortcut = overrideSystemLockShortcut
     }
 
@@ -99,6 +103,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         case launchAtLogin
         case lastKnownScreenSaverInstalled
         case appIconStyle
+        case customAppIconRelativePath
         case overrideSystemLockShortcut
     }
 
@@ -133,6 +138,10 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
             AppIconStyle.self,
             forKey: .appIconStyle
         ) ?? .blue
+        customAppIconRelativePath = try values.decodeIfPresent(
+            String.self,
+            forKey: .customAppIconRelativePath
+        )
         overrideSystemLockShortcut = try values.decodeIfPresent(
             Bool.self,
             forKey: .overrideSystemLockShortcut

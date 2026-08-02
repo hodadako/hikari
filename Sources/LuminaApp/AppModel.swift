@@ -20,6 +20,7 @@ final class AppModel: ObservableObject {
     private let stateMonitor = SystemStateMonitor()
     private let screenSaverInstaller = ScreenSaverInstaller()
     private let lockShortcutController = LockShortcutController()
+    private lazy var customAppIconStore = CustomAppIconStore(container: container)
     private lazy var screenSaverContentSynchronizer: ScreenSaverContentSynchronizer? = {
         guard let destination = try? SharedContainer(
             rootURL: screenSaverInstaller.contentContainerURL
@@ -133,8 +134,10 @@ final class AppModel: ObservableObject {
         screenSaverInstaller.isLockScreenPlaybackEnabled
     }
 
-    var appIconAssetName: String {
-        settings.appIconStyle.assetName
+    var appIconImage: NSImage {
+        appIconImage(for: settings.appIconStyle)
+            ?? NSImage(named: "LuminaIconBlue")
+            ?? NSApplication.shared.applicationIconImage
     }
 
     var isLockShortcutOverrideActive: Bool {
@@ -201,6 +204,11 @@ final class AppModel: ObservableObject {
     }
 
     func setAppIconStyle(_ style: AppIconStyle) {
+        guard style != .custom || customAppIconStore.image(
+            relativePath: settings.customAppIconRelativePath
+        ) != nil else {
+            return
+        }
         settings.appIconStyle = style
         applyApplicationIcon()
         do {
@@ -209,6 +217,34 @@ final class AppModel: ObservableObject {
             presentedError = error.localizedDescription
         }
         objectWillChange.send()
+    }
+
+    func importCustomAppIcon(from url: URL) {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            settings.customAppIconRelativePath = try customAppIconStore.importIcon(
+                from: url
+            )
+            settings.appIconStyle = .custom
+            try persistSettings()
+            applyApplicationIcon()
+            objectWillChange.send()
+        } catch {
+            presentedError = error.localizedDescription
+        }
+    }
+
+    func appIconImage(for style: AppIconStyle) -> NSImage? {
+        if style == .custom {
+            return customAppIconStore.image(
+                relativePath: settings.customAppIconRelativePath
+            )
+        }
+        guard let assetName = style.assetName else { return nil }
+        return NSImage(named: assetName)
     }
 
     func setMuted(_ muted: Bool) {
@@ -349,11 +385,11 @@ final class AppModel: ObservableObject {
         if enabled {
             let alert = NSAlert()
             alert.messageText = NSLocalizedString(
-                "Use Control-Command-Q for Lumina Lock?",
+                "Use ^ + Command + Q for Lumina Lock?",
                 comment: "Lock shortcut override confirmation title"
             )
             alert.informativeText = NSLocalizedString(
-                "Lumina will replace the standard Mac lock shortcut while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.",
+                "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.",
                 comment: "Lock shortcut override confirmation message"
             )
             alert.addButton(withTitle: NSLocalizedString("Enable", comment: "Enable action"))
@@ -538,8 +574,6 @@ final class AppModel: ObservableObject {
     }
 
     private func applyApplicationIcon() {
-        NSApplication.shared.applicationIconImage = NSImage(
-            named: settings.appIconStyle.assetName
-        )
+        NSApplication.shared.applicationIconImage = appIconImage
     }
 }
