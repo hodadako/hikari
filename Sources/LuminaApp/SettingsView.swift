@@ -8,6 +8,26 @@ struct SettingsView: View {
     @State private var selection: SettingsSection = .general
 
     var body: some View {
+        VStack(spacing: 0) {
+            settingsContent
+            Divider()
+            HStack {
+                Spacer()
+                Button(role: .destructive) {
+                    model.shutdown()
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Label("Quit Lumina", systemImage: "power")
+                }
+                .keyboardShortcut("q")
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder
+    private var settingsContent: some View {
         if model.contents.isEmpty {
             WelcomeView(model: model)
         } else {

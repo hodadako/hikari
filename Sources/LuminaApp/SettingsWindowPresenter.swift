@@ -35,7 +35,7 @@ final class SettingsWindowPresenter {
             model.contents.isEmpty ? "Set Up Lumina" : "Lumina Settings",
             comment: ""
         )
-        window.styleMask = [.titled, .miniaturizable, .resizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 620, height: 520))
         window.isReleasedWhenClosed = false
         window.collectionBehavior.insert(.moveToActiveSpace)
