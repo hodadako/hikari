@@ -6,13 +6,13 @@ final class SettingsWindowPresenter {
     static let shared = SettingsWindowPresenter()
 
     private var windowController: NSWindowController?
-    private var presentedInitialSetup = false
+    private var presentedOnLaunch = false
 
     private init() {}
 
-    func showInitialSetupIfNeeded(model: AppModel) {
-        guard !presentedInitialSetup, model.contents.isEmpty else { return }
-        presentedInitialSetup = true
+    func showOnLaunch(model: AppModel) {
+        guard !presentedOnLaunch else { return }
+        presentedOnLaunch = true
         show(model: model)
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct LuminaApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
 
     var body: some Scene {
@@ -15,8 +16,9 @@ struct LuminaApp: App {
                 .accessibilityLabel("Lumina")
                 .onAppear {
                     DispatchQueue.main.async {
+                        appDelegate.model = model
                         SettingsWindowPresenter.shared
-                            .showInitialSetupIfNeeded(model: model)
+                            .showOnLaunch(model: model)
                     }
                 }
         }
