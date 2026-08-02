@@ -13,7 +13,7 @@ settings:
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.1.8
+    MARKETING_VERSION: 0.1.9
 targets:
   LuminaCore:
     type: framework.static

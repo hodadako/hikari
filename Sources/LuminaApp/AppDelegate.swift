@@ -1,16 +1,18 @@
 import AppKit
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    @MainActor weak var model: AppModel?
+    lazy var model = AppModel()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        SettingsWindowPresenter.shared.showOnLaunch(model: model)
+    }
 
     func applicationShouldHandleReopen(
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        Task { @MainActor [weak self] in
-            guard let model = self?.model else { return }
-            SettingsWindowPresenter.shared.show(model: model)
-        }
+        SettingsWindowPresenter.shared.show(model: model)
         return true
     }
 }
