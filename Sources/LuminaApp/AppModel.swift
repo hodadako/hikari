@@ -16,7 +16,6 @@ final class AppModel: ObservableObject {
     private let settingsStore: SettingsStore
     private let contentStore: ContentStore
     private let importer: VideoImporter
-    private let renderer = VideoRenderer()
     private let stateMonitor = SystemStateMonitor()
     private let screenSaverInstaller = ScreenSaverInstaller()
     private let lockShortcutController = LockShortcutController()
@@ -32,10 +31,7 @@ final class AppModel: ObservableObject {
             destinationContainer: destination
         )
     }()
-    private lazy var wallpaperController = WallpaperController(renderer: renderer)
-    private lazy var systemWallpaperSynchronizer = SystemWallpaperSynchronizer(
-        container: container
-    )
+    private lazy var wallpaperController = WallpaperController()
     private var terminationToken: NSObjectProtocol?
     private var screenSaverSyncTask: Task<Void, Never>?
 
@@ -53,42 +49,34 @@ final class AppModel: ObservableObject {
         }
 
         stateMonitor.onStateChanged = { [weak self] in
-            self?.reconcilePlayback()
-            self?.refreshLockShortcutIfNeeded()
+            guard let self else { return }
+            self.reconcilePlayback()
+            self.refreshLockShortcutIfNeeded()
         }
         stateMonitor.onDisplaysChanged = { [weak self] in
             guard let self else { return }
             self.wallpaperController.rebuildWindowsIfContentAvailable(
                 self.hasPlayableContent
             )
-            self.synchronizeSystemWallpaper(force: true)
+            self.reconcilePlayback()
         }
         stateMonitor.onActiveSpaceChanged = { [weak self] in
             guard let self else { return }
             self.wallpaperController.refreshWindowsForActiveSpaceIfContentAvailable(
                 self.hasPlayableContent
             )
-            self.synchronizeSystemWallpaper(force: true)
+            self.reconcilePlayback()
         }
         stateMonitor.start()
-        do {
-            try screenSaverInstaller.updateIfNeeded()
-        } catch {
-            presentedError = String(
-                format: NSLocalizedString(
-                    "The Lumina screen saver could not be updated: %@",
-                    comment: "Screen saver automatic update error"
-                ),
-                error.localizedDescription
-            )
-        }
         settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
         applyApplicationIcon()
         wallpaperController.setScalingMode(settings.scalingMode)
         reconcilePlayback()
-        synchronizeScreenSaverContent()
+        if screenSaverInstaller.isInstalled {
+            synchronizeScreenSaverContent()
+        }
         lockShortcutController.onShortcut = { [weak self] in
             Task { @MainActor in
                 self?.lockWithLumina()
@@ -115,7 +103,7 @@ final class AppModel: ObservableObject {
     }
 
     var isPlaying: Bool {
-        renderer.isPlaying
+        wallpaperController.isPlaying
     }
 
     var isScreenSaverInstalled: Bool {
@@ -131,7 +119,11 @@ final class AppModel: ObservableObject {
     }
 
     var isLockScreenPlaybackEnabled: Bool {
-        screenSaverInstaller.isLockScreenPlaybackEnabled
+        settings.lockScreenPlaybackEnabled
+    }
+
+    var isScreenSaverUpdateAvailable: Bool {
+        screenSaverInstaller.needsUpdate
     }
 
     var appIconImage: NSImage {
@@ -249,7 +241,7 @@ final class AppModel: ObservableObject {
 
     func setMuted(_ muted: Bool) {
         settings.isMuted = muted
-        renderer.setMuted(muted)
+        wallpaperController.setMuted(muted)
         saveAndReconcile()
     }
 
@@ -311,16 +303,56 @@ final class AppModel: ObservableObject {
             }
         }
 
+        var nextSettings = settings
         if enabled {
-            synchronizeScreenSaverContent(force: true)
+            var policy = ScreenSaverIdleTimePolicy(
+                originalIdleTime: settings.screenSaverPreviousIdleTime
+            )
+            _ = policy.enable(currentIdleTime: screenSaverInstaller.startDelay)
+            nextSettings.screenSaverPreviousIdleTime = policy.originalIdleTime
+            nextSettings.lockScreenPlaybackEnabled = true
+        } else {
+            var policy = ScreenSaverIdleTimePolicy(
+                originalIdleTime: settings.screenSaverPreviousIdleTime
+            )
+            _ = policy.disable(fallbackIdleTime: screenSaverInstaller.startDelay)
+            nextSettings.screenSaverPreviousIdleTime = nil
+            nextSettings.lockScreenPlaybackEnabled = false
         }
 
-        guard screenSaverInstaller.setLockScreenPlaybackEnabled(enabled) else {
+        let targetIdleTime: Int
+        let currentIdleTime = screenSaverInstaller.startDelay
+        if enabled {
+            targetIdleTime = 60
+        } else {
+            targetIdleTime = settings.screenSaverPreviousIdleTime
+                ?? currentIdleTime
+        }
+
+        let previousSettings = settings
+        guard screenSaverInstaller.setIdleTime(targetIdleTime) else {
             presentedError = NSLocalizedString(
                 "The Lock Screen playback setting could not be updated.",
                 comment: "Lock Screen playback preference update error"
             )
             return
+        }
+        settings = nextSettings
+        do {
+            try persistSettings()
+        } catch {
+            settings = previousSettings
+            _ = screenSaverInstaller.setIdleTime(
+                previousSettings.lockScreenPlaybackEnabled
+                    ? 60
+                    : currentIdleTime
+            )
+            presentedError = error.localizedDescription
+            objectWillChange.send()
+            return
+        }
+        if enabled {
+            synchronizeScreenSaverContent(force: true)
         }
         objectWillChange.send()
     }
@@ -449,9 +481,7 @@ final class AppModel: ObservableObject {
     func shutdown() {
         stateMonitor.stop()
         lockShortcutController.stop()
-        systemWallpaperSynchronizer.cancelPendingWork()
         screenSaverSyncTask?.cancel()
-        renderer.stopAndRelease()
         wallpaperController.closeWindows()
     }
 
@@ -464,15 +494,9 @@ final class AppModel: ObservableObject {
     private func reconcilePlayback() {
         let mediaURL = selectedMediaURL
         let hasContent = hasPlayableContent
+        let playableURL = hasContent ? mediaURL : nil
 
         wallpaperController.setContentAvailable(hasContent)
-        synchronizeSystemWallpaper()
-
-        if let mediaURL, hasContent {
-            renderer.load(url: mediaURL, muted: settings.isMuted)
-        } else {
-            renderer.stopAndRelease()
-        }
 
         let policy = PlaybackPolicy(
             userWantsPlayback: settings.playbackPreference == .playing,
@@ -485,14 +509,20 @@ final class AppModel: ObservableObject {
         )
         pauseReasons = policy.pauseReasons
         if policy.shouldPlay {
-            renderer.play()
+            wallpaperController.setContent(url: playableURL, muted: settings.isMuted)
+            wallpaperController.play()
         } else {
-            renderer.pause()
+            wallpaperController.setContent(url: playableURL, muted: settings.isMuted)
+            wallpaperController.pause()
         }
         objectWillChange.send()
     }
 
     private func synchronizeScreenSaverContent(force: Bool = false) {
+        // Merely launching Lumina must not create or modify screen saver
+        // support data. Content is synchronized only after the user has
+        // explicitly installed Lumina (or invokes a screen-saver action).
+        guard screenSaverInstaller.isInstalled else { return }
         guard let synchronizer = screenSaverContentSynchronizer else {
             presentedError = NSLocalizedString(
                 "The Lock Screen video storage could not be prepared.",
@@ -536,23 +566,6 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
-    private func synchronizeSystemWallpaper(force: Bool = false) {
-        systemWallpaperSynchronizer.synchronize(
-            content: selectedContent,
-            mediaURL: selectedMediaURL,
-            thumbnailURL: selectedContent.flatMap(container.thumbnailURL(for:)),
-            scalingMode: settings.scalingMode,
-            force: force
-        ) { [weak self] error in
-            self?.presentedError = String(
-                format: NSLocalizedString(
-                    "The menu bar background could not be updated: %@",
-                    comment: "System wallpaper synchronization error"
-                ),
-                error.localizedDescription
-            )
-        }
-    }
 
     private var hasPlayableContent: Bool {
         guard let mediaURL = selectedMediaURL else { return false }

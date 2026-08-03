@@ -38,4 +38,16 @@ final class PlaybackPolicyTests: XCTestCase {
             [.user, .battery, .screenLock, .screenSaver, .sleep, .noContent]
         )
     }
+
+    func testStoppingScreenSaverDoesNotResumeWhileStillLocked() {
+        let policy = PlaybackPolicy(
+            userWantsPlayback: true,
+            isScreenLocked: true,
+            isScreenSaverRunning: false,
+            isSleeping: false,
+            hasContent: true
+        )
+        XCTAssertFalse(policy.shouldPlay)
+        XCTAssertEqual(policy.pauseReasons, [.screenLock])
+    }
 }

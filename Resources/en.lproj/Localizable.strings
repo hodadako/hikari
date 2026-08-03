@@ -84,7 +84,6 @@
 "Installation" = "Installation";
 "Installed" = "Installed";
 "Lumina" = "Lumina";
-"Lumina updates its installed screen saver automatically. If Automatic Start is Never, macOS continues to show the existing Lock Screen background." = "Lumina updates its installed screen saver automatically. If Automatic Start is Never, macOS continues to show the existing Lock Screen background.";
 "Mac default" = "Mac default";
 "Never" = "Never";
 "Preview Lumina" = "Preview Lumina";
@@ -92,10 +91,8 @@
 "Select Lumina as your screen saver in System Settings first." = "Select Lumina as your screen saver in System Settings first.";
 "Selected Screen Saver" = "Selected Screen Saver";
 "Set Start Time" = "Set Start Time";
-"The Lumina screen saver could not be updated: %@" = "The Lumina screen saver could not be updated: %@";
 "The Lumina screen saver preview could not be opened." = "The Lumina screen saver preview could not be opened.";
-"Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep." = "Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep.";
-"The menu bar background could not be updated: %@" = "The menu bar background could not be updated: %@";
+"Lumina keeps the macOS wallpaper and menu bar unchanged. Playback pauses while the Mac is locked or asleep." = "Lumina keeps the macOS wallpaper and menu bar unchanged. Playback pauses while the Mac is locked or asleep.";
 "Install and select Lumina as your screen saver first." = "Install and select Lumina as your screen saver first.";
 "Play video on Lock Screen" = "Play video on Lock Screen";
 "The Lock Screen playback setting could not be updated." = "The Lock Screen playback setting could not be updated.";

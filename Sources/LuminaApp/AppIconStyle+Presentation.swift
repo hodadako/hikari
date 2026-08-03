@@ -32,7 +32,12 @@ struct LuminaIconPreview: View {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
-                    .aspectRatio(1, contentMode: .fit)
+                    // Every icon is normalized to a square canvas. Fill here
+                    // as a final guard for legacy/custom files so no
+                    // transparent side margins become a visible seam.
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipped()
             } else {
                 ZStack {
                     Color.secondary.opacity(0.12)
@@ -43,6 +48,7 @@ struct LuminaIconPreview: View {
             }
         }
         .frame(width: size, height: size)
+        .compositingGroup()
         .clipShape(
             RoundedRectangle(
                 cornerRadius: size * 0.22,

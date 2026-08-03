@@ -84,7 +84,6 @@
 "Installation" = "설치";
 "Installed" = "설치됨";
 "Lumina" = "Lumina";
-"Lumina updates its installed screen saver automatically. If Automatic Start is Never, macOS continues to show the existing Lock Screen background." = "Lumina는 설치된 화면 보호기를 자동으로 업데이트합니다. 자동 시작이 안 함이면 macOS는 기존 잠금 화면 배경을 계속 표시합니다.";
 "Mac default" = "Mac 기본값";
 "Never" = "안 함";
 "Preview Lumina" = "Lumina 미리보기";
@@ -92,10 +91,8 @@
 "Select Lumina as your screen saver in System Settings first." = "먼저 시스템 설정에서 Lumina를 화면 보호기로 선택하세요.";
 "Selected Screen Saver" = "선택한 화면 보호기";
 "Set Start Time" = "시작 시간 설정";
-"The Lumina screen saver could not be updated: %@" = "Lumina 화면 보호기를 업데이트할 수 없습니다: %@";
 "The Lumina screen saver preview could not be opened." = "Lumina 화면 보호기 미리보기를 열 수 없습니다.";
-"Lumina syncs a still frame to the macOS wallpaper so the translucent menu bar and Lock Screen match the video. Playback still pauses while the Mac is locked or asleep." = "투명 메뉴 막대와 잠금 화면이 영상과 어울리도록 Lumina가 대표 프레임을 macOS 배경화면에 동기화합니다. Mac이 잠기거나 잠자기 상태일 때 영상 재생은 일시정지합니다.";
-"The menu bar background could not be updated: %@" = "메뉴 막대 배경을 업데이트할 수 없습니다: %@";
+"Lumina keeps the macOS wallpaper and menu bar unchanged. Playback pauses while the Mac is locked or asleep." = "Lumina는 macOS 바탕화면과 메뉴 막대를 변경하지 않습니다. Mac이 잠기거나 잠자기 상태일 때 재생을 일시정지합니다.";
 "Install and select Lumina as your screen saver first." = "먼저 Lumina 화면 보호기를 설치하고 선택하세요.";
 "Play video on Lock Screen" = "잠금 화면에서 영상 재생";
 "The Lock Screen playback setting could not be updated." = "잠금 화면 재생 설정을 변경할 수 없습니다.";

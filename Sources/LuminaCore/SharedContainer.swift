@@ -31,10 +31,6 @@ public struct SharedContainer: Sendable {
         rootURL.appendingPathComponent("Thumbnails", isDirectory: true)
     }
 
-    public var desktopPostersDirectoryURL: URL {
-        rootURL.appendingPathComponent("DesktopPosters", isDirectory: true)
-    }
-
     public var settingsURL: URL {
         rootURL.appendingPathComponent("settings.json")
     }
@@ -55,10 +51,6 @@ public struct SharedContainer: Sendable {
         content.thumbnailRelativePath.map { rootURL.appendingPathComponent($0) }
     }
 
-    public func desktopPosterURL(for content: LiveContent) -> URL {
-        desktopPostersDirectoryURL.appendingPathComponent("\(content.id.uuidString).jpg")
-    }
-
     private func prepareDirectories() throws {
         try FileManager.default.createDirectory(
             at: mediaDirectoryURL,
@@ -68,9 +60,8 @@ public struct SharedContainer: Sendable {
             at: thumbnailsDirectoryURL,
             withIntermediateDirectories: true
         )
-        try FileManager.default.createDirectory(
-            at: desktopPostersDirectoryURL,
-            withIntermediateDirectories: true
-        )
+        // Legacy DesktopPosters files, if present, are deliberately left in
+        // this Lumina-only support directory and are never used as the macOS
+        // desktop wallpaper.
     }
 }

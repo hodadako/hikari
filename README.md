@@ -17,11 +17,14 @@ Lumina screen saver.
   thumbnail generation
 - Low-overhead looping playback with `AVQueuePlayer` and `AVPlayerLooper`
 - Borderless wallpaper windows across all Spaces and connected displays
-- A synchronized still frame for the translucent menu bar and Lock Screen
+- Independent synchronized playback sessions on every connected display; Lumina
+  never changes the macOS desktop wallpaper or menu bar
 - Fill and Fit scaling
 - Menu bar playback and content controls
 - Native settings for mute, battery pause, launch at login, and library management
 - Pause and recovery around sleep, screen lock, screen saver, and display changes
+- Explicit screen saver installation/update and Lock Screen opt-in with exact
+  restoration of the user's previous delay
 - A separate `.saver` bundle with preview and full-screen playback
 - Optional Lock Screen playback through the Lumina screen saver after 1 minute
 - Immediate Lumina Lock action with an optional ^ + Command + Q override
@@ -114,7 +117,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for lifecycle and storage details and
 ## Current limitations
 
 - MP4 only
-- The same video is shown on every display
+- The same video is shown on every display using one independent player per
+  display; per-display content is not supported
 - No playlist, online gallery, or per-display content
 - Distribution is not yet code-signed, notarized, or packaged as a release
 - The PRD's long-duration performance gates require hands-on Instruments testing

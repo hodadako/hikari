@@ -1,7 +1,11 @@
 import AppKit
+import CoreGraphics
 import IOKit.ps
 import LuminaCore
 
+/// Normalizes noisy WindowServer, power, lock, and screen-saver notifications.
+/// State flags are independent pause reasons; no event is allowed to infer an
+/// unlock merely because the app became active.
 @MainActor
 final class SystemStateMonitor {
     var onStateChanged: (() -> Void)?
@@ -14,71 +18,97 @@ final class SystemStateMonitor {
     private(set) var isOnBattery = false
 
     private var notificationTokens: [NSObjectProtocol] = []
+    private var stateTask: Task<Void, Never>?
+    private var displayTask: Task<Void, Never>?
+    private var spaceTask: Task<Void, Never>?
 
     func start() {
         guard notificationTokens.isEmpty else { return }
+
         let workspaceCenter = NSWorkspace.shared.notificationCenter
         observe(workspaceCenter, name: NSWorkspace.willSleepNotification) { [weak self] in
-            self?.isSleeping = true
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isSleeping = true
+            scheduleStateChanged()
         }
         observe(workspaceCenter, name: NSWorkspace.didWakeNotification) { [weak self] in
-            self?.isSleeping = false
-            self?.isScreenSaverRunning = false
-            self?.refreshPowerState()
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isSleeping = false
+            refreshPowerState()
+            refreshLockState()
+            refreshScreenSaverState()
+            // WindowServer may still be rebuilding display surfaces at wake.
+            scheduleRecovery(after: 350_000_000)
         }
         observe(workspaceCenter, name: NSWorkspace.screensDidSleepNotification) { [weak self] in
-            self?.isSleeping = true
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isSleeping = true
+            scheduleStateChanged()
         }
         observe(workspaceCenter, name: NSWorkspace.screensDidWakeNotification) { [weak self] in
-            self?.isSleeping = false
-            self?.isScreenSaverRunning = false
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isSleeping = false
+            refreshPowerState()
+            refreshLockState()
+            refreshScreenSaverState()
+            scheduleRecovery(after: 250_000_000)
         }
         observe(workspaceCenter, name: NSWorkspace.activeSpaceDidChangeNotification) { [weak self] in
-            self?.onActiveSpaceChanged?()
+            self?.scheduleActiveSpaceChanged()
         }
 
         let defaultCenter = NotificationCenter.default
         observe(defaultCenter, name: NSApplication.didChangeScreenParametersNotification) { [weak self] in
-            self?.onDisplaysChanged?()
-            self?.notifyStateChanged()
+            self?.scheduleDisplaysChanged()
         }
         observe(defaultCenter, name: NSApplication.didBecomeActiveNotification) { [weak self] in
-            self?.isScreenSaverRunning = false
-            self?.isScreenLocked = false
-            self?.refreshPowerState()
-            self?.notifyStateChanged()
+            guard let self else { return }
+            // Becoming active is not proof of an unlock. Ask WindowServer for
+            // the current lock state and let the normal policy decide.
+            refreshPowerState()
+            refreshLockState()
+            refreshScreenSaverState()
+            scheduleRecovery(after: 180_000_000)
         }
         observe(defaultCenter, name: .NSProcessInfoPowerStateDidChange) { [weak self] in
-            self?.refreshPowerState()
-            self?.notifyStateChanged()
+            guard let self else { return }
+            refreshPowerState()
+            scheduleStateChanged()
         }
 
         let distributed = DistributedNotificationCenter.default()
         observe(distributed, name: Notification.Name("com.apple.screenIsLocked")) { [weak self] in
-            self?.isScreenLocked = true
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isScreenLocked = true
+            scheduleStateChanged()
         }
         observe(distributed, name: Notification.Name("com.apple.screenIsUnlocked")) { [weak self] in
-            self?.isScreenLocked = false
-            self?.isScreenSaverRunning = false
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isScreenLocked = false
+            scheduleStateChanged()
         }
         observe(distributed, name: InterprocessSignal.screenSaverDidStart) { [weak self] in
-            self?.isScreenSaverRunning = true
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isScreenSaverRunning = true
+            scheduleStateChanged()
         }
         observe(distributed, name: InterprocessSignal.screenSaverDidStop) { [weak self] in
-            self?.isScreenSaverRunning = false
-            self?.notifyStateChanged()
+            guard let self else { return }
+            isScreenSaverRunning = false
+            scheduleStateChanged()
         }
+
         refreshPowerState()
+        refreshLockState()
     }
 
     func stop() {
+        stateTask?.cancel()
+        displayTask?.cancel()
+        spaceTask?.cancel()
+        stateTask = nil
+        displayTask = nil
+        spaceTask = nil
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
             NSWorkspace.shared.notificationCenter.removeObserver(token)
@@ -98,6 +128,36 @@ final class SystemStateMonitor {
         isOnBattery = (source as String) == kIOPSBatteryPowerValue
     }
 
+    private func refreshLockState() {
+        // This value is authoritative when available and does not assume that
+        // app activation implies unlock. The distributed notifications remain
+        // the fallback on systems where the session dictionary is unavailable.
+        guard let values = CGSessionCopyCurrentDictionary() as? [String: Any],
+              let value = values["CGSSessionScreenIsLocked"] else {
+            return
+        }
+        if let locked = value as? Bool {
+            isScreenLocked = locked
+        } else if let locked = value as? NSNumber {
+            isScreenLocked = locked.boolValue
+        }
+    }
+
+    private func refreshScreenSaverState() {
+        // A lost stop notification must not leave playback paused forever. Do
+        // not infer a start here; the screen saver bundle posts the positive
+        // transition, while this check only clears stale state.
+        let screenSaverIsRunning = NSWorkspace.shared.runningApplications.contains {
+            let name = $0.executableURL?.lastPathComponent
+                ?? $0.localizedName
+                ?? ""
+            return name == "ScreenSaverEngine" || name == "legacyScreenSaver"
+        }
+        if !screenSaverIsRunning {
+            isScreenSaverRunning = false
+        }
+    }
+
     private func observe(
         _ center: NotificationCenter,
         name: Notification.Name,
@@ -109,8 +169,42 @@ final class SystemStateMonitor {
         notificationTokens.append(token)
     }
 
-    private func notifyStateChanged() {
-        onStateChanged?()
+    private func scheduleStateChanged(after delay: UInt64 = 120_000_000) {
+        stateTask?.cancel()
+        stateTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.onStateChanged?()
+            }
+        }
+    }
+
+    private func scheduleDisplaysChanged(after delay: UInt64 = 120_000_000) {
+        displayTask?.cancel()
+        displayTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.onDisplaysChanged?()
+            }
+        }
+    }
+
+    private func scheduleActiveSpaceChanged(after delay: UInt64 = 80_000_000) {
+        spaceTask?.cancel()
+        spaceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self?.onActiveSpaceChanged?()
+            }
+        }
+    }
+
+    private func scheduleRecovery(after delay: UInt64) {
+        scheduleDisplaysChanged(after: delay)
+        scheduleStateChanged(after: delay)
     }
 
     deinit {

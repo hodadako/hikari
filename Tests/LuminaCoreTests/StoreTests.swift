@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import XCTest
 @testable import LuminaCore
@@ -24,13 +25,36 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: container.thumbnailsDirectoryURL.path)
         )
-        XCTAssertTrue(
-            FileManager.default.fileExists(atPath: container.desktopPostersDirectoryURL.path)
-        )
         XCTAssertEqual(
             container.customAppIconURL.lastPathComponent,
             "CustomAppIcon.png"
         )
+    }
+
+    func testCustomIconCanvasUsesAspectFillForLandscapeAndPortraitSources() {
+        let landscape = IconGeometry.aspectFillSourceRect(
+            sourceSize: CGSize(width: 1920, height: 1080),
+            targetSize: IconGeometry.canvasSize
+        )
+        XCTAssertEqual(landscape.origin.x, 420, accuracy: 0.001)
+        XCTAssertEqual(landscape.origin.y, 0, accuracy: 0.001)
+        XCTAssertEqual(landscape.width, 1080, accuracy: 0.001)
+        XCTAssertEqual(landscape.height, 1080, accuracy: 0.001)
+
+        let portrait = IconGeometry.aspectFillSourceRect(
+            sourceSize: CGSize(width: 1080, height: 1920),
+            targetSize: IconGeometry.canvasSize
+        )
+        XCTAssertEqual(portrait.origin.x, 0, accuracy: 0.001)
+        XCTAssertEqual(portrait.origin.y, 420, accuracy: 0.001)
+        XCTAssertEqual(portrait.width, 1080, accuracy: 0.001)
+        XCTAssertEqual(portrait.height, 1080, accuracy: 0.001)
+
+        let square = IconGeometry.aspectFillSourceRect(
+            sourceSize: IconGeometry.canvasSize,
+            targetSize: IconGeometry.canvasSize
+        )
+        XCTAssertEqual(square, CGRect(origin: .zero, size: IconGeometry.canvasSize))
     }
 
     func testSettingsRoundTrip() throws {
@@ -47,7 +71,9 @@ final class StoreTests: XCTestCase {
             lastKnownScreenSaverInstalled: true,
             appIconStyle: .custom,
             customAppIconRelativePath: "CustomAppIcon.png",
-            overrideSystemLockShortcut: true
+            overrideSystemLockShortcut: true,
+            lockScreenPlaybackEnabled: true,
+            screenSaverPreviousIdleTime: 900
         )
 
         try store.save(expected)
@@ -73,6 +99,8 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(settings.appIconStyle, .blue)
         XCTAssertNil(settings.customAppIconRelativePath)
         XCTAssertFalse(settings.overrideSystemLockShortcut)
+        XCTAssertFalse(settings.lockScreenPlaybackEnabled)
+        XCTAssertNil(settings.screenSaverPreviousIdleTime)
     }
 
     func testContentDeleteOnlyRemovesManagedCopy() throws {
@@ -96,9 +124,6 @@ final class StoreTests: XCTestCase {
         if let thumbnailURL = container.thumbnailURL(for: content) {
             try Data("thumbnail".utf8).write(to: thumbnailURL)
         }
-        try Data("poster".utf8).write(
-            to: container.desktopPosterURL(for: content)
-        )
         try store.save([content])
 
         let updated = try store.delete(content, from: [content])
@@ -107,11 +132,6 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: originalURL.path))
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: container.mediaURL(for: content).path)
-        )
-        XCTAssertFalse(
-            FileManager.default.fileExists(
-                atPath: container.desktopPosterURL(for: content).path
-            )
         )
         try? FileManager.default.removeItem(at: originalURL)
     }

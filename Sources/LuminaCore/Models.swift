@@ -69,6 +69,10 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var appIconStyle: AppIconStyle
     public var customAppIconRelativePath: String?
     public var overrideSystemLockShortcut: Bool
+    /// True only when Lumina explicitly enabled Lock Screen playback.
+    public var lockScreenPlaybackEnabled: Bool
+    /// The user's screen saver delay captured before Lumina changed it.
+    public var screenSaverPreviousIdleTime: Int?
 
     public init(
         selectedContentID: UUID? = nil,
@@ -80,7 +84,9 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         lastKnownScreenSaverInstalled: Bool = false,
         appIconStyle: AppIconStyle = .blue,
         customAppIconRelativePath: String? = nil,
-        overrideSystemLockShortcut: Bool = false
+        overrideSystemLockShortcut: Bool = false,
+        lockScreenPlaybackEnabled: Bool = false,
+        screenSaverPreviousIdleTime: Int? = nil
     ) {
         self.selectedContentID = selectedContentID
         self.playbackPreference = playbackPreference
@@ -92,6 +98,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         self.appIconStyle = appIconStyle
         self.customAppIconRelativePath = customAppIconRelativePath
         self.overrideSystemLockShortcut = overrideSystemLockShortcut
+        self.lockScreenPlaybackEnabled = lockScreenPlaybackEnabled
+        self.screenSaverPreviousIdleTime = screenSaverPreviousIdleTime
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -105,6 +113,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         case appIconStyle
         case customAppIconRelativePath
         case overrideSystemLockShortcut
+        case lockScreenPlaybackEnabled
+        case screenSaverPreviousIdleTime
     }
 
     public init(from decoder: Decoder) throws {
@@ -146,6 +156,14 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .overrideSystemLockShortcut
         ) ?? false
+        lockScreenPlaybackEnabled = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .lockScreenPlaybackEnabled
+        ) ?? false
+        screenSaverPreviousIdleTime = try values.decodeIfPresent(
+            Int.self,
+            forKey: .screenSaverPreviousIdleTime
+        )
     }
 }
 

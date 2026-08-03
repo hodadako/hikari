@@ -7,20 +7,75 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Build/test jobs never need to write repository contents. The release job
+# below grants contents: write only after every required build gate succeeds.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  metadata:
+    name: Metadata and tag gates
+    runs-on: ubuntu-latest
+    outputs:
+      is_tag: ${{ steps.version.outputs.is_tag }}
+      is_major: ${{ steps.version.outputs.is_major }}
+      tag_version: ${{ steps.version.outputs.tag_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Validate tag and marketing version
+        shell: bash
+        run: |
+          set -euo pipefail
+          is_tag=false
+          is_major=false
+          tag_version=""
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            is_tag=true
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Unsupported release tag: ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
+            tag_version="${GITHUB_REF_NAME#v}"
+            marketing_version="$(awk '/MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+            if [[ "${tag_version}" != "${marketing_version}" ]]; then
+              echo "Tag ${tag_version} does not match MARKETING_VERSION ${marketing_version}" >&2
+              exit 1
+            fi
+            if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.0\.0$ ]]; then
+              is_major=true
+            fi
+          fi
+
+          {
+            echo "is_tag=${is_tag}"
+            echo "is_major=${is_major}"
+            echo "tag_version=${tag_version}"
+          } >> "${GITHUB_OUTPUT}"
+
   build-and-test:
+    name: Build and test (macOS 15)
+    needs: metadata
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
-      - name: Build and test
+      - name: Debug build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Unit test
         run: |
           set -o pipefail
           xcodebuild \
@@ -30,7 +85,7 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             test
-      - name: Build portable app
+      - name: Release build and bundle checks
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
         run: |
@@ -43,19 +98,117 @@ jobs:
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             CODE_SIGNING_ALLOWED=NO \
             build
-
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
           test -d "${app_path}"
-          codesign --force --deep --sign - "${app_path}"
+          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
 
+  major_compatibility:
+    name: Major compatibility (${{ matrix.runner }})
+    needs: metadata
+    if: needs.metadata.outputs.is_major == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        # GitHub-hosted labels available while this workflow is maintained.
+        # macOS 13 has no hosted image anymore; deployment-target and unit
+        # tests cover it, with physical-device QA documented in PERFORMANCE.md.
+        runner: [macos-14, macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Debug build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Unit test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Release build and bundle checks
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
+          test -d "${app_path}"
+          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
+      - name: Upload compatibility evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-${{ matrix.runner }}
+          path: |
+            ${{ runner.temp }}/LuminaDerivedData/Build/Products/Release/Lumina.app
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Package release artifact
+    needs: [metadata, build-and-test, major_compatibility]
+    if: >-
+      always() &&
+      needs.metadata.outputs.is_tag == 'true' &&
+      needs.build-and-test.result == 'success' &&
+      (needs.metadata.outputs.is_major != 'true' || needs.major_compatibility.result == 'success')
+    runs-on: macos-15
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build portable app once on representative runner
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme Lumina \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
+          test -d "${app_path}"
+          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
+          codesign --force --deep --sign - "${app_path}"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \
             "${app_path}" \
             "dist/Lumina-macOS-portable.zip"
-          pushd dist
-          shasum -a 256 "Lumina-macOS-portable.zip" \
-            > "Lumina-macOS-portable.zip.sha256"
-          popd
+          shasum -a 256 "dist/Lumina-macOS-portable.zip" \
+            > "dist/Lumina-macOS-portable.zip.sha256"
       - name: Upload portable app
         uses: actions/upload-artifact@v4
         with:
@@ -65,8 +218,20 @@ jobs:
             dist/Lumina-macOS-portable.zip.sha256
           if-no-files-found: error
           retention-days: 30
-      - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
+
+  release:
+    name: Publish tagged release
+    needs: [metadata, package]
+    if: needs.metadata.outputs.is_tag == 'true' && needs.package.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Lumina-macOS-portable
+          path: dist
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

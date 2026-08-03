@@ -5,7 +5,8 @@ import ScreenSaver
 @objc(LuminaScreenSaverView)
 final class LuminaScreenSaverView: ScreenSaverView {
     private let playerLayer = AVPlayerLayer()
-    private var isAttachedToPlayback = false
+    private let player = AVQueuePlayer()
+    private var looper: AVPlayerLooper?
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
@@ -17,6 +18,9 @@ final class LuminaScreenSaverView: ScreenSaverView {
         playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         playerLayer.frame = bounds
         layer?.addSublayer(playerLayer)
+        player.actionAtItemEnd = .none
+        player.automaticallyWaitsToMinimizeStalling = true
+        player.isMuted = true
     }
 
     @available(*, unavailable)
@@ -66,12 +70,14 @@ final class LuminaScreenSaverView: ScreenSaverView {
         }
 
         let settings = SettingsStore(container: container).load()
-        SharedScreenSaverPlayback.shared.attach(
-            layer: playerLayer,
-            mediaURL: mediaURL,
-            scalingMode: settings.scalingMode
-        )
-        isAttachedToPlayback = true
+        let item = AVPlayerItem(url: mediaURL)
+        item.preferredForwardBufferDuration = 2
+        looper = AVPlayerLooper(player: player, templateItem: item)
+        playerLayer.videoGravity = settings.scalingMode == .fill
+            ? .resizeAspectFill
+            : .resizeAspect
+        playerLayer.player = player
+        player.play()
     }
 
     private func selectedContent(container: SharedContainer) -> LiveContent? {
@@ -83,64 +89,14 @@ final class LuminaScreenSaverView: ScreenSaverView {
     }
 
     private func releasePlayer() {
-        guard isAttachedToPlayback else { return }
+        player.pause()
         playerLayer.player = nil
-        SharedScreenSaverPlayback.shared.detach()
-        isAttachedToPlayback = false
+        looper?.disableLooping()
+        looper = nil
+        player.removeAllItems()
     }
 
     deinit {
         releasePlayer()
-    }
-}
-
-@MainActor
-private final class SharedScreenSaverPlayback {
-    static let shared = SharedScreenSaverPlayback()
-
-    private let player = AVQueuePlayer()
-    private var looper: AVPlayerLooper?
-    private var currentURL: URL?
-    private var attachmentCount = 0
-
-    private init() {
-        player.actionAtItemEnd = .none
-        player.automaticallyWaitsToMinimizeStalling = true
-        player.isMuted = true
-    }
-
-    func attach(
-        layer: AVPlayerLayer,
-        mediaURL: URL,
-        scalingMode: ScalingMode
-    ) {
-        if currentURL != mediaURL {
-            releasePlayer()
-            let item = AVPlayerItem(url: mediaURL)
-            item.preferredForwardBufferDuration = 2
-            looper = AVPlayerLooper(player: player, templateItem: item)
-            currentURL = mediaURL
-        }
-        attachmentCount += 1
-        layer.videoGravity = scalingMode == .fill
-            ? .resizeAspectFill
-            : .resizeAspect
-        layer.player = player
-        player.play()
-    }
-
-    func detach() {
-        attachmentCount = max(0, attachmentCount - 1)
-        if attachmentCount == 0 {
-            releasePlayer()
-        }
-    }
-
-    private func releasePlayer() {
-        player.pause()
-        looper?.disableLooping()
-        looper = nil
-        player.removeAllItems()
-        currentURL = nil
     }
 }

@@ -173,9 +173,8 @@ private struct GeneralSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "Lumina syncs a still frame to the macOS wallpaper so the "
-                            + "translucent menu bar and Lock Screen match the video. "
-                            + "Playback still pauses while the Mac is locked or asleep."
+                        "Lumina keeps the macOS wallpaper and menu bar unchanged. "
+                            + "Playback pauses while the Mac is locked or asleep."
                     )
                 )
             }
@@ -484,7 +483,11 @@ private struct ScreenSaverSettingsView: View {
                 }
 
                 if model.isScreenSaverInstalled {
-                    Button("Reinstall Lumina Screen Saver") {
+                    Button(
+                        model.isScreenSaverUpdateAvailable
+                            ? "Update Lumina Screen Saver"
+                            : "Reinstall Lumina Screen Saver"
+                    ) {
                         model.installScreenSaver()
                     }
                 }

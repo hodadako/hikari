@@ -40,10 +40,6 @@ struct ScreenSaverInstaller {
         (currentHostValue(forKey: "idleTime") as? NSNumber)?.intValue ?? 0
     }
 
-    var isLockScreenPlaybackEnabled: Bool {
-        startDelay > 0
-    }
-
     var needsUpdate: Bool {
         guard isInstalled else { return false }
         return version(at: installedURL) != bundledScreenSaverURL.flatMap(version(at:))
@@ -61,22 +57,18 @@ struct ScreenSaverInstaller {
         try fileManager.copyItem(at: bundledURL, to: installedURL)
     }
 
-    func updateIfNeeded() throws {
-        guard needsUpdate else { return }
-        try install()
-    }
-
     func startPreview() -> Bool {
         NSWorkspace.shared.open(
             URL(fileURLWithPath: "/System/Library/CoreServices/ScreenSaverEngine.app")
         )
     }
 
-    func setLockScreenPlaybackEnabled(_ enabled: Bool) -> Bool {
-        let delay = enabled ? 60 : 0
+    /// Changes the screen saver delay only for an explicit user action. The
+    /// caller owns the previous value and is responsible for restoring it.
+    func setIdleTime(_ delay: Int) -> Bool {
         CFPreferencesSetValue(
             "idleTime" as CFString,
-            NSNumber(value: delay),
+            NSNumber(value: max(0, delay)),
             "com.apple.screensaver" as CFString,
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
