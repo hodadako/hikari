@@ -222,7 +222,7 @@ jobs:
   release:
     name: Publish tagged release
     needs: [metadata, package]
-    if: needs.metadata.outputs.is_tag == 'true' && needs.package.result == 'success'
+    if: always() && needs.metadata.outputs.is_tag == 'true' && needs.package.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
