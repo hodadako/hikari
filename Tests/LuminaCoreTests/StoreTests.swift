@@ -57,6 +57,11 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(square, CGRect(origin: .zero, size: IconGeometry.canvasSize))
     }
 
+    func testIconFrameMatchesAppleLikeInsetAndKeepsCanvasSquare() {
+        XCTAssertEqual(IconGeometry.iconFrame, CGRect(x: 72, y: 72, width: 880, height: 880))
+        XCTAssertEqual(IconGeometry.cornerRadius, 193.6, accuracy: 0.001)
+    }
+
     func testSettingsRoundTrip() throws {
         let container = try SharedContainer(rootURL: temporaryURL)
         let store = SettingsStore(container: container)

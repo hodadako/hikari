@@ -126,12 +126,22 @@ final class CustomAppIconStore {
         NSGraphicsContext.current = context
         context.imageInterpolation = .high
         context.cgContext.clear(canvas)
+        let roundedPath = CGPath(
+            roundedRect: IconGeometry.iconFrame,
+            cornerWidth: IconGeometry.cornerRadius,
+            cornerHeight: IconGeometry.cornerRadius,
+            transform: nil
+        )
+        context.cgContext.saveGState()
+        context.cgContext.addPath(roundedPath)
+        context.cgContext.clip()
         image.draw(
-            in: canvas,
+            in: IconGeometry.iconFrame,
             from: sourceRect,
             operation: .sourceOver,
             fraction: 1
         )
+        context.cgContext.restoreGState()
         NSGraphicsContext.restoreGraphicsState()
         return representation
     }

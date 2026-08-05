@@ -9,6 +9,14 @@ import CoreGraphics
 /// transparent margins that look like a broken border.
 public enum IconGeometry {
     public static let canvasSize = CGSize(width: 1024, height: 1024)
+    public static let canvasBounds = CGRect(origin: .zero, size: canvasSize)
+
+    /// Apple system icons leave a small transparent margin around the visible
+    /// rounded square. Keep Lumina's built-in and custom icons at the same
+    /// visual scale instead of filling the entire 1024px canvas.
+    public static let iconInset: CGFloat = 72
+    public static let iconFrame = canvasBounds.insetBy(dx: iconInset, dy: iconInset)
+    public static let cornerRadius = iconFrame.width * 0.22
 
     /// Returns the centered source rectangle that fills `targetSize` without
     /// stretching. The returned rectangle is always contained in
