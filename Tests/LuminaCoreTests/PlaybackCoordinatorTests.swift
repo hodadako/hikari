@@ -120,6 +120,10 @@ final class PlaybackCoordinatorTests: XCTestCase {
         coordinator.addSession(id: 3, session: drifted)
         coordinator.setContent(url: videoURL, muted: true)
         coordinator.play()
+        // `play()` performs the initial alignment; only count seeks caused by
+        // the drift correction being exercised below.
+        close.seekCount = 0
+        drifted.seekCount = 0
         leader.currentTime = 10
         close.currentTime = 10.1
         drifted.currentTime = 12
