@@ -16,7 +16,11 @@ public struct LuminaVersion: Comparable, Hashable, Sendable, CustomStringConvert
               parts.allSatisfy({ Int($0) != nil }) else {
             return nil
         }
-        components = parts.map { Int($0)! }
+        var parsedComponents = parts.map { Int($0)! }
+        while parsedComponents.count > 1, parsedComponents.last == 0 {
+            parsedComponents.removeLast()
+        }
+        components = parsedComponents
     }
 
     public var description: String {
