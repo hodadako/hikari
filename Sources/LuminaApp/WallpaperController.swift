@@ -7,6 +7,12 @@ import LuminaCore
 /// on the mutable order of `NSScreen.screens`.
 @MainActor
 final class WallpaperController {
+    private static let wallpaperCollectionBehavior: NSWindow.CollectionBehavior = [
+        .canJoinAllSpaces,
+        .stationary,
+        .ignoresCycle
+    ]
+
     private struct DisplaySession {
         let renderer: VideoRenderer
         let window: NSWindow
@@ -45,6 +51,10 @@ final class WallpaperController {
         }
         synchronizeDisplayTopology()
         for session in sessions.values {
+            // Reassert the all-Spaces membership after Mission Control creates
+            // or removes a desktop. WindowServer may otherwise retain the
+            // previous Space assignment until the next transition.
+            session.window.collectionBehavior = Self.wallpaperCollectionBehavior
             // Desktop-level windows are non-key and cannot cover app content.
             // Normal ordering is sufficient; forced ordering could promote a
             // stale wallpaper surface over other WindowServer surfaces.
@@ -136,11 +146,7 @@ final class WallpaperController {
         window.level = NSWindow.Level(
             rawValue: Int(CGWindowLevelForKey(.desktopWindow))
         )
-        window.collectionBehavior = [
-            .canJoinAllSpaces,
-            .stationary,
-            .ignoresCycle
-        ]
+        window.collectionBehavior = Self.wallpaperCollectionBehavior
         window.ignoresMouseEvents = true
         window.hasShadow = false
         window.isOpaque = true

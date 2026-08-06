@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 @main
@@ -9,20 +8,14 @@ struct LuminaApp: App {
         MenuBarExtra {
             MenuBarView(model: appDelegate.model)
         } label: {
-            MenuBarIconView(model: appDelegate.model)
+            // Menu bar labels should use a monochrome SF Symbol. The selected
+            // application icon is intentionally kept out of this small
+            // template image slot because its artwork can render oversized.
+            Image(systemName: "sparkles.tv")
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 15, weight: .medium))
+                .accessibilityLabel("Lumina")
         }
         .menuBarExtraStyle(.window)
-    }
-}
-
-private struct MenuBarIconView: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        LuminaIconPreview(
-            image: model.appIconImage,
-            size: 18
-        )
-        .accessibilityLabel("Lumina")
     }
 }

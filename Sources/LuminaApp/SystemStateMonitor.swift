@@ -22,6 +22,15 @@ final class SystemStateMonitor {
     private var displayTask: Task<Void, Never>?
     private var spaceTask: Task<Void, Never>?
 
+    // WindowServer finishes a Spaces mutation asynchronously. A single
+    // callback can run while the new desktop is still being materialized, so
+    // use a short recovery sequence and collapse overlapping notifications.
+    private let spaceRecoveryDelays: [UInt64] = [
+        80_000_000,
+        220_000_000,
+        400_000_000
+    ]
+
     func start() {
         guard notificationTokens.isEmpty else { return }
 
@@ -192,12 +201,15 @@ final class SystemStateMonitor {
     }
 
     private func scheduleActiveSpaceChanged(after delay: UInt64 = 80_000_000) {
+        let recoveryDelays = [delay] + Array(spaceRecoveryDelays.dropFirst())
         spaceTask?.cancel()
         spaceTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delay)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self?.onActiveSpaceChanged?()
+            for recoveryDelay in recoveryDelays {
+                try? await Task.sleep(nanoseconds: recoveryDelay)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.onActiveSpaceChanged?()
+                }
             }
         }
     }
