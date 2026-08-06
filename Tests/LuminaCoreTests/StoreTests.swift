@@ -29,6 +29,10 @@ final class StoreTests: XCTestCase {
             container.customAppIconURL.lastPathComponent,
             "CustomAppIcon.png"
         )
+        XCTAssertEqual(
+            container.customMenuBarIconURL.lastPathComponent,
+            "CustomMenuBarIcon.png"
+        )
     }
 
     func testCustomIconCanvasUsesAspectFillForLandscapeAndPortraitSources() {
@@ -76,6 +80,8 @@ final class StoreTests: XCTestCase {
             lastKnownScreenSaverInstalled: true,
             appIconStyle: .custom,
             customAppIconRelativePath: "CustomAppIcon.png",
+            menuBarIconStyle: .filledPink,
+            customMenuBarIconRelativePath: "CustomMenuBarIcon.png",
             overrideSystemLockShortcut: true,
             lockScreenPlaybackEnabled: true,
             screenSaverPreviousIdleTime: 900
@@ -103,6 +109,8 @@ final class StoreTests: XCTestCase {
         let settings = SettingsStore(container: container).load()
         XCTAssertEqual(settings.appIconStyle, .blue)
         XCTAssertNil(settings.customAppIconRelativePath)
+        XCTAssertEqual(settings.menuBarIconStyle, .empty)
+        XCTAssertNil(settings.customMenuBarIconRelativePath)
         XCTAssertFalse(settings.overrideSystemLockShortcut)
         XCTAssertFalse(settings.lockScreenPlaybackEnabled)
         XCTAssertNil(settings.screenSaverPreviousIdleTime)

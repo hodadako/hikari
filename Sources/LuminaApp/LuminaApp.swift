@@ -8,14 +8,25 @@ struct LuminaApp: App {
         MenuBarExtra {
             MenuBarView(model: appDelegate.model)
         } label: {
-            // Menu bar labels should use a monochrome SF Symbol. The selected
-            // application icon is intentionally kept out of this small
-            // template image slot because its artwork can render oversized.
-            Image(systemName: "sparkles.tv")
-                .symbolRenderingMode(.monochrome)
-                .font(.system(size: 15, weight: .medium))
+            MenuBarIconView(model: appDelegate.model)
                 .accessibilityLabel("Lumina")
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+private struct MenuBarIconView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        Image(nsImage: model.menuBarIconImage)
+            .resizable()
+            .interpolation(.high)
+            .renderingMode(
+                model.menuBarIconIsTemplate ? .template : .original
+            )
+            .foregroundStyle(.primary)
+            .scaledToFit()
+            .frame(width: 18, height: 18)
     }
 }

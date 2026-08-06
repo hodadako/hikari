@@ -28,7 +28,10 @@ Lumina screen saver.
 - A separate `.saver` bundle with preview and full-screen playback
 - Optional Lock Screen playback through the Lumina screen saver after 1 minute
 - Immediate Lumina Lock action with an optional ^ + Command + Q override
-- Blue, Pink, Purple, and user-imported runtime app icons
+- Blue, Pink, Purple, and user-imported app icons applied to Finder, Spotlight,
+  and the app switcher
+- Independent built-in or user-imported menu bar icons
+- Latest-release checks with checksum-verified in-app updates
 - Shared atomic JSON storage in `~/Library/Application Support/Lumina`
 
 ## Requirements

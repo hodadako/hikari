@@ -43,6 +43,10 @@ public struct SharedContainer: Sendable {
         rootURL.appendingPathComponent("CustomAppIcon.png")
     }
 
+    public var customMenuBarIconURL: URL {
+        rootURL.appendingPathComponent("CustomMenuBarIcon.png")
+    }
+
     public func mediaURL(for content: LiveContent) -> URL {
         rootURL.appendingPathComponent(content.relativePath)
     }

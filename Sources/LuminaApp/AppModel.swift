@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import CoreServices
 import LuminaCore
 import ServiceManagement
 
@@ -9,6 +10,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var settings: LuminaSettings
     @Published private(set) var pauseReasons: Set<PlaybackPauseReason> = []
     @Published private(set) var isImporting = false
+    @Published private(set) var latestRelease: LatestRelease?
+    @Published private(set) var updateCheckState: UpdateCheckState = .idle
+    @Published private(set) var isApplyingUpdate = false
+    @Published private(set) var updateErrorMessage: String?
     @Published var presentedError: String?
 
     let container: SharedContainer
@@ -20,6 +25,9 @@ final class AppModel: ObservableObject {
     private let screenSaverInstaller = ScreenSaverInstaller()
     private let lockShortcutController = LockShortcutController()
     private lazy var customAppIconStore = CustomAppIconStore(container: container)
+    private lazy var customMenuBarIconStore = CustomMenuBarIconStore(container: container)
+    private let releaseUpdateService = ReleaseUpdateService()
+    private lazy var appUpdateInstaller = AppUpdateInstaller()
     private lazy var screenSaverContentSynchronizer: ScreenSaverContentSynchronizer? = {
         guard let destination = try? SharedContainer(
             rootURL: screenSaverInstaller.contentContainerURL
@@ -34,6 +42,7 @@ final class AppModel: ObservableObject {
     private lazy var wallpaperController = WallpaperController()
     private var terminationToken: NSObjectProtocol?
     private var screenSaverSyncTask: Task<Void, Never>?
+    private var updateTask: Task<Void, Never>?
 
     init() {
         do {
@@ -92,6 +101,7 @@ final class AppModel: ObservableObject {
                 self?.shutdown()
             }
         }
+        checkForUpdates()
     }
 
     var selectedContent: LiveContent? {
@@ -130,6 +140,23 @@ final class AppModel: ObservableObject {
         appIconImage(for: settings.appIconStyle)
             ?? NSImage(named: "LuminaIconBlue")
             ?? NSApplication.shared.applicationIconImage
+    }
+
+    var menuBarIconImage: NSImage {
+        menuBarIconImage(for: settings.menuBarIconStyle)
+            ?? NSImage(named: "MenuBarIconEmpty")
+            ?? NSImage(systemSymbolName: "sparkles.tv", accessibilityDescription: "Lumina")
+            ?? NSImage()
+    }
+
+    var menuBarIconIsTemplate: Bool {
+        settings.menuBarIconStyle.isTemplate
+    }
+
+    var currentAppVersion: String {
+        Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? "Development"
     }
 
     var isLockShortcutOverrideActive: Bool {
@@ -211,6 +238,21 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    func setMenuBarIconStyle(_ style: MenuBarIconStyle) {
+        guard style != .custom || customMenuBarIconStore.image(
+            relativePath: settings.customMenuBarIconRelativePath
+        ) != nil else {
+            return
+        }
+        settings.menuBarIconStyle = style
+        do {
+            try persistSettings()
+        } catch {
+            presentedError = error.localizedDescription
+        }
+        objectWillChange.send()
+    }
+
     func importCustomAppIcon(from url: URL) {
         let didAccess = url.startAccessingSecurityScopedResource()
         defer {
@@ -229,6 +271,23 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func importCustomMenuBarIcon(from url: URL) {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            settings.customMenuBarIconRelativePath = try customMenuBarIconStore.importIcon(
+                from: url
+            )
+            settings.menuBarIconStyle = .custom
+            try persistSettings()
+            objectWillChange.send()
+        } catch {
+            presentedError = error.localizedDescription
+        }
+    }
+
     func appIconImage(for style: AppIconStyle) -> NSImage? {
         if style == .custom {
             return customAppIconStore.image(
@@ -237,6 +296,74 @@ final class AppModel: ObservableObject {
         }
         guard let assetName = style.assetName else { return nil }
         return NSImage(named: assetName)
+    }
+
+    func menuBarIconImage(for style: MenuBarIconStyle) -> NSImage? {
+        if style == .custom {
+            return customMenuBarIconStore.image(
+                relativePath: settings.customMenuBarIconRelativePath
+            )
+        }
+        guard let assetName = style.assetName,
+              let image = NSImage(named: assetName) else {
+            return nil
+        }
+        image.isTemplate = style.isTemplate
+        return image
+    }
+
+    func checkForUpdates() {
+        guard updateCheckState != .checking else { return }
+        updateTask?.cancel()
+        updateCheckState = .checking
+        updateErrorMessage = nil
+        updateTask = Task { [weak self] in
+            do {
+                let release = try await self?.releaseUpdateService.fetchLatestRelease()
+                guard let self, let release, !Task.isCancelled else { return }
+                guard let latestVersion = release.version,
+                      let currentVersion = LuminaVersion(self.currentAppVersion) else {
+                    self.latestRelease = nil
+                    self.updateCheckState = .failed
+                    self.updateErrorMessage = ReleaseUpdateError.invalidReleaseVersion.localizedDescription
+                    return
+                }
+                self.latestRelease = release
+                self.updateCheckState = latestVersion > currentVersion
+                    ? .updateAvailable
+                    : .upToDate
+            } catch is CancellationError {
+                return
+            } catch {
+                guard let self, !Task.isCancelled else { return }
+                self.latestRelease = nil
+                self.updateCheckState = .failed
+                self.updateErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func applyLatestUpdate() {
+        guard let release = latestRelease,
+              updateCheckState == .updateAvailable,
+              !isApplyingUpdate else {
+            return
+        }
+        isApplyingUpdate = true
+        let installer = appUpdateInstaller
+        updateTask?.cancel()
+        updateTask = Task { [weak self, installer] in
+            do {
+                try await installer.install(release)
+            } catch is CancellationError {
+                guard let self else { return }
+                self.isApplyingUpdate = false
+            } catch {
+                guard let self else { return }
+                self.isApplyingUpdate = false
+                self.presentedError = error.localizedDescription
+            }
+        }
     }
 
     func setMuted(_ muted: Bool) {
@@ -482,6 +609,7 @@ final class AppModel: ObservableObject {
         stateMonitor.stop()
         lockShortcutController.stop()
         screenSaverSyncTask?.cancel()
+        updateTask?.cancel()
         wallpaperController.closeWindows()
     }
 
@@ -587,6 +715,14 @@ final class AppModel: ObservableObject {
     }
 
     private func applyApplicationIcon() {
-        NSApplication.shared.applicationIconImage = appIconImage
+        let image = appIconImage
+        image.isTemplate = false
+        NSApplication.shared.applicationIconImage = image
+        _ = NSWorkspace.shared.setIcon(
+            image,
+            forFile: Bundle.main.bundleURL.path,
+            options: []
+        )
+        LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
     }
 }

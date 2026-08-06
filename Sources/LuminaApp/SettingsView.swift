@@ -239,8 +239,61 @@ private struct AppearanceSettingsView: View {
                 Text(
                     localized(
                         "Choose a preset or import your own image. Your choice is used "
-                            + "by Lumina while it is running and in the menu bar. Finder "
-                            + "and Spotlight keep the signed Blue icon."
+                            + "by Lumina in Finder, Spotlight, and the app switcher. "
+                            + "The menu bar icon has its own setting below."
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Section("Menu Bar Icon") {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 92), spacing: 12)],
+                    spacing: 14
+                ) {
+                    ForEach(MenuBarIconStyle.allCases) { style in
+                        Button {
+                            if style == .custom {
+                                chooseCustomMenuBarIcon()
+                            } else {
+                                model.setMenuBarIconStyle(style)
+                            }
+                        } label: {
+                            VStack(spacing: 6) {
+                                MenuBarIconPreview(
+                                    image: model.menuBarIconImage(for: style),
+                                    size: 58,
+                                    isTemplate: style.isTemplate
+                                )
+                                Text(style.localizedName)
+                                    .font(.caption)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(6)
+                            .background(
+                                model.settings.menuBarIconStyle == style
+                                    ? Color.accentColor.opacity(0.16)
+                                    : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(
+                                        model.settings.menuBarIconStyle == style
+                                            ? Color.accentColor
+                                            : Color.clear,
+                                        lineWidth: 2
+                                    )
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Text(
+                    localized(
+                        "This icon is independent from the app icon and appears only in the menu bar."
                     )
                 )
                 .font(.caption)
@@ -352,6 +405,16 @@ private struct AppearanceSettingsView: View {
         panel.message = localized("Choose an image for your custom Lumina icon.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         model.importCustomAppIcon(from: url)
+    }
+
+    private func chooseCustomMenuBarIcon() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = localized("Choose an image for your custom menu bar icon.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        model.importCustomMenuBarIcon(from: url)
     }
 
     private func durationText(_ duration: Double) -> String {
@@ -526,6 +589,7 @@ private func localized(_ key: String) -> String {
 
 private struct AboutView: View {
     @ObservedObject var model: AppModel
+    @State private var showingUpdateConfirmation = false
 
     var body: some View {
         VStack(spacing: 14) {
@@ -536,7 +600,7 @@ private struct AboutView: View {
             )
             Text("Lumina")
                 .font(.title.bold())
-            Text("Version \(appVersion)")
+            Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)
             Text("Native live wallpaper and screen saver for macOS.")
                 .foregroundStyle(.secondary)
@@ -547,14 +611,75 @@ private struct AboutView: View {
             Text("Released under the MIT License")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+            Divider()
+            VStack(spacing: 8) {
+                switch model.updateCheckState {
+                case .checking:
+                    ProgressView("Checking for updates…")
+                case .updateAvailable:
+                    if let release = model.latestRelease {
+                        Text(
+                            String(
+                                format: NSLocalizedString(
+                                    "Version %@ is available.",
+                                    comment: "Available app update message"
+                                ),
+                                release.displayVersion
+                            )
+                        )
+                        .foregroundStyle(.tint)
+                        Button("Update and Relaunch") {
+                            showingUpdateConfirmation = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                case .upToDate:
+                    Text("Lumina is up to date.")
+                        .foregroundStyle(.secondary)
+                case .failed:
+                    Text(model.updateErrorMessage ?? "Could not check for updates.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .idle:
+                    EmptyView()
+                }
+
+                Button(
+                    model.isApplyingUpdate
+                        ? "Preparing Update…"
+                        : "Check for Updates"
+                ) {
+                    model.checkForUpdates()
+                }
+                .disabled(
+                    model.isApplyingUpdate
+                        || model.updateCheckState == .checking
+                )
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private var appVersion: String {
-        Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString"
-        ) as? String ?? "Development"
+        .confirmationDialog(
+            "Install Lumina update?",
+            isPresented: $showingUpdateConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Update and Relaunch") {
+                model.applyLatestUpdate()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let release = model.latestRelease {
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "Lumina will download %@, replace the current app, and relaunch.",
+                            comment: "App update confirmation message"
+                        ),
+                        release.displayVersion
+                    )
+                )
+            }
+        }
     }
 }

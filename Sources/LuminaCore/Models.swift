@@ -58,6 +58,21 @@ public enum AppIconStyle: String, Codable, CaseIterable, Identifiable, Sendable 
     public var id: String { rawValue }
 }
 
+public enum MenuBarIconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
+    case empty
+    case outlinePurple
+    case outlinePink
+    case outlineBlue
+    case outlineViolet
+    case filledPurple
+    case filledPink
+    case filledBlue
+    case filledViolet
+    case custom
+
+    public var id: String { rawValue }
+}
+
 public struct LuminaSettings: Codable, Equatable, Sendable {
     public var selectedContentID: UUID?
     public var playbackPreference: PlaybackPreference
@@ -68,6 +83,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var lastKnownScreenSaverInstalled: Bool
     public var appIconStyle: AppIconStyle
     public var customAppIconRelativePath: String?
+    public var menuBarIconStyle: MenuBarIconStyle
+    public var customMenuBarIconRelativePath: String?
     public var overrideSystemLockShortcut: Bool
     /// True only when Lumina explicitly enabled Lock Screen playback.
     public var lockScreenPlaybackEnabled: Bool
@@ -84,6 +101,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         lastKnownScreenSaverInstalled: Bool = false,
         appIconStyle: AppIconStyle = .blue,
         customAppIconRelativePath: String? = nil,
+        menuBarIconStyle: MenuBarIconStyle = .empty,
+        customMenuBarIconRelativePath: String? = nil,
         overrideSystemLockShortcut: Bool = false,
         lockScreenPlaybackEnabled: Bool = false,
         screenSaverPreviousIdleTime: Int? = nil
@@ -97,6 +116,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         self.lastKnownScreenSaverInstalled = lastKnownScreenSaverInstalled
         self.appIconStyle = appIconStyle
         self.customAppIconRelativePath = customAppIconRelativePath
+        self.menuBarIconStyle = menuBarIconStyle
+        self.customMenuBarIconRelativePath = customMenuBarIconRelativePath
         self.overrideSystemLockShortcut = overrideSystemLockShortcut
         self.lockScreenPlaybackEnabled = lockScreenPlaybackEnabled
         self.screenSaverPreviousIdleTime = screenSaverPreviousIdleTime
@@ -112,6 +133,8 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         case lastKnownScreenSaverInstalled
         case appIconStyle
         case customAppIconRelativePath
+        case menuBarIconStyle
+        case customMenuBarIconRelativePath
         case overrideSystemLockShortcut
         case lockScreenPlaybackEnabled
         case screenSaverPreviousIdleTime
@@ -151,6 +174,14 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         customAppIconRelativePath = try values.decodeIfPresent(
             String.self,
             forKey: .customAppIconRelativePath
+        )
+        menuBarIconStyle = try values.decodeIfPresent(
+            MenuBarIconStyle.self,
+            forKey: .menuBarIconStyle
+        ) ?? .empty
+        customMenuBarIconRelativePath = try values.decodeIfPresent(
+            String.self,
+            forKey: .customMenuBarIconRelativePath
         )
         overrideSystemLockShortcut = try values.decodeIfPresent(
             Bool.self,
