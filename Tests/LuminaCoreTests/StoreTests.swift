@@ -66,6 +66,13 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(IconGeometry.cornerRadius, 193.6, accuracy: 0.001)
     }
 
+    func testMenuBarIconFrameLeavesAConsistentVisualMargin() {
+        XCTAssertEqual(
+            MenuBarIconGeometry.iconFrame,
+            CGRect(x: 128, y: 128, width: 768, height: 768)
+        )
+    }
+
     func testSettingsRoundTrip() throws {
         let container = try SharedContainer(rootURL: temporaryURL)
         let store = SettingsStore(container: container)

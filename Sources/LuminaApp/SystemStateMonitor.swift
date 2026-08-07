@@ -22,6 +22,16 @@ final class SystemStateMonitor {
     private var displayTask: Task<Void, Never>?
     private var spaceTask: Task<Void, Never>?
 
+    // WindowServer can publish the screen-parameter notification before the
+    // newly attached display has a stable NSScreen/window surface. Recheck
+    // the topology at increasing delays so one early snapshot cannot become
+    // the permanent state for the app.
+    private let displayRecoveryIntervals: [UInt64] = [
+        0,
+        250_000_000,
+        650_000_000
+    ]
+
     // WindowServer finishes a Spaces mutation asynchronously. A single
     // callback can run while the new desktop is still being materialized, so
     // use a short recovery sequence and collapse overlapping notifications.
@@ -191,11 +201,16 @@ final class SystemStateMonitor {
 
     private func scheduleDisplaysChanged(after delay: UInt64 = 120_000_000) {
         displayTask?.cancel()
+        let recoveryIntervals = displayRecoveryIntervals
         displayTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: delay)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                self?.onDisplaysChanged?()
+            for interval in recoveryIntervals {
+                try? await Task.sleep(
+                    nanoseconds: delay + interval
+                )
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.onDisplaysChanged?()
+                }
             }
         }
     }

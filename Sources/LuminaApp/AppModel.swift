@@ -43,6 +43,7 @@ final class AppModel: ObservableObject {
     private var terminationToken: NSObjectProtocol?
     private var screenSaverSyncTask: Task<Void, Never>?
     private var updateTask: Task<Void, Never>?
+    private var normalizedMenuBarIconCache: [String: NSImage] = [:]
 
     init() {
         do {
@@ -67,7 +68,6 @@ final class AppModel: ObservableObject {
             self.wallpaperController.rebuildWindowsIfContentAvailable(
                 self.hasPlayableContent
             )
-            self.reconcilePlayback()
         }
         stateMonitor.onActiveSpaceChanged = { [weak self] in
             guard let self else { return }
@@ -281,6 +281,7 @@ final class AppModel: ObservableObject {
                 from: url
             )
             settings.menuBarIconStyle = .custom
+            normalizedMenuBarIconCache.removeAll()
             try persistSettings()
             objectWillChange.send()
         } catch {
@@ -299,17 +300,29 @@ final class AppModel: ObservableObject {
     }
 
     func menuBarIconImage(for style: MenuBarIconStyle) -> NSImage? {
+        let cacheKey = style == .custom
+            ? "custom:\(settings.customMenuBarIconRelativePath ?? "")"
+            : style.rawValue
+        if let cachedImage = normalizedMenuBarIconCache[cacheKey] {
+            return cachedImage
+        }
+
+        let sourceImage: NSImage?
         if style == .custom {
-            return customMenuBarIconStore.image(
+            sourceImage = customMenuBarIconStore.image(
                 relativePath: settings.customMenuBarIconRelativePath
             )
+        } else if let assetName = style.assetName {
+            sourceImage = NSImage(named: assetName)
+        } else {
+            sourceImage = nil
         }
-        guard let assetName = style.assetName,
-              let image = NSImage(named: assetName) else {
-            return nil
-        }
-        image.isTemplate = style.isTemplate
-        return image
+        guard let sourceImage else { return nil }
+
+        let normalizedImage = MenuBarIconRenderer.normalizedImage(from: sourceImage)
+        normalizedImage.isTemplate = style.isTemplate
+        normalizedMenuBarIconCache[cacheKey] = normalizedImage
+        return normalizedImage
     }
 
     func checkForUpdates() {
@@ -515,7 +528,7 @@ final class AppModel: ObservableObject {
                 try await synchronizer.synchronize(
                     content: content,
                     settings: settings,
-                    force: true
+                    force: false
                 )
             } catch is CancellationError {
                 return

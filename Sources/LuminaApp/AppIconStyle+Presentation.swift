@@ -107,7 +107,6 @@ struct MenuBarIconPreview: View {
                     .interpolation(.high)
                     .renderingMode(isTemplate ? .template : .original)
                     .scaledToFit()
-                    .padding(size * 0.12)
                     .foregroundStyle(.primary)
             } else {
                 Image(systemName: "plus")

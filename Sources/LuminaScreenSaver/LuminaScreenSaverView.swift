@@ -71,7 +71,7 @@ final class LuminaScreenSaverView: ScreenSaverView {
 
         let settings = SettingsStore(container: container).load()
         let item = AVPlayerItem(url: mediaURL)
-        item.preferredForwardBufferDuration = 2
+        item.preferredForwardBufferDuration = VideoRenderer.preferredForwardBufferDuration
         looper = AVPlayerLooper(player: player, templateItem: item)
         playerLayer.videoGravity = settings.scalingMode == .fill
             ? .resizeAspectFill

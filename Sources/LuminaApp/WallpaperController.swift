@@ -64,12 +64,9 @@ final class WallpaperController {
 
     @discardableResult
     func synchronizeDisplayTopology() -> DisplayTopologyDiff {
-        let newPlans = DisplayTopology.plans(for: currentDisplayDescriptors())
+        let descriptors = currentDisplayDescriptors()
+        let newPlans = DisplayTopology.plans(for: descriptors)
         let diff = DisplayTopology.diff(from: plans, to: newPlans)
-        let screenByID = Dictionary(
-            currentDisplayDescriptors().map { ($0.id, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
 
         for displayID in diff.removed {
             removeSession(displayID: displayID)
@@ -77,11 +74,18 @@ final class WallpaperController {
         for plan in diff.updated {
             guard let session = sessions[plan.displayID] else { continue }
             session.window.setFrame(plan.frame, display: true, animate: false)
+            session.window.collectionBehavior = Self.wallpaperCollectionBehavior
             session.view.backingScaleFactor = plan.backingScaleFactor
             session.view.frame = session.window.contentView?.bounds ?? .zero
+            session.view.needsLayout = true
+            session.view.layoutSubtreeIfNeeded()
+            session.window.orderFront(nil)
         }
-        for plan in diff.created {
-            guard screenByID[plan.displayID] != nil else { continue }
+
+        // Recover from a topology snapshot that previously contained a
+        // display but failed to create its session while WindowServer was
+        // still materializing it.
+        for plan in newPlans where sessions[plan.displayID] == nil {
             createSession(for: plan)
         }
 
@@ -162,7 +166,6 @@ final class WallpaperController {
         playerView.autoresizingMask = [.width, .height]
         playerView.scalingMode = scalingMode
         window.contentView = playerView
-        window.orderFront(nil)
 
         sessions[plan.displayID] = DisplaySession(
             renderer: renderer,
@@ -170,6 +173,9 @@ final class WallpaperController {
             view: playerView
         )
         playback.addSession(id: plan.displayID, session: renderer)
+        window.orderFront(nil)
+        playerView.needsLayout = true
+        playerView.layoutSubtreeIfNeeded()
     }
 
     private func removeSession(displayID: UInt32) {

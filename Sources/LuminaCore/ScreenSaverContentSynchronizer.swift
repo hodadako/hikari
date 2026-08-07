@@ -4,7 +4,7 @@ public actor ScreenSaverContentSynchronizer {
     private struct Signature: Equatable {
         let contentID: UUID?
         let fileSize: Int64?
-        let settings: LuminaSettings
+        let scalingMode: ScalingMode
     }
 
     private let sourceContainer: SharedContainer
@@ -31,7 +31,7 @@ public actor ScreenSaverContentSynchronizer {
         let signature = Signature(
             contentID: content?.id,
             fileSize: content?.fileSize,
-            settings: settings
+            scalingMode: settings.scalingMode
         )
         if !force,
            lastSignature == signature,

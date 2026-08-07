@@ -54,3 +54,15 @@ public enum IconGeometry {
         )
     }
 }
+
+/// Geometry for images displayed in the macOS menu bar.
+///
+/// Menu bar artwork comes from different sources and therefore has different
+/// transparent margins. Normalize its visible pixels into one smaller frame so
+/// every preset and custom icon has the same visual size in the status item.
+public enum MenuBarIconGeometry {
+    public static let canvasSize = CGSize(width: 1024, height: 1024)
+    public static let canvasBounds = CGRect(origin: .zero, size: canvasSize)
+    public static let iconInset: CGFloat = 128
+    public static let iconFrame = canvasBounds.insetBy(dx: iconInset, dy: iconInset)
+}

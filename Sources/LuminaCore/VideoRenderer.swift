@@ -4,6 +4,10 @@ import Foundation
 
 @MainActor
 public final class VideoRenderer: ObservableObject, PlaybackSession {
+    /// Keep only a short local-file buffer per display. Longer buffers multiply
+    /// memory use because the app owns one queue player for each display.
+    public static let preferredForwardBufferDuration: TimeInterval = 1
+
     @Published public private(set) var currentURL: URL?
     @Published public private(set) var isPlaying = false
     @Published public private(set) var hasPlaybackError = false
@@ -24,7 +28,7 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
         }
         stopAndRelease()
         let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 2
+        item.preferredForwardBufferDuration = Self.preferredForwardBufferDuration
         itemFailureToken = NotificationCenter.default.addObserver(
             forName: AVPlayerItem.failedToPlayToEndTimeNotification,
             object: item,
