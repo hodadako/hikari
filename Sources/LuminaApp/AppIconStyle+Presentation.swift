@@ -5,18 +5,14 @@ import SwiftUI
 extension AppIconStyle {
     var assetName: String? {
         switch self {
-        case .blue: "LuminaIconBlue"
-        case .pink: "LuminaIconPink"
-        case .purple: "LuminaIconPurple"
+        case .lumina: "LuminaIconDefault"
         case .custom: nil
         }
     }
 
     var localizedName: String {
         switch self {
-        case .blue: NSLocalizedString("Blue", comment: "Blue app icon")
-        case .pink: NSLocalizedString("Pink", comment: "Pink app icon")
-        case .purple: NSLocalizedString("Purple", comment: "Purple app icon")
+        case .lumina: NSLocalizedString("Lumina", comment: "Default Lumina app icon")
         case .custom: NSLocalizedString("Custom", comment: "Custom app icon")
         }
     }
@@ -25,34 +21,18 @@ extension AppIconStyle {
 extension MenuBarIconStyle {
     var assetName: String? {
         switch self {
-        case .empty: "MenuBarIconEmpty"
-        case .outlinePurple: "MenuBarIconOutlinePurple"
-        case .outlinePink: "MenuBarIconOutlinePink"
-        case .outlineBlue: "MenuBarIconOutlineBlue"
-        case .outlineViolet: "MenuBarIconOutlineViolet"
-        case .filledPurple: "MenuBarIconFilledPurple"
-        case .filledPink: "MenuBarIconFilledPink"
-        case .filledBlue: "MenuBarIconFilledBlue"
-        case .filledViolet: "MenuBarIconFilledViolet"
+        case .lumina: "MenuBarIconLumina"
         case .custom: nil
         }
     }
 
     var isTemplate: Bool {
-        self == .empty
+        false
     }
 
     var localizedName: String {
         switch self {
-        case .empty: NSLocalizedString("Default", comment: "Default menu bar icon")
-        case .outlinePurple: NSLocalizedString("Purple Outline", comment: "Purple outline menu bar icon")
-        case .outlinePink: NSLocalizedString("Pink Outline", comment: "Pink outline menu bar icon")
-        case .outlineBlue: NSLocalizedString("Blue Outline", comment: "Blue outline menu bar icon")
-        case .outlineViolet: NSLocalizedString("Violet Outline", comment: "Violet outline menu bar icon")
-        case .filledPurple: NSLocalizedString("Purple Glow", comment: "Purple filled menu bar icon")
-        case .filledPink: NSLocalizedString("Pink Glow", comment: "Pink filled menu bar icon")
-        case .filledBlue: NSLocalizedString("Blue Glow", comment: "Blue filled menu bar icon")
-        case .filledViolet: NSLocalizedString("Violet Glow", comment: "Violet filled menu bar icon")
+        case .lumina: NSLocalizedString("Lumina", comment: "Default Lumina menu bar icon")
         case .custom: NSLocalizedString("Custom", comment: "Custom menu bar icon")
         }
     }

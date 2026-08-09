@@ -87,7 +87,7 @@ final class StoreTests: XCTestCase {
             lastKnownScreenSaverInstalled: true,
             appIconStyle: .custom,
             customAppIconRelativePath: "CustomAppIcon.png",
-            menuBarIconStyle: .filledPink,
+            menuBarIconStyle: .lumina,
             customMenuBarIconRelativePath: "CustomMenuBarIcon.png",
             overrideSystemLockShortcut: true,
             lockScreenPlaybackEnabled: true,
@@ -99,7 +99,7 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(store.load(), expected)
     }
 
-    func testLegacySettingsDefaultToBlueIcon() throws {
+    func testLegacySettingsDefaultToLuminaIcon() throws {
         let container = try SharedContainer(rootURL: temporaryURL)
         let legacyJSON = """
         {
@@ -114,13 +114,28 @@ final class StoreTests: XCTestCase {
         try Data(legacyJSON.utf8).write(to: container.settingsURL)
 
         let settings = SettingsStore(container: container).load()
-        XCTAssertEqual(settings.appIconStyle, .blue)
+        XCTAssertEqual(settings.appIconStyle, .lumina)
         XCTAssertNil(settings.customAppIconRelativePath)
-        XCTAssertEqual(settings.menuBarIconStyle, .empty)
+        XCTAssertEqual(settings.menuBarIconStyle, .lumina)
         XCTAssertNil(settings.customMenuBarIconRelativePath)
         XCTAssertFalse(settings.overrideSystemLockShortcut)
         XCTAssertFalse(settings.lockScreenPlaybackEnabled)
         XCTAssertNil(settings.screenSaverPreviousIdleTime)
+    }
+
+    func testLegacyPresetIconsMigrateToLuminaIcons() throws {
+        let container = try SharedContainer(rootURL: temporaryURL)
+        let legacyJSON = """
+        {
+          "appIconStyle": "pink",
+          "menuBarIconStyle": "filledPink"
+        }
+        """
+        try Data(legacyJSON.utf8).write(to: container.settingsURL)
+
+        let settings = SettingsStore(container: container).load()
+        XCTAssertEqual(settings.appIconStyle, .lumina)
+        XCTAssertEqual(settings.menuBarIconStyle, .lumina)
     }
 
     func testContentDeleteOnlyRemovesManagedCopy() throws {

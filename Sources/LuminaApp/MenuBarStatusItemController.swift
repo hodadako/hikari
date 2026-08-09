@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 
 /// Owns Lumina's status item independently from SwiftUI's MenuBarExtra scene.
@@ -12,7 +11,7 @@ final class MenuBarStatusItemController: NSObject {
     private let model: AppModel
     private let statusItem: NSStatusItem
     private let popover: NSPopover
-    private var modelObservation: AnyCancellable?
+    private var iconHostingView: PassthroughHostingView<MenuBarStatusIconView>?
 
     init(model: AppModel) {
         self.model = model
@@ -22,28 +21,33 @@ final class MenuBarStatusItemController: NSObject {
 
         configureStatusItem()
         configurePopover()
-
-        modelObservation = model.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updateIcon()
-            }
     }
 
     deinit {
-        modelObservation?.cancel()
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
+        button.image = nil
+        button.title = ""
         button.target = self
         button.action = #selector(togglePopover(_:))
         button.toolTip = "Lumina"
         button.setAccessibilityLabel("Lumina")
-        updateIcon()
+
+        let hostingView = PassthroughHostingView(
+            rootView: MenuBarStatusIconView(model: model)
+        )
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(hostingView)
+        NSLayoutConstraint.activate([
+            hostingView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            hostingView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            hostingView.widthAnchor.constraint(equalToConstant: 18),
+            hostingView.heightAnchor.constraint(equalToConstant: 18)
+        ])
+        iconHostingView = hostingView
     }
 
     private func configurePopover() {
@@ -53,13 +57,6 @@ final class MenuBarStatusItemController: NSObject {
         popover.contentViewController = NSHostingController(
             rootView: MenuBarView(model: model)
         )
-    }
-
-    private func updateIcon() {
-        guard let button = statusItem.button else { return }
-        let image = model.menuBarIconImage
-        image.isTemplate = model.menuBarIconIsTemplate
-        button.image = image
     }
 
     @objc
@@ -75,5 +72,76 @@ final class MenuBarStatusItemController: NSObject {
                 preferredEdge: .minY
             )
         }
+    }
+}
+
+private final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+
+private struct MenuBarStatusIconView: View {
+    @ObservedObject var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Image(nsImage: model.menuBarIconImage)
+                .resizable()
+                .interpolation(.high)
+                .renderingMode(model.menuBarIconIsTemplate ? .template : .original)
+                .scaledToFit()
+
+            if model.shouldPulseMenuBarSparkle {
+                sparkle
+            }
+        }
+        .frame(width: 18, height: 18)
+        .contentShape(Rectangle())
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var sparkle: some View {
+        if #available(macOS 14.0, *) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 7, weight: .semibold))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(.white)
+                .symbolEffect(
+                    .pulse.wholeSymbol,
+                    options: .repeating,
+                    isActive: !reduceMotion
+                )
+        } else if let heartbeatImage = model.menuBarHeartbeatImage {
+            LegacyHeartbeatView(
+                image: heartbeatImage,
+                reduceMotion: reduceMotion
+            )
+        }
+    }
+}
+
+private struct LegacyHeartbeatView: View {
+    let image: NSImage
+    let reduceMotion: Bool
+    @State private var isPulsing = false
+
+    var body: some View {
+        Image(nsImage: image)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .opacity(isPulsing ? 0.3 : 1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(
+                    .easeInOut(duration: 0.85)
+                        .repeatForever(autoreverses: true)
+                ) {
+                    isPulsing = true
+                }
+            }
     }
 }

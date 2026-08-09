@@ -44,6 +44,7 @@ final class AppModel: ObservableObject {
     private var screenSaverSyncTask: Task<Void, Never>?
     private var updateTask: Task<Void, Never>?
     private var normalizedMenuBarIconCache: [String: NSImage] = [:]
+    private var normalizedMenuBarHeartbeatCache: NSImage?
 
     init() {
         do {
@@ -138,15 +139,37 @@ final class AppModel: ObservableObject {
 
     var appIconImage: NSImage {
         appIconImage(for: settings.appIconStyle)
-            ?? NSImage(named: "LuminaIconBlue")
+            ?? NSImage(named: "LuminaIconDefault")
             ?? NSApplication.shared.applicationIconImage
     }
 
     var menuBarIconImage: NSImage {
         menuBarIconImage(for: settings.menuBarIconStyle)
-            ?? NSImage(named: "MenuBarIconEmpty")
+            ?? NSImage(named: "MenuBarIconLumina")
             ?? NSImage(systemSymbolName: "sparkles.tv", accessibilityDescription: "Lumina")
             ?? NSImage()
+    }
+
+    var menuBarHeartbeatImage: NSImage? {
+        guard settings.menuBarIconStyle == .lumina else { return nil }
+        if let normalizedMenuBarHeartbeatCache {
+            return normalizedMenuBarHeartbeatCache
+        }
+        guard let baseImage = NSImage(named: "MenuBarIconLumina"),
+              let heartbeatImage = NSImage(named: "MenuBarIconHeartbeat") else {
+            return nil
+        }
+        let normalizedImage = MenuBarIconRenderer.normalizedImage(
+            from: heartbeatImage,
+            framedBy: baseImage
+        )
+        normalizedImage.isTemplate = false
+        normalizedMenuBarHeartbeatCache = normalizedImage
+        return normalizedImage
+    }
+
+    var shouldPulseMenuBarSparkle: Bool {
+        settings.menuBarIconStyle == .lumina
     }
 
     var menuBarIconIsTemplate: Bool {

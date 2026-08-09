@@ -2,17 +2,26 @@ import AppKit
 import LuminaCore
 
 enum MenuBarIconRenderer {
-    static func normalizedImage(from sourceImage: NSImage) -> NSImage {
-        guard let representation = bitmapRepresentation(for: sourceImage) else {
+    static func normalizedImage(
+        from sourceImage: NSImage,
+        framedBy framingImage: NSImage? = nil
+    ) -> NSImage {
+        let framingImage = framingImage ?? sourceImage
+        guard let representation = bitmapRepresentation(for: framingImage) else {
             return sourceImage
         }
 
-        let sourceRect = alphaContentRect(
-            for: sourceImage,
+        let framingRect = alphaContentRect(
+            for: framingImage,
             representation: representation
         )
+        let sourceRect = proportionalRect(
+            framingRect,
+            from: framingImage.size,
+            to: sourceImage.size
+        )
         let destinationRect = aspectFitRect(
-            sourceSize: sourceRect.size,
+            sourceSize: framingRect.size,
             inside: MenuBarIconGeometry.iconFrame
         )
 
@@ -69,21 +78,40 @@ enum MenuBarIconRenderer {
 
         let scaleX = image.size.width / CGFloat(representation.pixelsWide)
         let scaleY = image.size.height / CGFloat(representation.pixelsHigh)
-        let inset: CGFloat = 1
-        let contentWidth = min(
-            CGFloat(representation.pixelsWide),
-            CGFloat(maxX - minX + 1) + inset * 2
+        let contentWidth = maxX - minX + 1
+        let contentHeight = maxY - minY + 1
+        let padding = max(
+            2,
+            Int(ceil(CGFloat(max(contentWidth, contentHeight)) * 0.08))
         )
-        let contentHeight = min(
-            CGFloat(representation.pixelsHigh),
-            CGFloat(maxY - minY + 1) + inset * 2
-        )
+        let paddedMinX = max(0, minX - padding)
+        let paddedMinY = max(0, minY - padding)
+        let paddedMaxX = min(representation.pixelsWide - 1, maxX + padding)
+        let paddedMaxY = min(representation.pixelsHigh - 1, maxY + padding)
 
         return NSRect(
-            x: max(0, CGFloat(minX) - inset) * scaleX,
-            y: max(0, CGFloat(minY) - inset) * scaleY,
-            width: contentWidth * scaleX,
-            height: contentHeight * scaleY
+            x: CGFloat(paddedMinX) * scaleX,
+            y: CGFloat(paddedMinY) * scaleY,
+            width: CGFloat(paddedMaxX - paddedMinX + 1) * scaleX,
+            height: CGFloat(paddedMaxY - paddedMinY + 1) * scaleY
+        )
+    }
+
+    private static func proportionalRect(
+        _ rect: NSRect,
+        from framingSize: NSSize,
+        to sourceSize: NSSize
+    ) -> NSRect {
+        guard framingSize.width > 0, framingSize.height > 0 else {
+            return NSRect(origin: .zero, size: sourceSize)
+        }
+        let scaleX = sourceSize.width / framingSize.width
+        let scaleY = sourceSize.height / framingSize.height
+        return NSRect(
+            x: rect.origin.x * scaleX,
+            y: rect.origin.y * scaleY,
+            width: rect.width * scaleX,
+            height: rect.height * scaleY
         )
     }
 

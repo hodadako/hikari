@@ -50,27 +50,27 @@ public enum ScalingMode: String, Codable, CaseIterable, Identifiable, Sendable {
 }
 
 public enum AppIconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
-    case blue
-    case pink
-    case purple
+    case lumina
     case custom
 
     public var id: String { rawValue }
+
+    public init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = value == Self.custom.rawValue ? .custom : .lumina
+    }
 }
 
 public enum MenuBarIconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
-    case empty
-    case outlinePurple
-    case outlinePink
-    case outlineBlue
-    case outlineViolet
-    case filledPurple
-    case filledPink
-    case filledBlue
-    case filledViolet
+    case lumina
     case custom
 
     public var id: String { rawValue }
+
+    public init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer().decode(String.self)
+        self = value == Self.custom.rawValue ? .custom : .lumina
+    }
 }
 
 public struct LuminaSettings: Codable, Equatable, Sendable {
@@ -99,9 +99,9 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         pauseOnBattery: Bool = false,
         launchAtLogin: Bool = false,
         lastKnownScreenSaverInstalled: Bool = false,
-        appIconStyle: AppIconStyle = .blue,
+        appIconStyle: AppIconStyle = .lumina,
         customAppIconRelativePath: String? = nil,
-        menuBarIconStyle: MenuBarIconStyle = .empty,
+        menuBarIconStyle: MenuBarIconStyle = .lumina,
         customMenuBarIconRelativePath: String? = nil,
         overrideSystemLockShortcut: Bool = false,
         lockScreenPlaybackEnabled: Bool = false,
@@ -170,7 +170,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         appIconStyle = try values.decodeIfPresent(
             AppIconStyle.self,
             forKey: .appIconStyle
-        ) ?? .blue
+        ) ?? .lumina
         customAppIconRelativePath = try values.decodeIfPresent(
             String.self,
             forKey: .customAppIconRelativePath
@@ -178,7 +178,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         menuBarIconStyle = try values.decodeIfPresent(
             MenuBarIconStyle.self,
             forKey: .menuBarIconStyle
-        ) ?? .empty
+        ) ?? .lumina
         customMenuBarIconRelativePath = try values.decodeIfPresent(
             String.self,
             forKey: .customMenuBarIconRelativePath
