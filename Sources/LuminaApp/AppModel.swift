@@ -352,6 +352,7 @@ final class AppModel: ObservableObject {
         guard updateCheckState != .checking else { return }
         updateTask?.cancel()
         updateCheckState = .checking
+        latestRelease = nil
         updateErrorMessage = nil
         updateTask = Task { [weak self] in
             do {
@@ -380,9 +381,10 @@ final class AppModel: ObservableObject {
     }
 
     func applyLatestUpdate() {
+        guard !isApplyingUpdate else { return }
         guard let release = latestRelease,
-              updateCheckState == .updateAvailable,
-              !isApplyingUpdate else {
+              updateCheckState == .updateAvailable else {
+            checkForUpdates()
             return
         }
         isApplyingUpdate = true

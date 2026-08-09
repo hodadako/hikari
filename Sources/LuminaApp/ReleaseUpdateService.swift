@@ -115,10 +115,13 @@ struct ReleaseUpdateService {
 
     func fetchLatestRelease() async throws -> LatestRelease {
         var request = URLRequest(url: Self.latestReleaseURL)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 30
         request.setValue(
             "application/vnd.github+json",
             forHTTPHeaderField: "Accept"
         )
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue(
             "Lumina",
             forHTTPHeaderField: "User-Agent"
@@ -141,7 +144,15 @@ struct ReleaseUpdateService {
     }
 
     func download(_ asset: ReleaseAsset) async throws -> URL {
-        let (url, response) = try await session.download(from: asset.browserDownloadURL)
+        var request = URLRequest(url: asset.browserDownloadURL)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 180
+        request.setValue(
+            "application/octet-stream",
+            forHTTPHeaderField: "Accept"
+        )
+        request.setValue("Lumina", forHTTPHeaderField: "User-Agent")
+        let (url, response) = try await session.download(for: request)
         guard let response = response as? HTTPURLResponse,
               (200..<300).contains(response.statusCode) else {
             throw ReleaseUpdateError.unavailable

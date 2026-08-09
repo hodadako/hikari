@@ -25,7 +25,7 @@ final class AppUpdateInstaller {
 
         let temporaryRoot = fileManager.temporaryDirectory
             .appendingPathComponent(
-                "LuminaUpdate-(UUID().uuidString)",
+                "LuminaUpdate-\(UUID().uuidString)",
                 isDirectory: true
             )
         try fileManager.createDirectory(
@@ -63,7 +63,6 @@ final class AppUpdateInstaller {
                 "-x",
                 "-k",
                 "--sequesterRsrc",
-                "--keepParent",
                 archiveURL.path,
                 extractionURL.path
             ]
