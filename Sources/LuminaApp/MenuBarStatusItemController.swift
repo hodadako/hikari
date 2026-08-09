@@ -107,7 +107,7 @@ private struct MenuBarCompositeIconView: View {
     private var sparkle: some View {
         if #available(macOS 14.0, *) {
             Image(systemName: "sparkle")
-                .font(.system(size: 7, weight: .semibold))
+                .font(.system(size: 5.5, weight: .semibold))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(.white)
                 .symbolEffect(
@@ -115,11 +115,14 @@ private struct MenuBarCompositeIconView: View {
                     options: .repeating,
                     isActive: !reduceMotion
                 )
+                .offset(y: -1.4)
         } else if let heartbeatImage = model.menuBarHeartbeatImage {
             LegacyHeartbeatView(
                 image: heartbeatImage,
                 reduceMotion: reduceMotion
             )
+            .frame(width: 5.5, height: 5.5)
+            .offset(y: -1.4)
         }
     }
 }
