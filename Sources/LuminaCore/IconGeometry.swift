@@ -63,6 +63,6 @@ public enum IconGeometry {
 public enum MenuBarIconGeometry {
     public static let canvasSize = CGSize(width: 1024, height: 1024)
     public static let canvasBounds = CGRect(origin: .zero, size: canvasSize)
-    public static let iconInset: CGFloat = 128
+    public static let iconInset: CGFloat = 64
     public static let iconFrame = canvasBounds.insetBy(dx: iconInset, dy: iconInset)
 }
