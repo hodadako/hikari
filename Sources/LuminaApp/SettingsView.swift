@@ -632,6 +632,7 @@ private struct AboutView: View {
                             showingUpdateConfirmation = true
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(model.isApplyingUpdate)
                     }
                 case .upToDate:
                     Text("Lumina is up to date.")
