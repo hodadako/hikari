@@ -169,7 +169,7 @@ final class AppModel: ObservableObject {
     }
 
     var shouldPulseMenuBarSparkle: Bool {
-        settings.menuBarIconStyle == .lumina
+        settings.menuBarIconStyle == .lumina && isPlaying
     }
 
     var menuBarIconIsTemplate: Bool {
