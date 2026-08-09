@@ -757,8 +757,9 @@ final class AppModel: ObservableObject {
         image.isTemplate = false
         NSApplication.shared.applicationIconImage = image
 
+        let finderIcon = settings.appIconStyle == .custom ? image : nil
         guard NSWorkspace.shared.setIcon(
-            image,
+            finderIcon,
             forFile: appPath,
             options: []
         ) else {
@@ -769,9 +770,9 @@ final class AppModel: ObservableObject {
             return
         }
 
-        // Finder keeps a separate icon cache from Launch Services. Notify both
-        // the app bundle and its containing directory so open Finder windows
-        // immediately reload the custom icon resource written by setIcon.
+        // Finder keeps a separate icon cache from Launch Services. The default
+        // style clears any custom Finder override so AppIcon.icns remains the
+        // canonical icon; the custom style writes its imported image instead.
         NSWorkspace.shared.noteFileSystemChanged(appPath)
         NSWorkspace.shared.noteFileSystemChanged(
             appURL.deletingLastPathComponent().path
