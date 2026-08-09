@@ -729,13 +729,35 @@ final class AppModel: ObservableObject {
 
     private func applyApplicationIcon() {
         let image = appIconImage
+        let appURL = Bundle.main.bundleURL
+        let appPath = appURL.path
         image.isTemplate = false
         NSApplication.shared.applicationIconImage = image
-        _ = NSWorkspace.shared.setIcon(
+
+        guard NSWorkspace.shared.setIcon(
             image,
-            forFile: Bundle.main.bundleURL.path,
+            forFile: appPath,
             options: []
+        ) else {
+            presentedError = NSLocalizedString(
+                "The Finder icon could not be updated.",
+                comment: "Finder app icon update failure"
+            )
+            return
+        }
+
+        // Finder keeps a separate icon cache from Launch Services. Notify both
+        // the app bundle and its containing directory so open Finder windows
+        // immediately reload the custom icon resource written by setIcon.
+        NSWorkspace.shared.noteFileSystemChanged(appPath)
+        NSWorkspace.shared.noteFileSystemChanged(
+            appURL.deletingLastPathComponent().path
         )
-        LSRegisterURL(Bundle.main.bundleURL as CFURL, true)
+        DistributedNotificationCenter.default().post(
+            name: Notification.Name("com.apple.FinderInfoChanged"),
+            object: appPath,
+            userInfo: nil
+        )
+        LSRegisterURL(appURL as CFURL, true)
     }
 }

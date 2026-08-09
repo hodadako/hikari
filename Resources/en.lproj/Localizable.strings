@@ -117,6 +117,7 @@
 "Custom" = "Custom";
 "The custom icon could not be prepared." = "The custom icon could not be prepared.";
 "The selected custom icon could not be read." = "The selected custom icon could not be read.";
+"The Finder icon could not be updated." = "The Finder icon could not be updated.";
 "Use ^ + Command + Q for Lumina Lock?" = "Use ^ + Command + Q for Lumina Lock?";
 "Use shortcut for Lumina Lock" = "Use shortcut for Lumina Lock";
 "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.";
