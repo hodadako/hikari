@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import SwiftUI
 
 /// Owns Lumina's status item independently from SwiftUI's MenuBarExtra scene.
@@ -12,8 +11,7 @@ final class MenuBarStatusItemController: NSObject {
     private let model: AppModel
     private let statusItem: NSStatusItem
     private let popover: NSPopover
-    private var iconHostingView: PassthroughHostingView<MenuBarSparkleView>?
-    private var modelObservation: AnyCancellable?
+    private var iconHostingView: PassthroughHostingView<MenuBarCompositeIconView>?
 
     init(model: AppModel) {
         self.model = model
@@ -23,31 +21,22 @@ final class MenuBarStatusItemController: NSObject {
 
         configureStatusItem()
         configurePopover()
-
-        modelObservation = model.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updateIcon()
-            }
     }
 
     deinit {
-        modelObservation?.cancel()
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
-        button.imagePosition = .imageOnly
-        button.imageScaling = .scaleProportionallyDown
+        button.image = nil
         button.target = self
         button.action = #selector(togglePopover(_:))
         button.toolTip = "Lumina"
         button.setAccessibilityLabel("Lumina")
-        updateIcon()
 
         let hostingView = PassthroughHostingView(
-            rootView: MenuBarSparkleView(model: model)
+            rootView: MenuBarCompositeIconView(model: model)
         )
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         button.addSubview(hostingView)
@@ -67,13 +56,6 @@ final class MenuBarStatusItemController: NSObject {
         popover.contentViewController = NSHostingController(
             rootView: MenuBarView(model: model)
         )
-    }
-
-    private func updateIcon() {
-        guard let button = statusItem.button else { return }
-        let image = model.menuBarIconImage
-        image.isTemplate = model.menuBarIconIsTemplate
-        button.image = image
     }
 
     @objc
@@ -98,16 +80,22 @@ private final class PassthroughHostingView<Content: View>: NSHostingView<Content
     }
 }
 
-private struct MenuBarSparkleView: View {
+private struct MenuBarCompositeIconView: View {
     @ObservedObject var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Group {
+        ZStack {
+            Image(nsImage: model.menuBarIconImage)
+                .resizable()
+                .interpolation(.high)
+                .renderingMode(model.menuBarIconIsTemplate ? .template : .original)
+                .foregroundStyle(.primary)
+                .scaledToFit()
+
             if model.shouldPulseMenuBarSparkle {
                 sparkle
-            } else {
-                Color.clear
+                    .zIndex(1)
             }
         }
         .frame(width: 18, height: 18)
