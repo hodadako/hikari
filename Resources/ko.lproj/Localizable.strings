@@ -99,9 +99,9 @@
 "The Lock Screen video storage could not be prepared." = "잠금 화면 영상 저장소를 준비할 수 없습니다.";
 "The Lock Screen video could not be synchronized: %@" = "잠금 화면 영상을 동기화할 수 없습니다: %@";
 "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS는 먼저 정지된 암호 화면을 표시합니다. 잠금 화면 재생을 켜면 1분 후 Lumina 화면 보호기가 시작됩니다. 디스플레이 끄기 시간은 1분보다 길어야 합니다.";
-"Accessibility permission required" = "손쉬운 사용 권한 필요";
+"Accessibility and Input Monitoring permission required" = "손쉬운 사용 및 입력 모니터링 권한 필요";
 "Active" = "활성";
-"Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically." = "개인정보 보호 및 보안 > 손쉬운 사용에서 Lumina를 허용한 뒤 Lumina로 돌아오세요. 단축키가 자동으로 활성화됩니다.";
+"Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically." = "개인정보 보호 및 보안 > 손쉬운 사용 및 입력 모니터링에서 Lumina를 허용한 뒤 Lumina로 돌아오세요. 단축키가 자동으로 활성화됩니다.";
 "Enable" = "활성화";
 "Import an MP4 before using Lumina Lock." = "Lumina 잠금을 사용하기 전에 MP4를 가져오세요.";
 "Lock with Lumina" = "Lumina로 잠그기";
@@ -120,7 +120,7 @@
 "The Finder icon could not be updated." = "Finder 앱 아이콘을 변경할 수 없습니다.";
 "Use ^ + Command + Q for Lumina Lock?" = "^ + Command + Q를 Lumina 잠금에 사용할까요?";
 "Use shortcut for Lumina Lock" = "단축키를 Lumina 잠금에 사용";
-"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina가 실행 중일 때 Mac의 기본 잠금 단축키(^ + Command + Q)를 대신합니다. 손쉬운 사용 권한이 필요하며, Lumina가 실행 중이 아니면 기본 단축키가 정상 작동합니다.";
+"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility and Input Monitoring permission are required. If Lumina is not running, the standard shortcut works normally." = "Lumina가 실행 중일 때 Mac의 기본 잠금 단축키(^ + Command + Q)를 대신합니다. 손쉬운 사용 및 입력 모니터링 권한이 필요하며, Lumina가 실행 중이 아니면 기본 단축키가 정상 작동합니다.";
 "Choose a preset or import your own image. Your choice is used by Lumina in Finder, Spotlight, and the app switcher. The menu bar icon has its own setting below." = "기본 아이콘을 선택하거나 원하는 이미지를 가져오세요. 선택한 아이콘은 Finder, Spotlight, 앱 전환기에 적용됩니다. 메뉴 막대 아이콘은 아래에서 별도로 선택합니다.";
 "Menu Bar Icon" = "메뉴 막대 아이콘";
 "Default" = "기본값";

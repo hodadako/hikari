@@ -99,9 +99,9 @@
 "The Lock Screen video storage could not be prepared." = "The Lock Screen video storage could not be prepared.";
 "The Lock Screen video could not be synchronized: %@" = "The Lock Screen video could not be synchronized: %@";
 "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute." = "macOS shows the static password screen first. When Lock Screen playback is enabled, the Lumina screen saver starts after 1 minute. The display sleep time must be longer than 1 minute.";
-"Accessibility permission required" = "Accessibility permission required";
+"Accessibility and Input Monitoring permission required" = "Accessibility and Input Monitoring permission required";
 "Active" = "Active";
-"Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically." = "Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically.";
+"Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically." = "Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically.";
 "Enable" = "Enable";
 "Import an MP4 before using Lumina Lock." = "Import an MP4 before using Lumina Lock.";
 "Lock with Lumina" = "Lock with Lumina";
@@ -120,7 +120,7 @@
 "The Finder icon could not be updated." = "The Finder icon could not be updated.";
 "Use ^ + Command + Q for Lumina Lock?" = "Use ^ + Command + Q for Lumina Lock?";
 "Use shortcut for Lumina Lock" = "Use shortcut for Lumina Lock";
-"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally." = "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.";
+"Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility and Input Monitoring permission are required. If Lumina is not running, the standard shortcut works normally." = "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility and Input Monitoring permission are required. If Lumina is not running, the standard shortcut works normally.";
 "Choose a preset or import your own image. Your choice is used by Lumina in Finder, Spotlight, and the app switcher. The menu bar icon has its own setting below." = "Choose a preset or import your own image. Your choice is used by Lumina in Finder, Spotlight, and the app switcher. The menu bar icon has its own setting below.";
 "Menu Bar Icon" = "Menu Bar Icon";
 "Default" = "Default";

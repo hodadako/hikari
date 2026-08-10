@@ -586,7 +586,7 @@ final class AppModel: ObservableObject {
                 comment: "Lock shortcut override confirmation title"
             )
             alert.informativeText = NSLocalizedString(
-                "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility permission is required. If Lumina is not running, the standard shortcut works normally.",
+                "Lumina will replace the standard Mac lock shortcut (^ + Command + Q) while it is running. Accessibility and Input Monitoring permission are required. If Lumina is not running, the standard shortcut works normally.",
                 comment: "Lock shortcut override confirmation message"
             )
             alert.addButton(withTitle: NSLocalizedString("Enable", comment: "Enable action"))
@@ -605,14 +605,16 @@ final class AppModel: ObservableObject {
         }
 
         if enabled {
-            let trusted = LockShortcutController.isAccessibilityTrusted
+            let accessibilityTrusted = LockShortcutController.isAccessibilityTrusted
                 || LockShortcutController.requestAccessibilityPermission()
-            if trusted {
+            let inputMonitoringTrusted = LockShortcutController.isInputMonitoringTrusted
+                || LockShortcutController.requestInputMonitoringPermission()
+            if accessibilityTrusted && inputMonitoringTrusted {
                 refreshLockShortcutIfNeeded()
             } else {
                 presentedError = NSLocalizedString(
-                    "Allow Lumina in Privacy & Security > Accessibility, then return to Lumina. The shortcut will activate automatically.",
-                    comment: "Accessibility permission instructions"
+                    "Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically.",
+                    comment: "Keyboard shortcut permission instructions"
                 )
             }
         } else {

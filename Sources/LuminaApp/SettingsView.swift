@@ -503,7 +503,7 @@ private struct ScreenSaverSettingsView: View {
                             model.isLockShortcutOverrideActive
                                 ? "Active"
                                 : model.settings.overrideSystemLockShortcut
-                                    ? "Accessibility permission required"
+                                    ? "Accessibility and Input Monitoring permission required"
                                     : "Mac default"
                         ),
                         systemImage: model.isLockShortcutOverrideActive
