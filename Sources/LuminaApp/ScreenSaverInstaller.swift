@@ -55,6 +55,7 @@ struct ScreenSaverInstaller {
             try fileManager.removeItem(at: installedURL)
         }
         try fileManager.copyItem(at: bundledURL, to: installedURL)
+        terminateStaleLegacyScreenSaverHostsIfSelected()
     }
 
     func startPreview() -> Bool {
@@ -108,6 +109,26 @@ struct ScreenSaverInstaller {
         Bundle(url: url)?.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String
+    }
+
+    /// A legacy ScreenSaver host keeps the previous bundle mapped after the
+    /// installed saver is replaced.  Stop only Lumina's selected host after a
+    /// user-initiated update, so the next preview or idle activation loads the
+    /// newly copied bundle instead of continuing the deleted executable.
+    private func terminateStaleLegacyScreenSaverHostsIfSelected() {
+        guard isSelected else { return }
+
+        let hosts = NSWorkspace.shared.runningApplications.filter { application in
+            application.executableURL?.lastPathComponent == "legacyScreenSaver"
+        }
+        guard !hosts.isEmpty else { return }
+
+        hosts.forEach { $0.terminate() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            hosts
+                .filter { !$0.isTerminated }
+                .forEach { $0.forceTerminate() }
+        }
     }
 
     private func currentHostValue(forKey key: String) -> Any? {
