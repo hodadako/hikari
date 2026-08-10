@@ -1,6 +1,12 @@
 import ApplicationServices
 import CoreGraphics
 import Foundation
+import OSLog
+
+private let lockShortcutLogger = Logger(
+    subsystem: "com.hodadako.Lumina",
+    category: "LockShortcut"
+)
 
 final class LockShortcutController {
     var onShortcut: (() -> Void)?
@@ -41,20 +47,35 @@ final class LockShortcutController {
     func start() -> Bool {
         guard eventTap == nil else { return true }
         guard Self.isAccessibilityTrusted else {
+            lockShortcutLogger.error("Accessibility permission is unavailable")
             return false
         }
 
         let eventMask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
-        guard let eventTap = CGEvent.tapCreate(
+
+        // The standard Control + Command + Q lock shortcut can be consumed
+        // before a session tap receives it. Prefer the HID stage so Lumina
+        // sees the key before the system handler, while keeping the session
+        // tap as a compatibility fallback on systems that reject HID taps.
+        let eventTap = CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: eventMask,
+            callback: lockShortcutEventCallback,
+            userInfo: userInfo
+        ) ?? CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: eventMask,
             callback: lockShortcutEventCallback,
             userInfo: userInfo
-        ) else {
+        )
+        guard let eventTap else {
+            lockShortcutLogger.error("Unable to create a global keyboard event tap")
             return false
         }
         guard let source = CFMachPortCreateRunLoopSource(
@@ -70,6 +91,7 @@ final class LockShortcutController {
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
+        lockShortcutLogger.notice("Global keyboard event tap enabled")
         return true
     }
 
@@ -105,6 +127,7 @@ final class LockShortcutController {
 
         if type == .keyDown,
            event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+            lockShortcutLogger.notice("Lumina Lock shortcut received")
             DispatchQueue.main.async { [weak self] in
                 self?.onShortcut?()
             }

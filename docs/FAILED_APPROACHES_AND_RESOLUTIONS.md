@@ -76,6 +76,22 @@ v0.2.8은 `CGPreflightListenEventAccess()`가 true일 때만 `CGEvent.tapCreate`
 v0.2.9부터 사전 판정은 권한 안내용으로만 사용한다. Accessibility가 허용됐다면
 CoreGraphics의 실제 `CGEvent.tapCreate`를 시도하고, 그 결과를 활성화 여부로 사용한다.
 
+## 표준 macOS 잠금 단축키에 세션 단계 event tap만 사용
+
+### 시도
+
+`Control` + `Command` + `Q`를 `.cgSessionEventTap`에서 가로챘다.
+
+### 결과
+
+권한·설정·실행 버전이 정상인 내장 키보드 환경에서도 macOS가 표준 잠금 조합을
+세션 탭 전에 소비할 수 있었다.
+
+### 해결
+
+v0.2.10부터 `.cghidEventTap`을 먼저 만들고, 해당 위치를 지원하지 않는 경우에만
+세션 탭으로 폴백한다. 생성과 단축키 수신은 unified log로 확인 가능하게 남긴다.
+
 ## 권한이 정상인데 단축키가 동작하지 않는 경우 Karabiner를 단순 충돌로 판단
 
 ### 확인 결과
