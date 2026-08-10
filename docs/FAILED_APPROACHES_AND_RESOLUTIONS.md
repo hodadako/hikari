@@ -59,6 +59,23 @@ macOS 15에서는 키보드 이벤트 감시에 Input Monitoring 권한도 필�
 
 v0.2.8부터 Accessibility와 Input Monitoring을 함께 사전 확인·요청한다. 앱 업데이트로 서명이 달라지는 ad-hoc 배포에서는 TCC 권한이 다시 필요할 수 있다.
 
+## Input Monitoring 사전 판정을 event tap 생성의 하드 게이트로 사용
+
+### 시도
+
+v0.2.8은 `CGPreflightListenEventAccess()`가 true일 때만 `CGEvent.tapCreate`를 호출했다.
+
+### 결과
+
+시스템 설정에서 Lumina의 Input Monitoring 토글이 켜져 있어도 사전 판정이 false이면
+이벤트 탭을 만들 기회 자체가 없었다. Accessibility가 허용된 내장 키보드 환경에서도
+단축키가 동작하지 않는 상태가 확인됐다.
+
+### 해결
+
+v0.2.9부터 사전 판정은 권한 안내용으로만 사용한다. Accessibility가 허용됐다면
+CoreGraphics의 실제 `CGEvent.tapCreate`를 시도하고, 그 결과를 활성화 여부로 사용한다.
+
 ## 권한이 정상인데 단축키가 동작하지 않는 경우 Karabiner를 단순 충돌로 판단
 
 ### 확인 결과

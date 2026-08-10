@@ -2,6 +2,23 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## v0.2.9 — 2026-08-11
+
+### 이슈
+
+- v0.2.8에서 Accessibility와 Input Monitoring이 모두 시스템 설정에서 허용된 상태인데도 내장 키보드의 Lumina 잠금 단축키가 동작하지 않았다.
+
+### 원인 및 조치
+
+- v0.2.8은 `CGPreflightListenEventAccess()`가 false이면 `CGEvent.tapCreate`를 시도하지 않았다. 이 사전 판정은 TCC 설정 화면의 현재 상태보다 늦게 갱신될 수 있다.
+- v0.2.9는 Accessibility만 확인한 뒤 CoreGraphics의 실제 event tap 생성 결과를 사용한다. Input Monitoring 권한 요청과 안내는 유지한다.
+- 화면 보호기 설치 갱신 뒤 Lumina가 선택된 상태라면, 이전 `legacyScreenSaver` 호스트를 종료해 다음 실행이 새 `.saver`를 사용하도록 한다.
+
+### 검증 계획
+
+- macOS CI 빌드·테스트와 릴리스 패키징을 통과시킨다.
+- 실제 장비에서 내장 키보드 `Control` + `Command` + `Q`로 event tap과 화면 보호기 실행을 확인한다.
+
 ## v0.2.8 — 2026-08-11
 
 ### 이슈

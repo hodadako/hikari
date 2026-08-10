@@ -609,9 +609,10 @@ final class AppModel: ObservableObject {
                 || LockShortcutController.requestAccessibilityPermission()
             let inputMonitoringTrusted = LockShortcutController.isInputMonitoringTrusted
                 || LockShortcutController.requestInputMonitoringPermission()
-            if accessibilityTrusted && inputMonitoringTrusted {
+            if accessibilityTrusted {
                 refreshLockShortcutIfNeeded()
-            } else {
+            }
+            if !accessibilityTrusted || !inputMonitoringTrusted {
                 presentedError = NSLocalizedString(
                     "Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically.",
                     comment: "Keyboard shortcut permission instructions"

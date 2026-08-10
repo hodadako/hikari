@@ -16,9 +16,10 @@ final class LockShortcutController {
         AXIsProcessTrusted()
     }
 
-    /// A global keyboard event tap needs Input Monitoring permission on
-    /// current macOS releases. Accessibility alone lets us show the app in
-    /// the privacy UI but does not guarantee that the tap can observe keys.
+    /// Current macOS releases can require Input Monitoring for a global
+    /// keyboard event tap.  This value is used to request and explain the
+    /// permission; `CGEvent.tapCreate` remains the authoritative runtime
+    /// check because TCC's preflight answer can lag behind its UI state.
     static var isInputMonitoringTrusted: Bool {
         CGPreflightListenEventAccess()
     }
@@ -39,8 +40,7 @@ final class LockShortcutController {
     @discardableResult
     func start() -> Bool {
         guard eventTap == nil else { return true }
-        guard Self.isAccessibilityTrusted,
-              Self.isInputMonitoringTrusted else {
+        guard Self.isAccessibilityTrusted else {
             return false
         }
 
