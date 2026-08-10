@@ -136,7 +136,10 @@ struct ReleaseUpdateService {
 
         do {
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            // `ReleaseAsset` and `LatestRelease` declare their GitHub
+            // snake_case keys explicitly. Applying `convertFromSnakeCase`
+            // here transforms those keys a second time and makes every
+            // update check fail to decode.
             return try decoder.decode(LatestRelease.self, from: data)
         } catch {
             throw ReleaseUpdateError.invalidResponse
