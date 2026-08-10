@@ -59,7 +59,9 @@ final class LuminaScreenSaverView: ScreenSaverView {
     private func preparePlayer() {
         releasePlayer()
         guard
-            let container = try? SharedContainer(),
+            let container = try? SharedContainer(
+                rootURL: SharedContainer.screenSaverRootURL
+            ),
             let content = selectedContent(container: container)
         else {
             return
@@ -77,7 +79,11 @@ final class LuminaScreenSaverView: ScreenSaverView {
             ? .resizeAspectFill
             : .resizeAspect
         playerLayer.player = player
-        player.play()
+        // A screen saver is often started while the process is backgrounded.
+        // Starting immediately prevents AVFoundation from waiting for the
+        // regular application activation cycle before rendering its first
+        // frame on the locked display.
+        player.playImmediately(atRate: 1)
     }
 
     private func selectedContent(container: SharedContainer) -> LiveContent? {

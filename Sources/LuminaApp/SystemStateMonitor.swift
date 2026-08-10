@@ -104,7 +104,15 @@ final class SystemStateMonitor {
         observe(distributed, name: Notification.Name("com.apple.screenIsUnlocked")) { [weak self] in
             guard let self else { return }
             isScreenLocked = false
+            // ScreenSaverEngine can exit before its bundle has an opportunity
+            // to publish the stop signal.  Do not leave the wallpaper paused
+            // behind a stale screen-saver reason after a successful unlock.
+            isScreenSaverRunning = false
             scheduleStateChanged()
+            // WindowServer tears down the lock-screen surfaces asynchronously.
+            // A second check covers a late power/display notification and
+            // reissues playback after those surfaces are available again.
+            scheduleRecovery(after: 450_000_000)
         }
         observe(distributed, name: InterprocessSignal.screenSaverDidStart) { [weak self] in
             guard let self else { return }

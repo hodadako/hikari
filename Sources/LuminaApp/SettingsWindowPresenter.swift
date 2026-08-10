@@ -2,13 +2,16 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SettingsWindowPresenter {
+final class SettingsWindowPresenter: NSObject {
     static let shared = SettingsWindowPresenter()
 
     private var windowController: NSWindowController?
     private var presentedOnLaunch = false
+    private var isTerminating = false
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
     func showOnLaunch(model: AppModel) {
         guard !presentedOnLaunch else { return }
@@ -38,6 +41,7 @@ final class SettingsWindowPresenter {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 620, height: 520))
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.collectionBehavior.insert(.moveToActiveSpace)
         window.center()
 
@@ -45,5 +49,20 @@ final class SettingsWindowPresenter {
         windowController = controller
         NSApplication.shared.activate(ignoringOtherApps: true)
         controller.showWindow(nil)
+    }
+
+    func prepareForTermination() {
+        isTerminating = true
+    }
+}
+
+extension SettingsWindowPresenter: NSWindowDelegate {
+    /// The close button on a menu-bar app means "hide settings", not "quit
+    /// Lumina".  Retaining the controller also makes a subsequent Open
+    /// Settings action reliably reuse the same window and its state.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !isTerminating else { return true }
+        sender.orderOut(nil)
+        return false
     }
 }

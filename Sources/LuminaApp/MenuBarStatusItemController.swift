@@ -115,14 +115,14 @@ private struct MenuBarCompositeIconView: View {
                     options: .repeating,
                     isActive: !reduceMotion
                 )
-                .offset(y: -1.4)
+                .offset(y: -2)
         } else if let heartbeatImage = model.menuBarHeartbeatImage {
             LegacyHeartbeatView(
                 image: heartbeatImage,
                 reduceMotion: reduceMotion
             )
             .frame(width: 5.5, height: 5.5)
-            .offset(y: -1.4)
+            .offset(y: -2)
         }
     }
 }

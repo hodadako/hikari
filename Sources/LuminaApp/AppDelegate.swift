@@ -20,4 +20,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsWindowPresenter.shared.show(model: model)
         return true
     }
+
+    /// Lumina is an agent app: closing its only settings window must leave the
+    /// status item and live wallpaper process running.  This also protects the
+    /// app from AppKit's normal "last window closed" termination path.
+    func applicationShouldTerminateAfterLastWindowClosed(
+        _ sender: NSApplication
+    ) -> Bool {
+        false
+    }
+
+    func applicationShouldTerminate(
+        _ sender: NSApplication
+    ) -> NSApplication.TerminateReply {
+        SettingsWindowPresenter.shared.prepareForTermination()
+        return .terminateNow
+    }
 }

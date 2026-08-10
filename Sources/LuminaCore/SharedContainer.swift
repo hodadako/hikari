@@ -5,6 +5,22 @@ public struct SharedContainer: Sendable {
 
     public let rootURL: URL
 
+    /// The legacy ScreenSaver host is sandboxed separately from Lumina.  Its
+    /// support directory is the one location both the app and the `.saver`
+    /// bundle can use for the synchronized video, settings, and metadata.
+    ///
+    /// Keep this explicit instead of asking each process for its default
+    /// Application Support URL: that URL changes with the current process's
+    /// sandbox and can otherwise make the saver load an empty library.
+    public static var screenSaverRootURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(
+                "Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Application Support",
+                isDirectory: true
+            )
+            .appendingPathComponent(applicationSupportDirectoryName, isDirectory: true)
+    }
+
     public init(rootURL: URL? = nil) throws {
         if let rootURL {
             self.rootURL = rootURL
