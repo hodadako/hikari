@@ -59,6 +59,51 @@ macOS 15에서는 키보드 이벤트 감시에 Input Monitoring 권한도 필�
 
 v0.2.8부터 Accessibility와 Input Monitoring을 함께 사전 확인·요청한다. 앱 업데이트로 서명이 달라지는 ad-hoc 배포에서는 TCC 권한이 다시 필요할 수 있다.
 
+## 권한이 정상인데 단축키가 동작하지 않는 경우 Karabiner를 단순 충돌로 판단
+
+### 확인 결과
+
+v0.2.8 실행본에서 다음 상태를 실제 시스템 설정으로 확인했다.
+
+- `overrideSystemLockShortcut`이 `true`
+- Lumina가 실행 중이며 앱과 설치된 `.saver`가 모두 v0.2.8
+- Accessibility와 Input Monitoring의 Lumina 토글이 모두 켜짐
+- Karabiner의 활성 프로파일에는 Q 키 또는 잠금 조합을 직접 가로채는 complex modification이 없음
+
+### 실제 원인
+
+해당 Karabiner 장치 설정은 물리 `left_command`를 `left_option`으로,
+물리 `left_option`을 `left_command`로 바꾼다. Lumina는 `Control` +
+`Command` + `Q`만 받고 Option 또는 Shift가 포함된 이벤트는 거부한다.
+따라서 이 외장 키보드의 물리 `Control` + `left_command` + `Q`는
+`Control` + `Option` + `Q`가 되어 단축키가 발동하지 않는다.
+
+### 해결
+
+- 이 외장 키보드에서는 물리 `Control` + `left_option` + `Q`를 사용한다.
+- 내장 키보드 또는 Karabiner 변환이 적용되지 않는 장치에서는 원래의
+  `Control` + `Command` + `Q`를 사용한다.
+- 그래도 동작하지 않으면 `Shortcut Status`가 Active인지 확인하고, 실제
+  키 입력 장치와 Karabiner EventViewer의 변환 결과를 함께 확인한다.
+
+## 화면 보호기 프로세스가 남아 있는 상태에서 잠금 실행 결과를 단축키 실패로 판단
+
+### 관찰
+
+현재 설치본으로 갱신한 뒤에도 이전 `legacyScreenSaver` 프로세스가 예전
+`.saver` inode를 계속 매핑하고, 새 프로세스가 동시에 실행될 수 있다.
+
+### 영향
+
+이 상태는 Lumina의 키 이벤트 탭을 막지는 않지만, 단축키가 호출하는
+ScreenSaverEngine 실행 요청이 이미 실행 중인 화면 보호기 때문에 눈에 띄는
+새 화면 전환 없이 성공으로 반환될 수 있다.
+
+### 대응
+
+문제 재현을 판별할 때는 키 입력 수신과 화면 보호기 시작을 분리한다. 실제
+화면 보호기 프로세스가 중복·잔존했다면 종료 후 새 프로세스로 다시 확인한다.
+
 ## 자동 화면 보호기의 큰 영상 크기를 재생 버그로 판단
 
 ### 관찰
