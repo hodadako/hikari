@@ -6,7 +6,11 @@ struct ScreenSaverInstaller {
     private let fileManager = FileManager.default
 
     var contentContainerURL: URL {
-        SharedContainer.screenSaverRootURL
+        fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(
+                "Library/Containers/com.apple.ScreenSaver.Engine.legacyScreenSaver/Data/Library/Application Support/Lumina",
+                isDirectory: true
+            )
     }
 
     var installedURL: URL {
