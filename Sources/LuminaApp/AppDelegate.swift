@@ -21,6 +21,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Settings belongs to a menu-bar utility, so it should not remain over
+    /// another app or the desktop after Lumina loses focus. This deliberately
+    /// observes application deactivation (rather than key-window changes),
+    /// allowing Lumina-owned sheets such as the import panel to work normally.
+    func applicationDidResignActive(_ notification: Notification) {
+        SettingsWindowPresenter.shared.hideForAppDeactivation()
+    }
+
     /// Lumina is an agent app: closing its only settings window must leave the
     /// status item and live wallpaper process running.  This also protects the
     /// app from AppKit's normal "last window closed" termination path.

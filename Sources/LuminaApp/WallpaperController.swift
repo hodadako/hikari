@@ -41,7 +41,31 @@ final class WallpaperController {
     }
 
     func rebuildWindowsIfContentAvailable(_ isAvailable: Bool) {
-        setContentAvailable(isAvailable)
+        guard isAvailable else {
+            closeWindows()
+            return
+        }
+
+        // A wake can leave a desktop-level NSWindow alive while its
+        // AVPlayerLayer surface is no longer backed by WindowServer. A
+        // topology-only update cannot detect that case when the connected
+        // displays have not changed, so recreate every session. This restores
+        // the pre-v0.1.15 wake behavior while retaining the current
+        // per-display playback architecture.
+        let currentURL = playback.currentURL
+        let muted = playback.isMuted
+        let wantsPlayback = playback.wantsPlayback
+        closeWindows()
+        synchronizeDisplayTopology()
+
+        guard let currentURL else { return }
+        playback.setContent(url: currentURL, muted: muted)
+        if wantsPlayback {
+            playback.play()
+            startDriftMonitoring()
+        } else {
+            playback.pause()
+        }
     }
 
     func refreshWindowsForActiveSpaceIfContentAvailable(_ isAvailable: Bool) {

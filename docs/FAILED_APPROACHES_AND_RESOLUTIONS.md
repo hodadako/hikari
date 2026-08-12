@@ -76,6 +76,23 @@ v0.2.8은 `CGPreflightListenEventAccess()`가 true일 때만 `CGEvent.tapCreate`
 v0.2.9부터 사전 판정은 권한 안내용으로만 사용한다. Accessibility가 허용됐다면
 CoreGraphics의 실제 `CGEvent.tapCreate`를 시도하고, 그 결과를 활성화 여부로 사용한다.
 
+## 시스템 설정의 권한 행만 보고 현재 실행본 권한이 있다고 판단
+
+### 관찰
+
+ad-hoc 서명된 v0.2.10에서 시스템 설정에 Lumina 행이 보이더라도, 실행 중인
+프로세스의 `AXIsProcessTrusted()`는 `1`이고 `CGPreflightListenEventAccess()`는
+`0`인 상태가 실제로 확인됐다. 이 상태에서는 Lumina가 키보드 이벤트를 받을 수
+없어 macOS 기본 잠금만 실행됐다.
+
+### 해결 및 검증
+
+두 TCC 권한을 재부여하고 Lumina를 재실행한 뒤, 현재 프로세스에서 두 API가 모두
+`1`을 반환하는 것을 확인했다. 같은 프로세스는 `Global keyboard event tap enabled`
+로그도 남겼다. 권한 문제를 판정할 때는 UI 색상만 보지 않고 이 런타임 상태와 탭
+생성 로그를 함께 확인한다. ad-hoc 릴리스는 코드 정체성이 바뀔 수 있으므로,
+장기적으로는 Developer ID 서명으로 배포 정체성을 고정해야 한다.
+
 ## 표준 macOS 잠금 단축키에 세션 단계 event tap만 사용
 
 ### 시도

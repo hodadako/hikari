@@ -54,6 +54,14 @@ final class SettingsWindowPresenter: NSObject {
     func prepareForTermination() {
         isTerminating = true
     }
+
+    func hideForAppDeactivation() {
+        guard !isTerminating, let window = windowController?.window,
+              window.isVisible else {
+            return
+        }
+        window.orderOut(nil)
+    }
 }
 
 extension SettingsWindowPresenter: NSWindowDelegate {
