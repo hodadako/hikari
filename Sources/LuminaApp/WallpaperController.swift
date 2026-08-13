@@ -242,9 +242,12 @@ final class WallpaperController {
 
     private func startDriftMonitoring() {
         guard driftTask == nil else { return }
+        let clock = SuspendingClock()
         driftTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await clock.sleep(
+                    until: clock.now.advanced(by: .seconds(5))
+                )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.playback.recoverFailedSessions()

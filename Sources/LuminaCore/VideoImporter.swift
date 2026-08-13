@@ -20,7 +20,9 @@ public final class VideoImporter {
         from sourceURL: URL,
         existingContents: [LiveContent]
     ) async throws -> LiveContent {
-        guard sourceURL.pathExtension.lowercased() == "mp4" else {
+        guard let storageExtension = VideoFileSupport.storageFileExtension(
+            for: sourceURL
+        ) else {
             throw LuminaError.unsupportedFile
         }
 
@@ -51,7 +53,7 @@ public final class VideoImporter {
         }
         let fileSize = try sourceURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         let id = UUID()
-        let mediaRelativePath = "Media/\(id.uuidString).mp4"
+        let mediaRelativePath = "Media/\(id.uuidString).\(storageExtension)"
         let thumbnailRelativePath = "Thumbnails/\(id.uuidString).jpg"
         let destinationURL = container.rootURL.appendingPathComponent(mediaRelativePath)
         let temporaryURL = container.mediaDirectoryURL
@@ -61,7 +63,10 @@ public final class VideoImporter {
             try fileManager.copyItem(at: sourceURL, to: temporaryURL)
             try fileManager.moveItem(at: temporaryURL, to: destinationURL)
             let thumbnailURL = container.rootURL.appendingPathComponent(thumbnailRelativePath)
-            let generatedThumbnail = try? generateThumbnail(asset: asset, destinationURL: thumbnailURL)
+            let generatedThumbnail = try? await generateThumbnail(
+                asset: asset,
+                destinationURL: thumbnailURL
+            )
 
             return LiveContent(
                 id: id,
@@ -85,14 +90,24 @@ public final class VideoImporter {
         }
     }
 
-    private func generateThumbnail(asset: AVAsset, destinationURL: URL) throws -> Bool {
+    private func generateThumbnail(
+        asset: AVAsset,
+        destinationURL: URL
+    ) async throws -> Bool {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 640, height: 360)
-        let image = try generator.copyCGImage(
-            at: CMTime(seconds: 0.1, preferredTimescale: 600),
-            actualTime: nil
-        )
+        let image: CGImage
+        if #available(macOS 15.0, *) {
+            image = try await generator.image(
+                at: CMTime(seconds: 0.1, preferredTimescale: 600)
+            ).image
+        } else {
+            image = try generator.copyCGImage(
+                at: CMTime(seconds: 0.1, preferredTimescale: 600),
+                actualTime: nil
+            )
+        }
         guard
             let destination = CGImageDestinationCreateWithURL(
                 destinationURL as CFURL,

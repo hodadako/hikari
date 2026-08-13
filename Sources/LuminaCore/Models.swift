@@ -219,7 +219,7 @@ public enum LuminaError: LocalizedError, Equatable {
         switch self {
         case .unsupportedFile:
             return NSLocalizedString(
-                "Lumina currently supports MP4 files only.",
+                "Choose a video file that macOS recognizes as a movie.",
                 comment: ""
             )
         case .unreadableVideo:

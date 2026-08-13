@@ -1,6 +1,12 @@
 import AVFoundation
 import Combine
 import Foundation
+import OSLog
+
+private let playbackLogger = Logger(
+    subsystem: "com.hodadako.Lumina",
+    category: "Playback"
+)
 
 @MainActor
 public final class VideoRenderer: ObservableObject, PlaybackSession {
@@ -15,10 +21,12 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
     public let player = AVQueuePlayer()
     private var looper: AVPlayerLooper?
     private var itemFailureToken: NSObjectProtocol?
+    private var timeControlObservation: NSKeyValueObservation?
 
     public init() {
         player.actionAtItemEnd = .none
         player.automaticallyWaitsToMinimizeStalling = true
+        observePlaybackState()
     }
 
     public func load(url: URL, muted: Bool) {
@@ -52,7 +60,6 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
     public func play() {
         guard currentURL != nil else { return }
         player.play()
-        isPlaying = true
     }
 
     public func pause() {
@@ -92,7 +99,25 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
         stopAndRelease()
     }
 
+    private func observePlaybackState() {
+        timeControlObservation = player.observe(
+            \.timeControlStatus,
+            options: [.initial, .new]
+        ) { [weak self] player, _ in
+            let isPlaying = player.timeControlStatus == .playing
+            let status = String(describing: player.timeControlStatus)
+            let waitingReason = player.reasonForWaitingToPlay?.rawValue ?? "none"
+            Task { @MainActor [weak self] in
+                self?.isPlaying = isPlaying
+                playbackLogger.debug(
+                    "AVPlayer state=\(status, privacy: .public) waitingReason=\(waitingReason, privacy: .public)"
+                )
+            }
+        }
+    }
+
     deinit {
+        timeControlObservation?.invalidate()
         player.pause()
         if let itemFailureToken {
             NotificationCenter.default.removeObserver(itemFailureToken)

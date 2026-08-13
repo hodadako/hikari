@@ -32,8 +32,8 @@ final class MenuBarStatusItemController: NSObject {
         button.image = nil
         button.target = self
         button.action = #selector(togglePopover(_:))
-        button.toolTip = "Lumina"
-        button.setAccessibilityLabel("Lumina")
+        button.toolTip = model.appDisplayName
+        button.setAccessibilityLabel(model.appDisplayName)
 
         let hostingView = PassthroughHostingView(
             rootView: MenuBarCompositeIconView(model: model)

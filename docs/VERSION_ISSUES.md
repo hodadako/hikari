@@ -2,6 +2,63 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## v0.3.0 — 2026-08-14
+
+### 이슈와 사용자 영향
+
+- 일반 Lumina의 화면 보호기 방식은 시스템 잠금 단축키 직후 native Lock Screen에서
+  임의 영상을 직접 재생할 수 없다.
+- 기존 Native Local 타깃은 별도 bundle/storage/CI와 안전 상태 UI만 제공했고 실제
+  적용·복원 경로가 없었다.
+- MP4만 가정한 가져오기 경로와 로컬 수동 빌드의 누락된 앱 아이콘 때문에 MOV/M4V
+  사용 및 실행본 식별이 불편했다.
+
+### 원인 및 조치
+
+- 일반 타깃은 기존 ScreenSaver.framework, 선택형 event tap, macOS 13 배포 범위를
+  그대로 유지한다. Native Local은 macOS 15 전용 소스 빌드로 분리하고 시스템 소유
+  `Control-Command-Q` 경로를 그대로 사용한다.
+- Native Local에 user/root 양쪽의 hash 검증 백업, 단계별 journal, 조건부 rollback,
+  선택적 외부 변경 보존, 명시적 복원을 구현했다. root 변경은 설치형 daemon이 아닌
+  매 작업 관리자 승인을 요구하는 고정 인자 one-shot 도구만 사용한다. backup,
+  journal, active marker 및 원자적 교체 파일은 파일과 상위 디렉터리까지 `fsync`한
+  뒤 다음 단계로 진행한다.
+- 실행 중인 `WallpaperAgent`가 새 user index를 덮어쓰는 실제 장비 race를 수정했다.
+  에이전트를 먼저 정지한 상태에서 index를 교체하고 재시작 뒤 모든 choice의 asset
+  ID가 유지되는지 검증한다. root transaction 동안 `idleassetsd`도 먼저 정지하고,
+  종료 뒤 launchd가 새 manifest와 cache 상태로 재시작하게 한다.
+- AVFoundation이 재생 가능한 MP4, MOV, M4V를 원본 확장자로 관리하고 Native 적용
+  시 검증된 MOV로 export한다. 로컬 빌드 스크립트는 `.icns`, localization, helper,
+  ad-hoc 서명 검증을 한 번에 구성한다.
+- standard/native CI를 분리했다. Native workflow는 compile/test/번들 격리만 하고
+  앱 실행, root 작업, artifact 업로드 또는 release를 하지 않는다.
+
+### 검증
+
+- Command Line Tools 환경에서 `swift build`, `xcodegen generate`, workflow YAML
+  parsing, macOS 13 standard compilation condition, macOS 15 Native compilation
+  condition을 통과했다.
+- `scripts/build-native-local.sh` 산출물에서 앱 아이콘, embedded one-shot tool,
+  ad-hoc signature를 확인했다.
+- 임시 system/user 경로를 사용한 apply → 외부 manifest 변경 보존 → restore 수동
+  round trip이 원본 index/manifest 복원과 active marker 제거를 통과했다.
+- 실제 macOS 15.7.9 장비에서 영상·미리보기 hash와 system manifest 등록을 확인했고,
+  `idleassetsd` DB 인덱싱 완료 뒤 에이전트를 재시작해 1/5/10/20/30/40초 시점에
+  12개 display/Space/Desktop/Idle choice가 동일 asset ID를 유지하는 것을 확인했다.
+  복원 뒤에는 12개 choice가 적용 전 asset ID로 돌아가고,
+  Lumina system asset/category, root-owned 영상·미리보기, user active marker가 제거되며
+  user journal이 `restored`로 끝나는 것도 확인했다.
+- 전체 XCTest와 Xcode Debug/Release 번들 검사는 PR의 standard/native macOS 15 CI
+  결과로 최종 확인한다.
+
+### 남은 제약
+
+- Native system write는 확인된 macOS 15, manifest schema version 1에서만 활성화된다.
+- Native Local은 소스 전용이며 GitHub release artifact나 앱 내 업데이트로 배포하지
+  않는다. 일반 Portable 앱만 태그 workflow에서 패키징한다.
+- 다중 디스플레이·장시간 sleep/wake 실제 검증은 Git에서 제외된
+  `.personal/MULTI_DISPLAY_SLEEP_WAKE_VALIDATION.md` 절차로 계속 수행한다.
+
 ## v0.2.11 — 2026-08-13
 
 ### 이슈
