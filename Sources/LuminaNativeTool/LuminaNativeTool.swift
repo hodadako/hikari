@@ -8,6 +8,7 @@ private let toolLogger = Logger(
     category: "NativeLockTool"
 )
 
+/// One-shot entry point embedded only in the source-built Native Local app.
 @main
 struct LuminaNativeTool {
     static func main() {

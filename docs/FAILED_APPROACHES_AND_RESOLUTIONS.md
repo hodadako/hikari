@@ -252,3 +252,20 @@ round-trip 검사가 `index=false`를 반환했다. 검증 프로그램은 이 �
 현재 hash가 적용 기록과 같으면 `Index.original.plist`의 검증된 원본 bytes를 그대로
 원자적으로 쓴다. 외부 변경 때문에 hash가 다를 때만 구조를 해석해 Lumina-owned
 choice를 선택적으로 복원한다.
+
+## Xcode tool 타깃의 `main.swift`에서 `@main` 사용
+
+### 시도
+
+one-shot tool entry를 `Sources/LuminaNativeTool/main.swift`에 두고 `@main` 구조체로
+선언했다. SwiftPM과 로컬 빌드 스크립트는 `-parse-as-library`를 사용해 통과했다.
+
+### 결과
+
+Xcode 16.4는 이름이 `main.swift`인 파일을 top-level entry로 취급하므로 `@main`
+선언과 충돌해 Native Local CI Debug build가 실패했다.
+
+### 해결
+
+동작 코드는 유지하고 파일명을 `LuminaNativeTool.swift`로 변경했다. SwiftPM, 직접
+`swiftc`, Xcode가 모두 같은 `@main` entry 규칙을 사용하게 한다.
