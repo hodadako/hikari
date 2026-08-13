@@ -40,7 +40,7 @@ struct MenuBarView: View {
                 if !model.contents.isEmpty {
                     Divider()
                 }
-                Button("Import MP4…") {
+                Button("Import Video…") {
                     chooseVideo()
                 }
             } label: {
@@ -51,65 +51,78 @@ struct MenuBarView: View {
             Button {
                 showSettings()
             } label: {
-                Label("Settings…", systemImage: "gearshape")
+                Label(
+                    model.isNativeLocalBuild ? "Native Lock Setup…" : "Settings…",
+                    systemImage: model.isNativeLocalBuild ? "lock.display" : "gearshape"
+                )
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Button {
-                if model.isScreenSaverInstalled {
-                    model.openScreenSaverSettings()
-                } else {
-                    model.installScreenSaver()
-                }
-            } label: {
-                Label(
-                    localized(
-                        model.isScreenSaverInstalled
-                            ? "Finish Screen Saver Setup"
-                            : "Set Up Screen Saver"
-                    ),
-                    systemImage: "rectangle.inset.filled.and.person.filled"
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Button {
-                model.previewScreenSaver()
-            } label: {
-                Label(
-                    "Preview Lumina Screen Saver",
-                    systemImage: "play.rectangle.on.rectangle"
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(
-                !model.isScreenSaverInstalled
-                    || !model.isScreenSaverSelected
-                    || model.selectedContent == nil
-            )
-
-            Button {
-                model.lockWithLumina()
-            } label: {
+            if model.isNativeLocalBuild {
                 HStack {
-                    Label("Lock with Lumina", systemImage: "lock.fill")
+                    Label("Native Lock Shortcut", systemImage: "lock.fill")
                     Spacer()
                     ShortcutKeyCapsView(compact: true)
                 }
+                .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+            } else {
+                Button {
+                    if model.isScreenSaverInstalled {
+                        model.openScreenSaverSettings()
+                    } else {
+                        model.installScreenSaver()
+                    }
+                } label: {
+                    Label(
+                        localized(
+                            model.isScreenSaverInstalled
+                                ? "Finish Screen Saver Setup"
+                                : "Set Up Screen Saver"
+                        ),
+                        systemImage: "rectangle.inset.filled.and.person.filled"
+                    )
                     .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button {
+                    model.previewScreenSaver()
+                } label: {
+                    Label(
+                        "Preview Lumina Screen Saver",
+                        systemImage: "play.rectangle.on.rectangle"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(
+                    !model.isScreenSaverInstalled
+                        || !model.isScreenSaverSelected
+                        || model.selectedContent == nil
+                )
+
+                Button {
+                    model.lockWithLumina()
+                } label: {
+                    HStack {
+                        Label("Lock with Lumina", systemImage: "lock.fill")
+                        Spacer()
+                        ShortcutKeyCapsView(compact: true)
+                    }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .disabled(
+                    !model.isScreenSaverInstalled
+                        || !model.isScreenSaverSelected
+                        || model.selectedContent == nil
+                )
             }
-            .disabled(
-                !model.isScreenSaverInstalled
-                    || !model.isScreenSaverSelected
-                    || model.selectedContent == nil
-            )
 
             Divider()
             Button {
                 model.shutdown()
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quit Lumina", systemImage: "power")
+                Label("Quit \(model.appDisplayName)", systemImage: "power")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .keyboardShortcut("q")
@@ -154,7 +167,7 @@ struct MenuBarView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Bring your desktop to life")
                         .font(.headline)
-                    Text("Import an MP4 to begin")
+                    Text("Import a video to begin")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -181,10 +194,10 @@ struct MenuBarView: View {
 
     private func chooseVideo() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.mpeg4Movie]
+        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = localized("Choose an MP4 video for your Lumina wallpaper.")
+        panel.message = localized("Choose a video for your Lumina wallpaper.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             await model.importVideo(from: url)

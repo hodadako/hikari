@@ -14,8 +14,17 @@ public actor ScreenSaverContentSynchronizer {
 
     public init(
         sourceContainer: SharedContainer,
+        destinationContainer: SharedContainer
+    ) {
+        self.sourceContainer = sourceContainer
+        self.destinationContainer = destinationContainer
+        self.fileManager = FileManager()
+    }
+
+    public init(
+        sourceContainer: SharedContainer,
         destinationContainer: SharedContainer,
-        fileManager: FileManager = .default
+        fileManager: FileManager
     ) {
         self.sourceContainer = sourceContainer
         self.destinationContainer = destinationContainer

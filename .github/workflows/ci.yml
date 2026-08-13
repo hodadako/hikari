@@ -107,6 +107,8 @@ jobs:
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
           test -d "${app_path}"
           test -d "${app_path}/Contents/PlugIns/Lumina.saver"
+          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
+          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
 
   major_compatibility:
     name: Major compatibility (${{ matrix.runner }})
@@ -165,6 +167,8 @@ jobs:
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
           test -d "${app_path}"
           test -d "${app_path}/Contents/PlugIns/Lumina.saver"
+          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
+          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
       - name: Upload compatibility evidence
         uses: actions/upload-artifact@v4
         with:
@@ -208,6 +212,8 @@ jobs:
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
           test -d "${app_path}"
           test -d "${app_path}/Contents/PlugIns/Lumina.saver"
+          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
+          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
           codesign --force --deep --sign - "${app_path}"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \

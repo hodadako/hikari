@@ -2,6 +2,9 @@ import AppKit
 import LuminaCore
 import SwiftUI
 import UniformTypeIdentifiers
+#if LUMINA_NATIVE_LOCAL
+import LuminaNativeLock
+#endif
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
@@ -17,12 +20,31 @@ struct SettingsView: View {
                     model.shutdown()
                     NSApplication.shared.terminate(nil)
                 } label: {
-                    Label("Quit Lumina", systemImage: "power")
+                    Label("Quit \(model.appDisplayName)", systemImage: "power")
                 }
                 .keyboardShortcut("q")
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
+        }
+        .alert(
+            "Shortcut Permission Repair Needed",
+            isPresented: Binding(
+                get: { model.isShortcutPermissionRecoveryPresented },
+                set: { if !$0 { model.dismissShortcutPermissionRecovery() } }
+            )
+        ) {
+            Button("Open Accessibility Settings") {
+                model.openAccessibilitySettings()
+            }
+            Button("Open Input Monitoring Settings") {
+                model.openInputMonitoringSettings()
+            }
+            Button("Later", role: .cancel) {
+                model.dismissShortcutPermissionRecovery()
+            }
+        } message: {
+            Text(model.shortcutPermissionRecoveryMessage)
         }
     }
 
@@ -38,9 +60,15 @@ struct SettingsView: View {
                 AppearanceSettingsView(model: model)
                     .tabItem { Label("Appearance", systemImage: "paintbrush") }
                     .tag(SettingsSection.appearance)
-                ScreenSaverSettingsView(model: model)
-                    .tabItem { Label("Screen Saver", systemImage: "display") }
-                    .tag(SettingsSection.screenSaver)
+                if model.isNativeLocalBuild {
+                    NativeLockSettingsView(model: model)
+                        .tabItem { Label("Native Lock", systemImage: "lock.display") }
+                        .tag(SettingsSection.nativeLock)
+                } else {
+                    ScreenSaverSettingsView(model: model)
+                        .tabItem { Label("Screen Saver", systemImage: "display") }
+                        .tag(SettingsSection.screenSaver)
+                }
                 AboutView(model: model)
                     .tabItem { Label("About", systemImage: "info.circle") }
                     .tag(SettingsSection.about)
@@ -65,6 +93,7 @@ private enum SettingsSection: Hashable {
     case general
     case appearance
     case screenSaver
+    case nativeLock
     case about
 }
 
@@ -79,19 +108,19 @@ private struct WelcomeView: View {
                 size: 82
             )
             VStack(spacing: 8) {
-                Text("Welcome to Lumina")
+                Text("Welcome to \(model.appDisplayName)")
                     .font(.largeTitle.bold())
-                Text("Choose an MP4 and Lumina will copy it into a managed library,\nthen play it quietly behind your desktop.")
+                Text("Choose a video and Lumina will copy it into a managed library,\nthen play it quietly behind your desktop.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }
             VStack(spacing: 6) {
-                Label("Choose an MP4 from anywhere on your Mac", systemImage: "folder")
+                Label("Choose a video from anywhere on your Mac", systemImage: "folder")
                     .font(.headline)
-                Text("You do not need to move it manually. Lumina stores its copy in:")
+                Text("You do not need to move it manually. \(model.appDisplayName) stores its copy in:")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                Text("~/Library/Application Support/Lumina/Media")
+                Text(model.managedMediaDirectoryDisplayPath)
                     .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
             }
@@ -102,7 +131,7 @@ private struct WelcomeView: View {
                 chooseVideo()
             } label: {
                 Label(
-                    localized(model.isImporting ? "Importing…" : "Choose MP4…"),
+                    localized(model.isImporting ? "Importing…" : "Choose Video…"),
                     systemImage: "plus"
                 )
                 .frame(minWidth: 150)
@@ -131,7 +160,7 @@ private struct WelcomeView: View {
 
     private func chooseVideo() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.mpeg4Movie]
+        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -360,7 +389,7 @@ private struct AppearanceSettingsView: View {
                 Button {
                     chooseVideo()
                 } label: {
-                    Label("Import MP4…", systemImage: "plus")
+                    Label("Import Video…", systemImage: "plus")
                 }
             }
         }
@@ -389,7 +418,7 @@ private struct AppearanceSettingsView: View {
 
     private func chooseVideo() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.mpeg4Movie]
+        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
@@ -515,6 +544,48 @@ private struct ScreenSaverSettingsView: View {
                     )
                 }
 
+                if model.settings.overrideSystemLockShortcut {
+                    LabeledContent("Accessibility") {
+                        permissionLabel(
+                            granted: model.isAccessibilityPermissionGranted
+                        )
+                    }
+
+                    LabeledContent("Input Monitoring") {
+                        permissionLabel(
+                            granted: model.isInputMonitoringPermissionGranted
+                        )
+                    }
+
+                    if !model.isLockShortcutOverrideActive {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(model.shortcutPermissionRecoveryMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            HStack {
+                                Button("Request Permissions") {
+                                    model.requestShortcutPermissions()
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                Button("Recheck Permissions") {
+                                    model.recheckShortcutPermissions()
+                                }
+                            }
+
+                            HStack {
+                                Button("Open Accessibility Settings") {
+                                    model.openAccessibilitySettings()
+                                }
+                                Button("Open Input Monitoring Settings") {
+                                    model.openInputMonitoringSettings()
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if model.isScreenSaverInstalled {
                     HStack {
                         Button("Preview Lumina") {
@@ -561,7 +632,7 @@ private struct ScreenSaverSettingsView: View {
                     localized(
                         "Lumina Lock starts the video screen saver immediately. For a secure "
                             + "lock, set Require password after screen saver begins to Immediately. "
-                            + "The optional shortcut override needs Accessibility permission."
+                            + "The optional shortcut override needs Accessibility and Input Monitoring permissions."
                     )
                 )
             }
@@ -581,6 +652,109 @@ private struct ScreenSaverSettingsView: View {
             max(1, model.screenSaverStartDelay / 60)
         )
     }
+
+    private func permissionLabel(granted: Bool) -> some View {
+        Label(
+            localized(granted ? "Granted" : "Required"),
+            systemImage: granted
+                ? "checkmark.circle.fill"
+                : "exclamationmark.triangle.fill"
+        )
+        .foregroundStyle(granted ? Color.green : Color.orange)
+    }
+}
+
+private struct NativeLockSettingsView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        Form {
+            Section {
+                #if LUMINA_NATIVE_LOCAL
+                let report = NativeLockSafetyInspector.evaluate(
+                    hasSelectedMedia: model.selectedContent != nil,
+                    transactionPhase: model.nativeLockPhase
+                )
+                LabeledContent("Safety Status") {
+                    Label(localized(report.title), systemImage: "lock.shield.fill")
+                        .foregroundStyle(
+                            report.state == .active ? Color.green : Color.orange
+                        )
+                }
+                Text(localized(report.detail))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                if let title = model.nativeLockAppliedContentTitle,
+                   model.nativeLockPhase != .restored {
+                    LabeledContent("Applied video") {
+                        Text(title)
+                            .lineLimit(1)
+                    }
+                }
+
+                HStack {
+                    Button {
+                        model.applySelectedVideoToNativeLock()
+                    } label: {
+                        if model.isNativeLockWorking {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Apply Selected Video")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        model.selectedContent == nil
+                            || model.isNativeLockWorking
+                            || (model.nativeLockPhase != nil
+                                && model.nativeLockPhase != .restored)
+                    )
+
+                    if model.nativeLockPhase != nil,
+                       model.nativeLockPhase != .restored {
+                        Button("Restore Previous Wallpaper") {
+                            model.restoreNativeLock()
+                        }
+                        .disabled(model.isNativeLockWorking)
+                    }
+                }
+                #else
+                Text("Native Lock is available only in the Lumina Native Local target.")
+                    .foregroundStyle(.secondary)
+                #endif
+            } header: {
+                Text("Native Lock (Local)")
+            }
+
+            Section {
+                LabeledContent("System lock shortcut") {
+                    HStack(spacing: 8) {
+                        Text("Supported (system-owned)")
+                        ShortcutKeyCapsView()
+                    }
+                }
+                LabeledContent("Automatic updates") {
+                    Text("Disabled")
+                }
+                LabeledContent("Managed media") {
+                    Text(model.managedMediaDirectoryDisplayPath)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+            } header: {
+                Text("Isolation")
+            } footer: {
+                Text(
+                    localized(
+                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Lumina-owned system assets."
+                    )
+                )
+            }
+        }
+        .formStyle(.grouped)
+    }
 }
 
 private func localized(_ key: String) -> String {
@@ -598,7 +772,7 @@ private struct AboutView: View {
                 image: model.appIconImage,
                 size: 78
             )
-            Text("Lumina")
+            Text(model.appDisplayName)
                 .font(.title.bold())
             Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)
@@ -612,7 +786,8 @@ private struct AboutView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Divider()
-            VStack(spacing: 8) {
+            if model.supportsAutomaticUpdates {
+                VStack(spacing: 8) {
                 switch model.updateCheckState {
                 case .checking:
                     ProgressView("Checking for updates…")
@@ -656,6 +831,13 @@ private struct AboutView: View {
                     model.isApplyingUpdate
                         || model.updateCheckState == .checking
                 )
+                }
+            } else {
+                Label(
+                    "Local source build — automatic updates disabled",
+                    systemImage: "hammer"
+                )
+                .foregroundStyle(.secondary)
             }
             Spacer()
         }

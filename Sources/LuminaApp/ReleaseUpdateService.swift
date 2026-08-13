@@ -109,8 +109,16 @@ struct ReleaseUpdateService {
 
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let configuration = URLSessionConfiguration.default
+            configuration.waitsForConnectivity = true
+            configuration.timeoutIntervalForRequest = 30
+            configuration.timeoutIntervalForResource = 180
+            self.session = URLSession(configuration: configuration)
+        }
     }
 
     func fetchLatestRelease() async throws -> LatestRelease {

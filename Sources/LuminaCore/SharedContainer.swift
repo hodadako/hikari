@@ -5,7 +5,10 @@ public struct SharedContainer: Sendable {
 
     public let rootURL: URL
 
-    public init(rootURL: URL? = nil) throws {
+    public init(
+        rootURL: URL? = nil,
+        applicationSupportDirectoryName: String = Self.applicationSupportDirectoryName
+    ) throws {
         if let rootURL {
             self.rootURL = rootURL
         } else {
@@ -16,7 +19,7 @@ public struct SharedContainer: Sendable {
                 create: true
             )
             self.rootURL = support.appendingPathComponent(
-                Self.applicationSupportDirectoryName,
+                applicationSupportDirectoryName,
                 isDirectory: true
             )
         }

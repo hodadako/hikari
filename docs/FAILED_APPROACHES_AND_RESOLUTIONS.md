@@ -169,3 +169,103 @@ ScreenSaverEngine 실행 요청이 이미 실행 중인 화면 보호기 때문�
 ### 해결
 
 전체 영상 표시가 필요하면 설정의 크기 조절 모드를 `Fit`으로 선택한다. `Fill` 동작 자체는 변경하지 않는다.
+
+## Command Line Tools만 설치된 환경에서 XCTest 실행
+
+### 시도
+
+전체 Xcode 없이 `/Library/Developer/CommandLineTools`의 SwiftPM으로 `swift test`를
+실행했다.
+
+### 결과
+
+해당 설치에는 `Testing.framework`만 있고 `XCTest` 모듈이 없어 기존 테스트
+타깃부터 `no such module 'XCTest'`로 중단됐다. 제품 모듈의 컴파일 오류가 아니다.
+
+### 해결
+
+- 로컬에서는 `swift build`와 일반/Native compilation condition 각각의
+  `swiftc -typecheck`로 소스 컴파일을 우선 검증한다.
+- XCTest와 실제 앱 번들 빌드는 전체 Xcode가 있는 일반 CI 및 별도 Native Local
+  CI에서 실행한다.
+- 전체 Xcode가 설치된 장비에서는 `xcode-select`가 그 Xcode를 가리키는지 확인한
+  뒤 `swift test` 또는 각 Xcode 스킴의 테스트를 실행한다.
+
+## wallpaper index를 쓴 뒤 `WallpaperAgent` 종료
+
+### 시도
+
+Native Local이 사용자 `Index.plist`를 원자적으로 교체한 다음 실행 중인
+`WallpaperAgent`를 종료해 새 설정을 읽게 했다.
+
+### 결과
+
+실제 Mac에서 system asset과 manifest는 정상 등록됐지만, 종료 직전 에이전트가
+메모리에 있던 이전 상태를 파일에 다시 기록했다. 사용자 journal은 `active`인데
+현재 choice는 기본값으로 돌아가는 거짓 성공 상태가 재현됐다.
+
+### 해결
+
+- 기존 `WallpaperAgent`에 먼저 `SIGSTOP`을 보내 이전 상태의 추가 기록을 막는다.
+- 정지된 동안 user index를 원자적으로 교체한 뒤 해당 PID를 `SIGKILL`하여 launchd가
+  새 파일로 재시작하게 한다.
+- system manifest 적용 직후에는 `idleassetsd`의 SQLite/WAL에 해당 transaction의
+  새 asset ID가 나타날 때까지 기다린 뒤 user index를 변경한다. 준비 전에
+  `WallpaperAgent`를 시작하면 수 초 뒤 12개 choice가 `default`로 되돌아갔다.
+- 재시작 뒤 30초 동안 모든 기존 wallpaper choice의 asset ID를 계속 재검증하고,
+  한 번이라도 유지되지 않으면 성공으로 반환하지 않고 `recoveryRequired`로 기록한다.
+- 실제 Mac에서 DB 인덱싱 완료 뒤 적용하면 1/5/10/20/30/40초 시점 모두 12개
+  display/Space/Desktop/Idle choice가 같은 새 asset ID를 유지하는 것을 확인했다.
+
+## 수동 `swiftc` 앱 조립에서 asset catalog 생략
+
+### 시도
+
+전체 Xcode 없이 Native Local 앱 실행을 먼저 확인하면서 실행 파일과 plist만 직접
+조립했다.
+
+### 결과
+
+앱 기능은 실행됐지만 `AppIcon`과 런타임 아이콘 resource가 번들에 없어 일반 기본
+아이콘으로 보였다.
+
+### 해결
+
+`scripts/build-native-local.sh`가 모든 앱 아이콘 크기로 `.icns`를 만들고 메뉴 막대
+이미지와 localization을 포함하며, ad-hoc 서명과 `codesign --verify --deep --strict`까지
+수행하도록 통합했다.
+
+## 원본 wallpaper plist를 dictionary로 다시 직렬화해 복원
+
+### 시도
+
+현재 user index가 적용 직후 hash와 동일한 경우에도 백업 plist를 dictionary로
+읽은 다음 새 binary plist로 직렬화해 복원했다.
+
+### 결과
+
+의미상 같은 값이어도 plist object 순서와 binary encoding이 달라질 수 있어 수동
+round-trip 검사가 `index=false`를 반환했다. 검증 프로그램은 이 결과로 종료됐다.
+
+### 해결
+
+현재 hash가 적용 기록과 같으면 `Index.original.plist`의 검증된 원본 bytes를 그대로
+원자적으로 쓴다. 외부 변경 때문에 hash가 다를 때만 구조를 해석해 Lumina-owned
+choice를 선택적으로 복원한다.
+
+## Xcode tool 타깃의 `main.swift`에서 `@main` 사용
+
+### 시도
+
+one-shot tool entry를 `Sources/LuminaNativeTool/main.swift`에 두고 `@main` 구조체로
+선언했다. SwiftPM과 로컬 빌드 스크립트는 `-parse-as-library`를 사용해 통과했다.
+
+### 결과
+
+Xcode 16.4는 이름이 `main.swift`인 파일을 top-level entry로 취급하므로 `@main`
+선언과 충돌해 Native Local CI Debug build가 실패했다.
+
+### 해결
+
+동작 코드는 유지하고 파일명을 `LuminaNativeTool.swift`로 변경했다. SwiftPM, 직접
+`swiftc`, Xcode가 모두 같은 `@main` entry 규칙을 사용하게 한다.

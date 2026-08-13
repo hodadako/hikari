@@ -3,6 +3,9 @@ import Combine
 import CoreServices
 import LuminaCore
 import ServiceManagement
+#if LUMINA_NATIVE_LOCAL
+import LuminaNativeLock
+#endif
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -14,8 +17,16 @@ final class AppModel: ObservableObject {
     @Published private(set) var updateCheckState: UpdateCheckState = .idle
     @Published private(set) var isApplyingUpdate = false
     @Published private(set) var updateErrorMessage: String?
+    @Published private(set) var isAccessibilityPermissionGranted = false
+    @Published private(set) var isInputMonitoringPermissionGranted = false
+    #if LUMINA_NATIVE_LOCAL
+    @Published private(set) var nativeLockRecord: NativeLockTransactionRecord? = nil
+    @Published private(set) var isNativeLockWorking = false
+    #endif
+    @Published var isShortcutPermissionRecoveryPresented = false
     @Published var presentedError: String?
 
+    let variant = AppVariant.current
     let container: SharedContainer
 
     private let settingsStore: SettingsStore
@@ -40,15 +51,36 @@ final class AppModel: ObservableObject {
         )
     }()
     private lazy var wallpaperController = WallpaperController()
+    #if LUMINA_NATIVE_LOCAL
+    private lazy var nativeLockController = NativeLockController(container: container)
+    #endif
     private var terminationToken: NSObjectProtocol?
     private var screenSaverSyncTask: Task<Void, Never>?
     private var updateTask: Task<Void, Never>?
     private var normalizedMenuBarIconCache: [String: NSImage] = [:]
     private var normalizedMenuBarHeartbeatCache: NSImage?
+    private let didChangeAppVersion: Bool
+
+    private static let lastLaunchedVersionKey = "lastLaunchedAppVersion"
 
     init() {
+        let currentVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? "Development"
+        let previousVersion = UserDefaults.standard.string(
+            forKey: Self.lastLaunchedVersionKey
+        )
+        didChangeAppVersion = previousVersion != nil
+            && previousVersion != currentVersion
+        UserDefaults.standard.set(
+            currentVersion,
+            forKey: Self.lastLaunchedVersionKey
+        )
+
         do {
-            let container = try SharedContainer()
+            let container = try SharedContainer(
+                applicationSupportDirectoryName: variant.applicationSupportDirectoryName
+            )
             self.container = container
             self.settingsStore = SettingsStore(container: container)
             self.contentStore = ContentStore(container: container)
@@ -78,21 +110,31 @@ final class AppModel: ObservableObject {
             self.reconcilePlayback()
         }
         stateMonitor.start()
-        settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
+        if variant.isNativeLocal {
+            settings.overrideSystemLockShortcut = false
+            settings.lockScreenPlaybackEnabled = false
+        } else {
+            settings.lastKnownScreenSaverInstalled = screenSaverInstaller.isInstalled
+        }
+        #if LUMINA_NATIVE_LOCAL
+        nativeLockRecord = nativeLockController.currentRecord()
+        #endif
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
         applyApplicationIcon()
         wallpaperController.setScalingMode(settings.scalingMode)
         reconcilePlayback()
-        if screenSaverInstaller.isInstalled {
+        if variant.supportsScreenSaver, screenSaverInstaller.isInstalled {
             synchronizeScreenSaverContent()
         }
-        lockShortcutController.onShortcut = { [weak self] in
-            Task { @MainActor in
-                self?.lockWithLumina()
+        if variant.supportsScreenSaver {
+            lockShortcutController.onShortcut = { [weak self] in
+                Task { @MainActor in
+                    self?.lockWithLumina()
+                }
             }
+            refreshLockShortcutIfNeeded(showRecoveryIfUnavailable: true)
         }
-        refreshLockShortcutIfNeeded()
         terminationToken = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -102,7 +144,9 @@ final class AppModel: ObservableObject {
                 self?.shutdown()
             }
         }
-        checkForUpdates()
+        if variant.supportsAutomaticUpdates {
+            checkForUpdates()
+        }
     }
 
     var selectedContent: LiveContent? {
@@ -118,24 +162,82 @@ final class AppModel: ObservableObject {
     }
 
     var isScreenSaverInstalled: Bool {
-        screenSaverInstaller.isInstalled
+        variant.supportsScreenSaver && screenSaverInstaller.isInstalled
     }
 
     var isScreenSaverSelected: Bool {
-        screenSaverInstaller.isSelected
+        variant.supportsScreenSaver && screenSaverInstaller.isSelected
     }
 
     var screenSaverStartDelay: Int {
-        screenSaverInstaller.startDelay
+        variant.supportsScreenSaver ? screenSaverInstaller.startDelay : 0
     }
 
     var isLockScreenPlaybackEnabled: Bool {
-        settings.lockScreenPlaybackEnabled
+        variant.supportsScreenSaver && settings.lockScreenPlaybackEnabled
     }
 
     var isScreenSaverUpdateAvailable: Bool {
-        screenSaverInstaller.needsUpdate
+        variant.supportsScreenSaver && screenSaverInstaller.needsUpdate
     }
+
+    var appDisplayName: String { variant.displayName }
+
+    var isNativeLocalBuild: Bool { variant.isNativeLocal }
+
+    var supportsScreenSaver: Bool { variant.supportsScreenSaver }
+
+    var supportsAutomaticUpdates: Bool { variant.supportsAutomaticUpdates }
+
+    var managedMediaDirectoryDisplayPath: String {
+        "~/Library/Application Support/\(variant.applicationSupportDirectoryName)/Media"
+    }
+
+    #if LUMINA_NATIVE_LOCAL
+    var nativeLockPhase: NativeLockTransactionPhase? {
+        nativeLockRecord?.journal.phase
+    }
+
+    var nativeLockAppliedContentTitle: String? {
+        guard let sourceID = nativeLockRecord?.request.sourceContentID else {
+            return nil
+        }
+        return contents.first { $0.id == sourceID }?.title
+            ?? nativeLockRecord?.request.title
+    }
+
+    func applySelectedVideoToNativeLock() {
+        guard !isNativeLockWorking, let content = selectedContent else { return }
+        isNativeLockWorking = true
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                self.nativeLockRecord = try await self.nativeLockController.apply(
+                    content: content
+                )
+            } catch {
+                self.nativeLockRecord = self.nativeLockController.currentRecord()
+                self.presentedError = error.localizedDescription
+            }
+            self.isNativeLockWorking = false
+            self.objectWillChange.send()
+        }
+    }
+
+    func restoreNativeLock() {
+        guard !isNativeLockWorking else { return }
+        isNativeLockWorking = true
+        do {
+            try nativeLockController.restore()
+            nativeLockRecord = nativeLockController.currentRecord()
+        } catch {
+            nativeLockRecord = nativeLockController.currentRecord()
+            presentedError = error.localizedDescription
+        }
+        isNativeLockWorking = false
+        objectWillChange.send()
+    }
+    #endif
 
     var appIconImage: NSImage {
         appIconImage(for: settings.appIconStyle)
@@ -184,6 +286,13 @@ final class AppModel: ObservableObject {
 
     var isLockShortcutOverrideActive: Bool {
         lockShortcutController.isActive
+    }
+
+    var shortcutPermissionRecoveryMessage: String {
+        let key = didChangeAppVersion
+            ? "Lumina was updated, and macOS may require you to approve its shortcut permissions again. Allow both Accessibility and Input Monitoring, then return to Lumina and recheck permissions."
+            : "Lumina cannot activate its shortcut. Allow both Accessibility and Input Monitoring, then return to Lumina and recheck permissions."
+        return NSLocalizedString(key, comment: "Shortcut permission recovery guidance")
     }
 
     func importVideo(from url: URL) async {
@@ -349,6 +458,7 @@ final class AppModel: ObservableObject {
     }
 
     func checkForUpdates() {
+        guard variant.supportsAutomaticUpdates else { return }
         guard updateCheckState != .checking else { return }
         updateTask?.cancel()
         updateCheckState = .checking
@@ -381,6 +491,7 @@ final class AppModel: ObservableObject {
     }
 
     func applyLatestUpdate() {
+        guard variant.supportsAutomaticUpdates else { return }
         guard !isApplyingUpdate else { return }
         guard let release = latestRelease,
               updateCheckState == .updateAvailable else {
@@ -436,6 +547,7 @@ final class AppModel: ObservableObject {
     }
 
     func installScreenSaver() {
+        guard variant.supportsScreenSaver else { return }
         do {
             try screenSaverInstaller.install()
             settings.lastKnownScreenSaverInstalled = true
@@ -449,14 +561,17 @@ final class AppModel: ObservableObject {
     }
 
     func openScreenSaverSettings() {
+        guard variant.supportsScreenSaver else { return }
         screenSaverInstaller.openSystemSettings()
     }
 
     func openLockScreenSettings() {
+        guard variant.supportsScreenSaver else { return }
         screenSaverInstaller.openLockScreenSettings()
     }
 
     func setLockScreenPlayback(_ enabled: Bool) {
+        guard variant.supportsScreenSaver else { return }
         if enabled {
             guard isScreenSaverInstalled, isScreenSaverSelected else {
                 presentedError = NSLocalizedString(
@@ -523,6 +638,7 @@ final class AppModel: ObservableObject {
     }
 
     func lockWithLumina() {
+        guard variant.supportsScreenSaver else { return }
         guard isScreenSaverInstalled, isScreenSaverSelected else {
             presentedError = NSLocalizedString(
                 "Install and select Lumina as your screen saver first.",
@@ -533,7 +649,7 @@ final class AppModel: ObservableObject {
         }
         guard selectedContent != nil else {
             presentedError = NSLocalizedString(
-                "Import an MP4 before using Lumina Lock.",
+                "Import a video before using Lumina Lock.",
                 comment: "Lumina Lock requires content"
             )
             return
@@ -579,6 +695,10 @@ final class AppModel: ObservableObject {
     }
 
     func setLockShortcutOverride(_ enabled: Bool) {
+        guard variant.supportsScreenSaver else {
+            lockShortcutController.stop()
+            return
+        }
         if enabled {
             let alert = NSAlert()
             alert.messageText = NSLocalizedString(
@@ -605,26 +725,47 @@ final class AppModel: ObservableObject {
         }
 
         if enabled {
-            let accessibilityTrusted = LockShortcutController.isAccessibilityTrusted
-                || LockShortcutController.requestAccessibilityPermission()
-            let inputMonitoringTrusted = LockShortcutController.isInputMonitoringTrusted
-                || LockShortcutController.requestInputMonitoringPermission()
-            if accessibilityTrusted {
-                refreshLockShortcutIfNeeded()
-            }
-            if !accessibilityTrusted || !inputMonitoringTrusted {
-                presentedError = NSLocalizedString(
-                    "Allow Lumina in Privacy & Security > Accessibility and Input Monitoring, then return to Lumina. The shortcut will activate automatically.",
-                    comment: "Keyboard shortcut permission instructions"
-                )
-            }
+            requestShortcutPermissions()
         } else {
             lockShortcutController.stop()
+            refreshShortcutPermissionState()
+            isShortcutPermissionRecoveryPresented = false
         }
         objectWillChange.send()
     }
 
+    func requestShortcutPermissions() {
+        guard variant.supportsScreenSaver else { return }
+        guard settings.overrideSystemLockShortcut else { return }
+        if !LockShortcutController.isAccessibilityTrusted {
+            _ = LockShortcutController.requestAccessibilityPermission()
+        }
+        if !LockShortcutController.isInputMonitoringTrusted {
+            _ = LockShortcutController.requestInputMonitoringPermission()
+        }
+        recheckShortcutPermissions()
+    }
+
+    func recheckShortcutPermissions() {
+        guard variant.supportsScreenSaver else { return }
+        lockShortcutController.stop()
+        refreshLockShortcutIfNeeded(showRecoveryIfUnavailable: true)
+    }
+
+    func openAccessibilitySettings() {
+        openPrivacySettings(pane: "Privacy_Accessibility")
+    }
+
+    func openInputMonitoringSettings() {
+        openPrivacySettings(pane: "Privacy_ListenEvent")
+    }
+
+    func dismissShortcutPermissionRecovery() {
+        isShortcutPermissionRecoveryPresented = false
+    }
+
     func previewScreenSaver() {
+        guard variant.supportsScreenSaver else { return }
         guard isScreenSaverInstalled, isScreenSaverSelected else {
             presentedError = NSLocalizedString(
                 "Select Lumina as your screen saver in System Settings first.",
@@ -688,6 +829,7 @@ final class AppModel: ObservableObject {
     }
 
     private func synchronizeScreenSaverContent(force: Bool = false) {
+        guard variant.supportsScreenSaver else { return }
         // Merely launching Lumina must not create or modify screen saver
         // support data. Content is synchronized only after the user has
         // explicitly installed Lumina (or invokes a screen-saver action).
@@ -724,17 +866,49 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func refreshLockShortcutIfNeeded() {
+    private func refreshLockShortcutIfNeeded(
+        showRecoveryIfUnavailable: Bool = false
+    ) {
+        guard variant.supportsScreenSaver else {
+            lockShortcutController.stop()
+            isAccessibilityPermissionGranted = false
+            isInputMonitoringPermissionGranted = false
+            isShortcutPermissionRecoveryPresented = false
+            return
+        }
         guard settings.overrideSystemLockShortcut else {
             lockShortcutController.stop()
+            refreshShortcutPermissionState()
+            isShortcutPermissionRecoveryPresented = false
             return
         }
         if LockShortcutController.isAccessibilityTrusted {
             _ = lockShortcutController.start()
         }
+        refreshShortcutPermissionState()
+        if lockShortcutController.isActive {
+            isShortcutPermissionRecoveryPresented = false
+        } else if showRecoveryIfUnavailable {
+            isShortcutPermissionRecoveryPresented = true
+        }
         objectWillChange.send()
     }
 
+    private func refreshShortcutPermissionState() {
+        isAccessibilityPermissionGranted = LockShortcutController.isAccessibilityTrusted
+        // The preflight value can lag behind System Settings. A successfully
+        // created event tap is the authoritative proof that current access is
+        // sufficient, so do not show a false failure while the tap is active.
+        isInputMonitoringPermissionGranted = LockShortcutController.isInputMonitoringTrusted
+            || lockShortcutController.isActive
+    }
+
+    private func openPrivacySettings(pane: String) {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
 
     private var hasPlayableContent: Bool {
         guard let mediaURL = selectedMediaURL else { return false }
