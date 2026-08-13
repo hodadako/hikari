@@ -219,8 +219,12 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent \
             "${app_path}" \
             "dist/Lumina-macOS-portable.zip"
-          shasum -a 256 "dist/Lumina-macOS-portable.zip" \
-            > "dist/Lumina-macOS-portable.zip.sha256"
+          (
+            cd dist
+            shasum -a 256 "Lumina-macOS-portable.zip" \
+              > "Lumina-macOS-portable.zip.sha256"
+            shasum -a 256 -c "Lumina-macOS-portable.zip.sha256"
+          )
       - name: Upload portable app
         uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,28 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## v0.3.1 — 2026-08-14
+
+### 이슈와 영향
+
+- v0.3.0의 ZIP digest 자체는 정확했지만 `.sha256` 안의 대상 이름이
+  `dist/Lumina-macOS-portable.zip`이었다. 두 release asset을 같은 폴더에 받은 뒤
+  README의 `shasum -a 256 -c` 명령을 실행하면 파일을 찾지 못해 실패했다.
+
+### 원인 및 조치
+
+- package job이 저장소 루트에서 `dist/...zip`을 hash해 그 상대 경로까지 checksum
+  파일에 기록했다. `dist` 안에서 basename만 hash하도록 바꾸고, artifact를 업로드하기
+  전에 CI가 생성된 checksum 파일로 ZIP을 다시 검증하는 gate를 추가했다.
+- 이미 push한 `v0.3.0` 태그는 이동하거나 재사용하지 않고 `v0.3.1`로 후속 릴리스한다.
+
+### 검증
+
+- 실제 v0.3.0 release asset을 다운로드해 ZIP의 SHA-256 값은 asset digest와 같고,
+  실패 원인이 checksum 내부의 `dist/` 경로임을 확인했다.
+- v0.3.1 태그 CI에서 Debug/Release/XCTest, portable 격리, package 단계 자체 checksum,
+  GitHub Release 다운로드 후 checksum을 다시 검증한다.
+
 ## v0.3.0 — 2026-08-14
 
 ### 이슈와 사용자 영향

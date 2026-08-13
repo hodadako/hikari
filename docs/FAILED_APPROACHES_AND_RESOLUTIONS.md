@@ -269,3 +269,22 @@ Xcode 16.4는 이름이 `main.swift`인 파일을 top-level entry로 취급하�
 
 동작 코드는 유지하고 파일명을 `LuminaNativeTool.swift`로 변경했다. SwiftPM, 직접
 `swiftc`, Xcode가 모두 같은 `@main` entry 규칙을 사용하게 한다.
+
+## 저장소 루트에서 release ZIP checksum 생성
+
+### 시도
+
+package job이 `shasum -a 256 dist/Lumina-macOS-portable.zip` 출력 전체를
+`.sha256` asset으로 저장했다.
+
+### 결과
+
+hash 값은 정확했지만 checksum 안의 파일명이 `dist/...zip`이 됐다. GitHub Release
+두 파일을 같은 폴더에 내려받고 README 명령을 실행하면 해당 하위 경로가 없어
+`FAILED open or read`로 실패했다.
+
+### 해결
+
+`dist` 디렉터리 안에서 ZIP basename을 hash하고, 업로드 전에 같은 `.sha256` 파일로
+CI가 `shasum -a 256 -c`를 실행한다. push된 v0.3.0 태그는 변경하지 않고 v0.3.1로
+후속 릴리스한다.
