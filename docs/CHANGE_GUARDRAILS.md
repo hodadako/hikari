@@ -28,12 +28,14 @@
 - Native Local의 root 작업은 앱 번들에서 매번 관리자 승인을 받아 실행하는 고정 인자 one-shot 도구로만 수행한다. 상시 daemon, LaunchDaemon 또는 persistent privileged helper로 바꾸지 않는다.
 - system write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 실제 schema와 복구 절차를 다시 검증하기 전까지 쓰기를 차단한다.
 - 사용자 wallpaper index를 바꿀 때는 실행 중인 `WallpaperAgent`를 먼저 정지하고 원자적 교체가 끝난 뒤 종료·재시작한다. 파일을 먼저 쓴 다음 에이전트를 종료하는 순서로 되돌리지 않는다. 재시작 뒤 모든 기존 choice가 같은 transaction asset ID를 유지하는지도 확인한다.
+- Native Local의 주기 유지보수는 사용자 wallpaper choice만 읽고 drift가 있을 때만 조정한다. 관리자 승인, privileged helper, system manifest/media 쓰기를 주기적으로 실행하지 않는다. 새 display/Space choice를 자동 적용하기 전에는 exact topology path별 원래 choice를 restore overlay에 먼저 저장하며, 이후 복원은 현재 topology를 보존하는 선택적 병합을 사용한다.
+- active Native transaction이 있을 때 앱 시작과 unlock 뒤 `WallpaperAgent`를 한 번 새로 띄워 이전 `WallpaperVideoExtension`의 sample-reader 오류가 다음 잠금까지 남지 않게 한다. 잠금 중 반복 종료하거나 고정 주기로 renderer를 재시작하지 않는다.
 - root manifest 적용 뒤 user index를 바꾸기 전에 `idleassetsd`의 SQLite/WAL에 새 transaction asset ID가 인덱싱됐는지 확인한다. 최초 일치만 보고 성공 처리하지 말고 에이전트 재시작 뒤 30초 안정화 구간 동안 모든 choice를 계속 검증한다.
 - root manifest·cache transaction 중에는 기존 `idleassetsd`를 먼저 정지하고 작업 종료 시 강제 종료해 launchd가 새 상태로 재시작하게 한다. 실행 중인 서비스와 cache 파일을 동시에 이동하는 순서로 되돌리지 않는다.
 - 복원 시 현재 파일이 적용 직후 hash와 같으면 원본 전체를 복원하고, 외부 변경이 있으면 Lumina가 소유한 asset/category/choice만 선택적으로 제거한다. hash가 다른 media/preview 파일은 자동 삭제하지 않는다.
 - backup, transaction journal, active marker 및 원자적으로 교체한 system/user 파일은 파일과 상위 디렉터리의 `fsync`가 성공한 뒤에만 다음 phase로 진행한다.
 - Native Local의 user support root와 transaction staging은 현재 사용자 전용 권한으로 유지한다. system playback copy는 macOS 서비스 접근 때문에 root 소유 0644이며 활성 중 같은 Mac의 다른 로컬 계정이 읽을 수 있다는 고지를 유지한다. 복원은 hash가 일치하는 system copy만 제거한다.
-- 일반 `Lumina`와 `Lumina Native Local`은 서로 다른 bundle ID와 Application Support 저장소를 사용한다. 두 빌드 모두 `Control-Command-Q` 잠금을 지원한다. 일반 빌드는 선택형 event-tap 재정의를 유지하고, Native Local은 충돌하는 event tap 없이 macOS 소유 시스템 잠금 경로를 사용한다. Native Local은 앱 내 자동 업데이트를 실행하지 않는다.
+- 일반 `Lumina`와 Native Local 앱 `Hikari`는 서로 다른 bundle ID와 Application Support 저장소를 사용한다. 두 빌드 모두 `Control-Command-Q` 잠금을 지원한다. 일반 빌드는 선택형 event-tap 재정의를 유지하고, Native Local은 충돌하는 event tap 없이 macOS 소유 시스템 잠금 경로를 사용한다. Native Local은 앱 내 자동 업데이트를 실행하지 않는다.
 - 일반 CI만 Portable 앱을 패키징·업로드·릴리스한다. Native Local CI는 별도 workflow에서 compile/test와 번들 격리 검사만 하고 artifact, archive, release 또는 앱 실행을 하지 않는다.
 - 같은 system wallpaper/aerial 저장소를 수정하는 다른 도구와 native 잠금 화면 실험을 동시에 실행하지 않는다.
 

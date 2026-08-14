@@ -11,6 +11,7 @@ final class SystemStateMonitor {
     var onStateChanged: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
     var onActiveSpaceChanged: (() -> Void)?
+    var onActiveSpaceSettled: (() -> Void)?
 
     private(set) var isSleeping = false
     private(set) var isScreenLocked = false
@@ -35,6 +36,8 @@ final class SystemStateMonitor {
     // WindowServer finishes a Spaces mutation asynchronously. A single
     // callback can run while the new desktop is still being materialized, so
     // use a short recovery sequence and collapse overlapping notifications.
+    // The final pass is deliberately distinct: it is safe to recreate an
+    // AVPlayerLayer-backed desktop surface only after the Space settles.
     private let spaceRecoveryDelays: [UInt64] = [
         80_000_000,
         220_000_000,
@@ -227,11 +230,15 @@ final class SystemStateMonitor {
         let recoveryDelays = [delay] + Array(spaceRecoveryDelays.dropFirst())
         spaceTask?.cancel()
         spaceTask = Task { [weak self] in
-            for recoveryDelay in recoveryDelays {
+            for (index, recoveryDelay) in recoveryDelays.enumerated() {
                 try? await Task.sleep(nanoseconds: recoveryDelay)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    self?.onActiveSpaceChanged?()
+                    if index == recoveryDelays.indices.last {
+                        self?.onActiveSpaceSettled?()
+                    } else {
+                        self?.onActiveSpaceChanged?()
+                    }
                 }
             }
         }

@@ -61,9 +61,13 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
-    name: Build and test (macOS 15)
+    name: Build and test (${{ matrix.runner }})
     needs: metadata
-    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -120,7 +124,8 @@ jobs:
         # GitHub-hosted labels available while this workflow is maintained.
         # macOS 13 has no hosted image anymore; deployment-target and unit
         # tests cover it, with physical-device QA documented in PERFORMANCE.md.
-        runner: [macos-14, macos-15, macos-26]
+        # The regular build-and-test matrix already covers macOS 15 and 26.
+        runner: [macos-14]
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read

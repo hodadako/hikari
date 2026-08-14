@@ -9,9 +9,20 @@ deployment_target="${build_architecture}-apple-macosx15.0"
 output_root="${1:-${repository_root}/.personal/build/native-local-${timestamp}}"
 module_directory="${output_root}/Modules"
 library_directory="${output_root}/Libraries"
-app_path="${output_root}/Lumina Native Local.app"
+app_name="Hikari"
+app_path="${output_root}/${app_name}.app"
 resource_path="${app_path}/Contents/Resources"
 iconset_path="${output_root}/LuminaNativeIcon.iconset"
+install_directory="${LUMINA_NATIVE_INSTALL_DIRECTORY:-/Applications}"
+installed_app_path="${install_directory}/${app_name}.app"
+install_staging_path="${install_directory}/.${app_name}.app.installing.$$"
+
+cleanup_install_staging() {
+  if [[ -n "${install_staging_path}" && -e "${install_staging_path}" ]]; then
+    rm -rf "${install_staging_path}"
+  fi
+}
+trap cleanup_install_staging EXIT
 
 if [[ -e "${app_path}" ]]; then
   print -u2 "Refusing to overwrite existing app: ${app_path}"
@@ -67,12 +78,14 @@ swiftc \
   -lLuminaCore \
   -lLuminaNativeLock \
   Sources/LuminaApp/*.swift \
-  -o "${app_path}/Contents/MacOS/Lumina Native Local"
+  -o "${app_path}/Contents/MacOS/${app_name}"
 
 ditto Resources/LuminaNative-Info.plist "${app_path}/Contents/Info.plist"
 version="$(awk '/MARKETING_VERSION:/ { print $2; exit }' project.yml)"
 plutil -replace CFBundleDevelopmentRegion -string en "${app_path}/Contents/Info.plist"
-plutil -replace CFBundleExecutable -string "Lumina Native Local" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleExecutable -string "${app_name}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleDisplayName -string "${app_name}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleName -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string com.hodadako.Lumina.NativeLocal "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "${version}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleVersion -string 1 "${app_path}/Contents/Info.plist"
@@ -103,4 +116,20 @@ iconutil --convert icns "${iconset_path}" --output "${resource_path}/AppIcon.icn
 
 codesign --force --deep --sign - "${app_path}"
 codesign --verify --deep --strict "${app_path}"
-print "${app_path}"
+
+mkdir -p "${install_directory}"
+rm -rf "${install_staging_path}"
+ditto "${app_path}" "${install_staging_path}"
+codesign --verify --deep --strict "${install_staging_path}"
+rm -rf "${installed_app_path}"
+mv "${install_staging_path}" "${installed_app_path}"
+install_staging_path=""
+touch "${installed_app_path}"
+
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [[ -x "${launch_services_register}" ]]; then
+  "${launch_services_register}" -f "${installed_app_path}"
+fi
+mdimport "${installed_app_path}" >/dev/null 2>&1 || true
+
+print "${installed_app_path}"

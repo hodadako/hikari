@@ -8,7 +8,7 @@ struct AppVariant {
     static let current: AppVariant = {
         #if LUMINA_NATIVE_LOCAL
         AppVariant(
-            displayName: "Lumina Native Local",
+            displayName: "Hikari",
             applicationSupportDirectoryName: "LuminaNative",
             supportsScreenSaver: false,
             supportsAutomaticUpdates: false,

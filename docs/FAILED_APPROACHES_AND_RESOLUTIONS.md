@@ -288,3 +288,28 @@ hash 값은 정확했지만 checksum 안의 파일명이 `dist/...zip`이 됐다
 `dist` 디렉터리 안에서 ZIP basename을 hash하고, 업로드 전에 같은 `.sha256` 파일로
 CI가 `shasum -a 256 -c`를 실행한다. push된 v0.3.0 태그는 변경하지 않고 v0.3.1로
 후속 릴리스한다.
+
+## Native 적용 직후 30초 검증만으로 이후 잠금도 정상이라고 판단
+
+### 관찰
+
+active transaction의 12개 display/Space/Desktop/Idle choice와 MOV hash는 모두
+정상이었지만 반복 잠금 뒤 화면이 검게 남았다. unified log에서 첫 잠금은 실제
+frame을 출력했으나 unlock ramp-down 중 `WallpaperVideoCore.VideoSampleReadingErrors`
+Code 4가 발생했다. 같은 `WallpaperVideoExtension` 프로세스는 이후 잠금에서
+`Play Called`만 받고 frame을 enqueue하지 못했다.
+
+또한 최초 적용 뒤 연결된 display나 새 Space가 만드는 choice는 30초 안정화 검증의
+대상이 아니므로 mapping 일부가 나중에 달라질 수 있다.
+
+### 해결
+
+- 일반 wallpaper는 콘텐츠가 있는 동안 5초마다 display topology와 실패한 player를
+  조정한다. `SuspendingClock`을 사용해 Sleep 동안 missed tick을 몰아서 실행하지 않는다.
+- Native Local은 5초마다 user choice mapping을 읽되 drift가 있을 때만 `WallpaperAgent`를
+  정지한 상태로 choice를 다시 적용한다. privileged helper와 system write는 반복하지 않는다.
+- 새 topology의 원래 choice는 exact path restore overlay에 기록한 다음 교체하고,
+  restore 시 현재 topology에 선택적으로 병합한다.
+- active transaction이 있으면 앱 시작과 매 unlock 뒤 user `WallpaperAgent`를 한 번
+  종료해 launchd가 video extension을 새로 구성하게 한다. 잠금 상태나 고정 주기마다
+  renderer를 반복 종료하지 않는다.

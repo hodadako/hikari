@@ -42,6 +42,47 @@ final class NativeLockController {
         try? store.activeOrPendingTransaction()
     }
 
+    /// Performs user-level maintenance only. It never invokes the privileged
+    /// helper or rewrites the system manifest/media. A drifted user wallpaper
+    /// mapping is reconciled transactionally; an explicit renderer refresh is
+    /// used at launch and after unlock so a failed WallpaperVideoExtension
+    /// reader cannot poison the next Lock Screen session.
+    func maintainActiveTransaction(
+        refreshRenderer: Bool
+    ) async throws -> NativeLockTransactionRecord? {
+        guard let current = try store.activeOrPendingTransaction(),
+              current.journal.phase == .active else {
+            return currentRecord()
+        }
+
+        var record = current
+        var restartedAgent = false
+        if try !store.wallpaperMappingMatches(
+            transactionID: current.request.transactionID
+        ) {
+            record = try withWallpaperAgentSuspended {
+                try store.reconcileWallpaperMapping(
+                    transactionID: current.request.transactionID
+                )
+            }
+            restartedAgent = true
+            try await verifyWallpaperMapping(
+                transactionID: current.request.transactionID
+            )
+            nativeLockLogger.notice(
+                "Reconciled active wallpaper choices for \(current.request.transactionID.uuidString, privacy: .public)"
+            )
+        }
+
+        if refreshRenderer, !restartedAgent {
+            try refreshWallpaperRenderer()
+            nativeLockLogger.notice(
+                "Refreshed the native wallpaper renderer for \(current.request.transactionID.uuidString, privacy: .public)"
+            )
+        }
+        return record
+    }
+
     func apply(content: LiveContent) async throws -> NativeLockTransactionRecord {
         let sourceURL = container.mediaURL(for: content)
         let workURL = container.rootURL.appendingPathComponent(
@@ -262,6 +303,18 @@ final class NativeLockController {
             usleep(100_000)
         }
         return try operation()
+    }
+
+    private func refreshWallpaperRenderer() throws {
+        let applications = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.wallpaper.agent"
+        )
+        for application in applications {
+            let processID = application.processIdentifier
+            if kill(processID, SIGTERM) != 0, errno != ESRCH {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EPERM)
+            }
+        }
     }
 
     private func verifyWallpaperMapping(transactionID: UUID) async throws {

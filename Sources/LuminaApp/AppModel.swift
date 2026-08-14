@@ -53,6 +53,11 @@ final class AppModel: ObservableObject {
     private lazy var wallpaperController = WallpaperController()
     #if LUMINA_NATIVE_LOCAL
     private lazy var nativeLockController = NativeLockController(container: container)
+    private var nativeLockMaintenanceTask: Task<Void, Never>?
+    private var nativeLockMaintenanceInProgress = false
+    private var nativeRendererRefreshRequested = false
+    private var didPresentNativeMaintenanceError = false
+    private var wasScreenLocked = false
     #endif
     private var terminationToken: NSObjectProtocol?
     private var screenSaverSyncTask: Task<Void, Never>?
@@ -93,6 +98,13 @@ final class AppModel: ObservableObject {
 
         stateMonitor.onStateChanged = { [weak self] in
             guard let self else { return }
+            #if LUMINA_NATIVE_LOCAL
+            let didUnlock = self.wasScreenLocked && !self.stateMonitor.isScreenLocked
+            self.wasScreenLocked = self.stateMonitor.isScreenLocked
+            if didUnlock {
+                self.requestNativeRendererRefresh()
+            }
+            #endif
             self.reconcilePlayback()
             self.refreshLockShortcutIfNeeded()
         }
@@ -109,6 +121,17 @@ final class AppModel: ObservableObject {
             )
             self.reconcilePlayback()
         }
+        stateMonitor.onActiveSpaceSettled = { [weak self] in
+            guard let self else { return }
+            // A desktop-level window can remain alive while Mission Control
+            // invalidates its AVPlayerLayer presentation surface.  The early
+            // Space passes above keep membership current; this final settled
+            // pass recreates the surface once, preserving playback state.
+            self.wallpaperController.rebuildWindowsIfContentAvailable(
+                self.hasPlayableContent
+            )
+            self.reconcilePlayback()
+        }
         stateMonitor.start()
         if variant.isNativeLocal {
             settings.overrideSystemLockShortcut = false
@@ -118,6 +141,8 @@ final class AppModel: ObservableObject {
         }
         #if LUMINA_NATIVE_LOCAL
         nativeLockRecord = nativeLockController.currentRecord()
+        wasScreenLocked = stateMonitor.isScreenLocked
+        startNativeLockMaintenance()
         #endif
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
@@ -215,6 +240,7 @@ final class AppModel: ObservableObject {
                 self.nativeLockRecord = try await self.nativeLockController.apply(
                     content: content
                 )
+                self.nativeRendererRefreshRequested = false
             } catch {
                 self.nativeLockRecord = self.nativeLockController.currentRecord()
                 self.presentedError = error.localizedDescription
@@ -230,6 +256,7 @@ final class AppModel: ObservableObject {
         do {
             try nativeLockController.restore()
             nativeLockRecord = nativeLockController.currentRecord()
+            nativeRendererRefreshRequested = false
         } catch {
             nativeLockRecord = nativeLockController.currentRecord()
             presentedError = error.localizedDescription
@@ -792,6 +819,10 @@ final class AppModel: ObservableObject {
         lockShortcutController.stop()
         screenSaverSyncTask?.cancel()
         updateTask?.cancel()
+        #if LUMINA_NATIVE_LOCAL
+        nativeLockMaintenanceTask?.cancel()
+        nativeLockMaintenanceTask = nil
+        #endif
         wallpaperController.closeWindows()
     }
 
@@ -827,6 +858,64 @@ final class AppModel: ObservableObject {
         }
         objectWillChange.send()
     }
+
+    #if LUMINA_NATIVE_LOCAL
+    private func startNativeLockMaintenance() {
+        guard nativeLockMaintenanceTask == nil else { return }
+        nativeRendererRefreshRequested = nativeLockRecord?.journal.phase == .active
+        let clock = SuspendingClock()
+        nativeLockMaintenanceTask = Task { [weak self] in
+            await self?.performNativeLockMaintenance()
+            while !Task.isCancelled {
+                try? await clock.sleep(
+                    until: clock.now.advanced(by: .seconds(5))
+                )
+                guard !Task.isCancelled else { return }
+                await self?.performNativeLockMaintenance()
+            }
+        }
+    }
+
+    private func requestNativeRendererRefresh() {
+        nativeRendererRefreshRequested = true
+        Task { [weak self] in
+            await self?.performNativeLockMaintenance()
+        }
+    }
+
+    private func performNativeLockMaintenance() async {
+        // Never rewrite choices or restart WallpaperAgent while the Lock
+        // Screen owns its presentation surfaces. Unlock schedules an immediate
+        // pass after the session has returned to the desktop.
+        guard !stateMonitor.isScreenLocked,
+              !stateMonitor.isSleeping,
+              !nativeLockMaintenanceInProgress,
+              !isNativeLockWorking else { return }
+        nativeLockMaintenanceInProgress = true
+        let shouldRefreshRenderer = nativeRendererRefreshRequested
+        nativeRendererRefreshRequested = false
+        defer { nativeLockMaintenanceInProgress = false }
+        do {
+            nativeLockRecord = try await nativeLockController
+                .maintainActiveTransaction(
+                    refreshRenderer: shouldRefreshRenderer
+                )
+            didPresentNativeMaintenanceError = false
+            objectWillChange.send()
+        } catch {
+            // Keep a renderer refresh pending after a transient process-control
+            // failure. Mapping reconciliation is idempotent and will be retried
+            // by the next five-second maintenance tick.
+            nativeRendererRefreshRequested = nativeRendererRefreshRequested
+                || shouldRefreshRenderer
+            nativeLockRecord = nativeLockController.currentRecord()
+            if !didPresentNativeMaintenanceError {
+                presentedError = error.localizedDescription
+                didPresentNativeMaintenanceError = true
+            }
+        }
+    }
+    #endif
 
     private func synchronizeScreenSaverContent(force: Bool = false) {
         guard variant.supportsScreenSaver else { return }

@@ -121,7 +121,7 @@ The Xcode build embeds `Lumina.saver` in the app. Open Lumina Settings →
 Screen Saver → Install Screen Saver, then select Lumina in System Settings.
 
 To inspect the separate local-only target on macOS 15, select the
-`LuminaNative` scheme. It builds `Lumina Native Local.app` with bundle ID
+`LuminaNative` scheme. It builds `Hikari.app` with bundle ID
 `com.hodadako.Lumina.NativeLocal`, uses
 `~/Library/Application Support/LuminaNative`, supports `Control-Command-Q`
 through the macOS-owned system lock path, and disables automatic updates. The
@@ -135,7 +135,9 @@ For a local ad-hoc build without opening Xcode, run:
 scripts/build-native-local.sh
 ```
 
-The script prints the `.personal/build/.../Lumina Native Local.app` path. Import
+The script installs the ad-hoc signed app as `/Applications/Hikari.app`, registers
+it with Launch Services and Spotlight, and prints that path. You can then find
+and launch `Hikari` from Spotlight. Import
 the video first, then use Settings → Native Lock → Apply Selected Video. Apply
 and Restore each request macOS administrator authorization. Native Lock system
 writes are schema-gated to macOS 15; other major versions remain read-only until

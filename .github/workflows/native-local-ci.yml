@@ -37,8 +37,12 @@ permissions:
 
 jobs:
   native-local-build-and-test:
-    name: Native Local compile and test (macOS 15)
-    runs-on: macos-15
+    name: Native Local compile and test (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -79,12 +83,15 @@ jobs:
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             CODE_SIGNING_ALLOWED=NO \
             build
-          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina Native Local.app"
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
+          test -x "${app_path}/Contents/MacOS/Hikari"
           test -x "${app_path}/Contents/MacOS/lumina-native-tool"
           test ! -e "${app_path}/Contents/PlugIns/Lumina.saver"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
             "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
+            "${app_path}/Contents/Info.plist")" = "Hikari"
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' \
             "${app_path}/Contents/Info.plist")" = "15.0"
       - name: Validate local build script syntax

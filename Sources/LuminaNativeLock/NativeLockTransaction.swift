@@ -55,6 +55,10 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
     public var phase: NativeLockTransactionPhase
     public var originalWallpaperIndexSHA256: String
     public var appliedWallpaperIndexSHA256: String?
+    /// Reconciliation may add display/Space choices that did not exist in the
+    /// original byte-for-byte backup. In that case restore must merge choices
+    /// into the current topology instead of replacing the entire index.
+    public var requiresSelectiveWallpaperRestore: Bool?
     public var systemManifestAppliedSHA256: String?
     public var lastError: String?
     public let createdAt: Date
@@ -66,6 +70,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         phase: NativeLockTransactionPhase,
         originalWallpaperIndexSHA256: String,
         appliedWallpaperIndexSHA256: String? = nil,
+        requiresSelectiveWallpaperRestore: Bool? = nil,
         systemManifestAppliedSHA256: String? = nil,
         lastError: String? = nil,
         createdAt: Date = Date(),
@@ -77,6 +82,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         self.phase = phase
         self.originalWallpaperIndexSHA256 = originalWallpaperIndexSHA256
         self.appliedWallpaperIndexSHA256 = appliedWallpaperIndexSHA256
+        self.requiresSelectiveWallpaperRestore = requiresSelectiveWallpaperRestore
         self.systemManifestAppliedSHA256 = systemManifestAppliedSHA256
         self.lastError = lastError
         self.createdAt = createdAt
@@ -165,6 +171,7 @@ public enum NativeLockPaths {
     public static let requestFilename = "request.json"
     public static let journalFilename = "journal.json"
     public static let originalWallpaperIndexFilename = "Index.original.plist"
+    public static let restoreOverlayFilename = "Index.restore-overlay.plist"
     public static let stagedMediaFilename = "media.mov"
     public static let stagedPreviewFilename = "preview.jpg"
 
@@ -453,6 +460,81 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         return counts.total > 0 && counts.total == counts.matching
     }
 
+    /// Repairs choices created or reset after the initial apply without
+    /// touching the privileged system asset. Any non-Lumina choice that will
+    /// be replaced is saved by its exact topology path so restore can preserve
+    /// displays and Spaces that did not exist in the original index.
+    @discardableResult
+    public func reconcileWallpaperMapping(
+        transactionID: UUID
+    ) throws -> NativeLockTransactionRecord {
+        let current = try record(for: transactionID)
+        guard current.journal.phase == .active else {
+            throw NativeLockTransactionError.transactionMismatch
+        }
+        let currentData = try Data(contentsOf: wallpaperIndexURL)
+        let currentDictionary = try Self.wallpaperDictionary(from: currentData)
+        let counts = Self.wallpaperChoiceCounts(
+            in: currentDictionary,
+            matching: current.request.assetID.uuidString
+        )
+        guard counts.total > 0 else {
+            throw NativeLockTransactionError.noWallpaperChoices
+        }
+        guard counts.total != counts.matching else { return current }
+
+        let transactionURL = transactionDirectoryURL(for: transactionID)
+        let overlayURL = transactionURL.appendingPathComponent(
+            NativeLockPaths.restoreOverlayFilename
+        )
+        var restoreChoices = try restoreOverlayChoices(at: overlayURL)
+        Self.collectNonMatchingWallpaperChoices(
+            in: currentDictionary,
+            path: [],
+            assetID: current.request.assetID.uuidString,
+            choices: &restoreChoices
+        )
+        let overlayData = try PropertyListSerialization.data(
+            fromPropertyList: restoreChoices,
+            format: .binary,
+            options: 0
+        )
+        try overlayData.write(to: overlayURL, options: .atomic)
+        try fileManager.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: overlayURL.path
+        )
+        try synchronizeFileAndParent(overlayURL)
+
+        let configuration = try PropertyListSerialization.data(
+            fromPropertyList: ["assetID": current.request.assetID.uuidString],
+            format: .binary,
+            options: 0
+        )
+        let (updatedValue, replacements) = Self.replacingWallpaperChoices(
+            in: currentDictionary,
+            configuration: configuration
+        )
+        guard replacements == counts.total,
+              let updatedDictionary = updatedValue as? [String: Any] else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+        let updatedData = try PropertyListSerialization.data(
+            fromPropertyList: updatedDictionary,
+            format: .binary,
+            options: 0
+        )
+        try updatedData.write(to: wallpaperIndexURL, options: .atomic)
+        try synchronizeFileAndParent(wallpaperIndexURL)
+        return try updateJournal(transactionID: transactionID) { journal in
+            journal.appliedWallpaperIndexSHA256 = NativeLockDigest.sha256(
+                of: updatedData
+            )
+            journal.requiresSelectiveWallpaperRestore = true
+            journal.lastError = nil
+        }
+    }
+
     public func beginRestore(
         transactionID: UUID
     ) throws -> NativeLockTransactionRecord {
@@ -474,15 +556,20 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         let originalDictionary = try Self.wallpaperDictionary(from: originalData)
         let currentData = try Data(contentsOf: wallpaperIndexURL)
         let currentDictionary = try Self.wallpaperDictionary(from: currentData)
+        let overlayURL = transactionDirectoryURL(for: transactionID)
+            .appendingPathComponent(NativeLockPaths.restoreOverlayFilename)
+        let restoreOverlay = try restoreOverlayChoices(at: overlayURL)
 
         let restoredData: Data
-        if let appliedHash = record.journal.appliedWallpaperIndexSHA256,
+        if record.journal.requiresSelectiveWallpaperRestore != true,
+           let appliedHash = record.journal.appliedWallpaperIndexSHA256,
            NativeLockDigest.sha256(of: currentData) == appliedHash {
             restoredData = originalData
         } else {
             let merged = Self.restoringWallpaperChoices(
                 current: currentDictionary,
                 original: originalDictionary,
+                restoreOverlay: restoreOverlay,
                 assetID: record.request.assetID.uuidString
             )
             guard let mergedDictionary = merged as? [String: Any] else {
@@ -658,6 +745,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
     private static func restoringWallpaperChoices(
         current: Any,
         original: Any,
+        restoreOverlay: [String: Any],
         assetID: String
     ) -> Any {
         var originalChoices: [String: [String: Any]] = [:]
@@ -674,6 +762,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             current: current,
             path: [],
             originalChoices: originalChoices,
+            restoreOverlay: restoreOverlay,
             fallback: fallback,
             assetID: assetID
         )
@@ -683,12 +772,15 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         current: Any,
         path: [String],
         originalChoices: [String: [String: Any]],
+        restoreOverlay: [String: Any],
         fallback: [String: Any]?,
         assetID: String
     ) -> Any {
         if let dictionary = current as? [String: Any] {
             if choiceAssetID(in: dictionary) == assetID {
-                return originalChoices[wallpaperChoiceContextKey(path: path)]
+                return restoreOverlay[wallpaperChoiceExactPathKey(path: path)]
+                    as? [String: Any]
+                    ?? originalChoices[wallpaperChoiceContextKey(path: path)]
                     ?? fallback
                     ?? dictionary
             }
@@ -698,6 +790,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     current: dictionary[key] as Any,
                     path: path + [key],
                     originalChoices: originalChoices,
+                    restoreOverlay: restoreOverlay,
                     fallback: fallback,
                     assetID: assetID
                 )
@@ -710,6 +803,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     current: value,
                     path: path + [String(index)],
                     originalChoices: originalChoices,
+                    restoreOverlay: restoreOverlay,
                     fallback: fallback,
                     assetID: assetID
                 )
@@ -754,6 +848,59 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             "Linked", "Desktop", "Idle", "Content", "Choices"
         ]
         return path.filter { !structuralKeys.contains($0) }.joined(separator: "|")
+    }
+
+    private static func wallpaperChoiceExactPathKey(path: [String]) -> String {
+        path.joined(separator: "|")
+    }
+
+    private static func collectNonMatchingWallpaperChoices(
+        in value: Any,
+        path: [String],
+        assetID: String,
+        choices: inout [String: Any]
+    ) {
+        if let dictionary = value as? [String: Any] {
+            if dictionary["Provider"] is String,
+               dictionary["Configuration"] is Data {
+                if choiceAssetID(in: dictionary) != assetID {
+                    choices[wallpaperChoiceExactPathKey(path: path)] = dictionary
+                }
+                return
+            }
+            for key in dictionary.keys.sorted() {
+                collectNonMatchingWallpaperChoices(
+                    in: dictionary[key] as Any,
+                    path: path + [key],
+                    assetID: assetID,
+                    choices: &choices
+                )
+            }
+            return
+        }
+        if let array = value as? [Any] {
+            for (index, item) in array.enumerated() {
+                collectNonMatchingWallpaperChoices(
+                    in: item,
+                    path: path + [String(index)],
+                    assetID: assetID,
+                    choices: &choices
+                )
+            }
+        }
+    }
+
+    private func restoreOverlayChoices(at url: URL) throws -> [String: Any] {
+        guard fileManager.fileExists(atPath: url.path) else { return [:] }
+        let data = try Data(contentsOf: url)
+        guard let choices = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) as? [String: Any] else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+        return choices
     }
 
     private static func wallpaperChoiceCounts(
