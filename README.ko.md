@@ -113,7 +113,7 @@ xcodebuild \
 설치한 뒤 macOS 시스템 설정에서 Lumina를 직접 선택해야 합니다.
 
 macOS 15에서 별도 로컬 전용 버전을 확인하려면 `LuminaNative` 스킴을
-선택하세요. `Lumina Native Local.app`은 bundle ID
+선택하세요. `Hikari.app`은 bundle ID
 `com.hodadako.Lumina.NativeLocal`과
 `~/Library/Application Support/LuminaNative` 저장소를 사용합니다. 시스템
 소유 `Control-Command-Q` 잠금 경로를 그대로 지원하며 자동 업데이트는 사용하지
@@ -127,7 +127,9 @@ Xcode를 열지 않고 로컬 ad-hoc 앱을 만들려면 다음 스크립트를 
 scripts/build-native-local.sh
 ```
 
-출력된 `.personal/build/.../Lumina Native Local.app`을 실행하고 영상을 가져온 뒤
+스크립트는 ad-hoc 서명된 앱을 `/Applications/Hikari.app`에 설치하고 Launch
+Services와 Spotlight에 등록한 뒤 해당 경로를 출력합니다. Spotlight에서 `Hikari`를
+검색해 실행하고 영상을 가져온 뒤
 설정 → Native 잠금 → 선택한 영상 적용을 사용합니다. 적용과 복원 때마다 macOS
 관리자 승인이 필요합니다. system write는 검토된 macOS 15 schema에서만 허용하며,
 다른 major 버전은 해당 wallpaper 형식을 다시 검토하기 전까지 read-only입니다.

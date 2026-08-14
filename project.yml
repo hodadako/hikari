@@ -119,7 +119,7 @@ targets:
   LuminaNative:
     type: application
     platform: macOS
-    productName: Lumina Native Local
+    productName: Hikari
     deploymentTarget: "15.0"
     sources:
       - Sources/LuminaApp
@@ -131,8 +131,8 @@ targets:
     info:
       path: Resources/LuminaNative-Info.plist
       properties:
-        CFBundleDisplayName: Lumina Native Local
-        CFBundleName: Lumina Native Local
+        CFBundleDisplayName: Hikari
+        CFBundleName: Hikari
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.utilities
@@ -157,7 +157,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.NativeLocal
-        PRODUCT_NAME: Lumina Native Local
+        PRODUCT_NAME: Hikari
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         MACOSX_DEPLOYMENT_TARGET: "15.0"

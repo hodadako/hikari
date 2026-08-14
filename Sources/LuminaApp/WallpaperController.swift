@@ -22,7 +22,7 @@ final class WallpaperController {
     private var sessions: [UInt32: DisplaySession] = [:]
     private var plans: [WallpaperWindowPlan] = []
     private let playback = PlaybackCoordinator()
-    private var driftTask: Task<Void, Never>?
+    private var maintenanceTask: Task<Void, Never>?
     private(set) var scalingMode: ScalingMode = .fill
 
     var isPlaying: Bool {
@@ -35,6 +35,7 @@ final class WallpaperController {
     func setContentAvailable(_ isAvailable: Bool) {
         if isAvailable {
             synchronizeDisplayTopology()
+            startMaintenanceMonitoring()
         } else {
             closeWindows()
         }
@@ -62,7 +63,7 @@ final class WallpaperController {
         playback.setContent(url: currentURL, muted: muted)
         if wantsPlayback {
             playback.play()
-            startDriftMonitoring()
+            startMaintenanceMonitoring()
         } else {
             playback.pause()
         }
@@ -120,9 +121,7 @@ final class WallpaperController {
     func setContent(url: URL?, muted: Bool) {
         playback.setContent(url: url, muted: muted)
         playback.recoverFailedSessions()
-        if playback.wantsPlayback {
-            startDriftMonitoring()
-        }
+        startMaintenanceMonitoring()
     }
 
     func setMuted(_ muted: Bool) {
@@ -131,12 +130,14 @@ final class WallpaperController {
 
     func play() {
         playback.play()
-        startDriftMonitoring()
+        startMaintenanceMonitoring()
     }
 
     func pause() {
         playback.pause()
-        stopDriftMonitoring()
+        // Keep topology monitoring active while paused. A display attached in
+        // this state still needs exactly one prepared wallpaper session, and
+        // playback must remain paused when the session is created.
     }
 
     func setScalingMode(_ mode: ScalingMode) {
@@ -147,7 +148,7 @@ final class WallpaperController {
     }
 
     func closeWindows() {
-        stopDriftMonitoring()
+        stopMaintenanceMonitoring()
         playback.releaseAll()
         for session in sessions.values {
             session.window.contentView = nil
@@ -240,16 +241,20 @@ final class WallpaperController {
         return UInt32(truncatingIfNeeded: hasher.finalize())
     }
 
-    private func startDriftMonitoring() {
-        guard driftTask == nil else { return }
+    private func startMaintenanceMonitoring() {
+        guard maintenanceTask == nil else { return }
         let clock = SuspendingClock()
-        driftTask = Task { [weak self] in
+        maintenanceTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await clock.sleep(
                     until: clock.now.advanced(by: .seconds(5))
                 )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    // Notifications remain the fast path, while this periodic
+                    // reconciliation covers a dropped/coalesced WindowServer
+                    // event and a display that materialized late.
+                    self?.synchronizeDisplayTopology()
                     self?.playback.recoverFailedSessions()
                     self?.playback.synchronizeDrift()
                 }
@@ -257,9 +262,9 @@ final class WallpaperController {
         }
     }
 
-    private func stopDriftMonitoring() {
-        driftTask?.cancel()
-        driftTask = nil
+    private func stopMaintenanceMonitoring() {
+        maintenanceTask?.cancel()
+        maintenanceTask = nil
     }
 }
 

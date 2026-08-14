@@ -134,6 +134,78 @@ final class NativeLockTransactionTests: XCTestCase {
         )
     }
 
+    func testReconcileAppliesAndRestoresAChoiceFromANewDisplay() throws {
+        let store = makeUserStore()
+        let mediaURL = rootURL.appendingPathComponent("prepared.mov")
+        let previewURL = rootURL.appendingPathComponent("preview.jpg")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+        let record = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Test Movie",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+        _ = try store.applyWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+        try addDisplayChoice(assetID: "NEW-DISPLAY")
+
+        let reconciled = try store.reconcileWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+
+        XCTAssertEqual(reconciled.journal.requiresSelectiveWallpaperRestore, true)
+        XCTAssertTrue(
+            try store.wallpaperMappingMatches(
+                transactionID: record.request.transactionID
+            )
+        )
+        XCTAssertEqual(
+            try allMappedAssetIDs(in: Data(contentsOf: wallpaperIndexURL)),
+            [record.request.assetID.uuidString, record.request.assetID.uuidString]
+        )
+
+        try store.restoreWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+
+        XCTAssertEqual(
+            try allMappedAssetIDs(in: Data(contentsOf: wallpaperIndexURL)),
+            ["NEW-DISPLAY", "ORIGINAL"]
+        )
+    }
+
+    func testReconcilePreservesLatestExternalChoiceForRestore() throws {
+        let store = makeUserStore()
+        let mediaURL = rootURL.appendingPathComponent("prepared.mov")
+        let previewURL = rootURL.appendingPathComponent("preview.jpg")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+        let record = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Test Movie",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+        _ = try store.applyWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+        try replaceSystemDefaultChoice(assetID: "EXTERNAL-RESET")
+
+        _ = try store.reconcileWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+        try store.restoreWallpaperMapping(
+            transactionID: record.request.transactionID
+        )
+
+        XCTAssertEqual(
+            try allMappedAssetIDs(in: Data(contentsOf: wallpaperIndexURL)),
+            ["EXTERNAL-RESET"]
+        )
+    }
+
     func testSelectiveRestoreSurvivesAgentTopologyNormalization() throws {
         let store = makeUserStore()
         let mediaURL = rootURL.appendingPathComponent("prepared.mov")
@@ -404,6 +476,100 @@ final class NativeLockTransactionTests: XCTestCase {
             ],
             options: [.prettyPrinted, .sortedKeys]
         )
+    }
+
+    private func addDisplayChoice(assetID: String) throws {
+        let data = try Data(contentsOf: wallpaperIndexURL)
+        var root = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) as! [String: Any]
+        var displays = root["Displays"] as! [String: Any]
+        displays["NEW-DISPLAY-ID"] = [
+            "Desktop": try choiceContainer(assetID: assetID),
+            "Type": "individual"
+        ]
+        root["Displays"] = displays
+        try writeWallpaperDictionary(root)
+    }
+
+    private func replaceSystemDefaultChoice(assetID: String) throws {
+        let data = try Data(contentsOf: wallpaperIndexURL)
+        var root = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        ) as! [String: Any]
+        root["SystemDefault"] = [
+            "Linked": try choiceContainer(assetID: assetID),
+            "Type": "linked"
+        ]
+        try writeWallpaperDictionary(root)
+    }
+
+    private func choiceContainer(assetID: String) throws -> [String: Any] {
+        let configuration = try PropertyListSerialization.data(
+            fromPropertyList: ["assetID": assetID],
+            format: .binary,
+            options: 0
+        )
+        return [
+            "Content": [
+                "Choices": [[
+                    "Configuration": configuration,
+                    "Files": [Any](),
+                    "Provider": "com.apple.wallpaper.choice.aerials"
+                ]],
+                "Shuffle": "$null"
+            ],
+            "LastSet": Date(timeIntervalSince1970: 1),
+            "LastUse": Date(timeIntervalSince1970: 1)
+        ]
+    }
+
+    private func writeWallpaperDictionary(_ root: [String: Any]) throws {
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: root,
+            format: .binary,
+            options: 0
+        )
+        try data.write(to: wallpaperIndexURL, options: .atomic)
+    }
+
+    private func allMappedAssetIDs(in data: Data) throws -> [String] {
+        let root = try PropertyListSerialization.propertyList(
+            from: data,
+            options: [],
+            format: nil
+        )
+        var assetIDs: [String] = []
+        try collectAssetIDs(in: root, into: &assetIDs)
+        return assetIDs.sorted()
+    }
+
+    private func collectAssetIDs(in value: Any, into assetIDs: inout [String]) throws {
+        if let dictionary = value as? [String: Any] {
+            if let configuration = dictionary["Configuration"] as? Data,
+               dictionary["Provider"] is String {
+                let decoded = try PropertyListSerialization.propertyList(
+                    from: configuration,
+                    options: [],
+                    format: nil
+                ) as! [String: Any]
+                if let assetID = decoded["assetID"] as? String {
+                    assetIDs.append(assetID)
+                }
+                return
+            }
+            for child in dictionary.values {
+                try collectAssetIDs(in: child, into: &assetIDs)
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                try collectAssetIDs(in: child, into: &assetIDs)
+            }
+        }
     }
 
     private func mappedAssetID(in data: Data) throws -> String? {

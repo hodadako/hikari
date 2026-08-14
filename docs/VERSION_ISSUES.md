@@ -2,6 +2,58 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — Native 지속 검증 및 검은 잠금 화면 복구
+
+### 이슈와 영향
+
+- macOS 26 전환을 앞두고 일반 push/PR의 표준 CI는 macOS 15만, Native Local CI도
+  macOS 15만 실행했다. 표준 macOS 26 검사는 major release tag에서만 실행돼 일상적인
+  변경의 호환성 회귀를 조기에 발견할 수 없었다.
+- display/Space 변경 알림이 누락되거나 choice가 적용 뒤 생성되면 일반 wallpaper session과
+  Native Lock mapping이 다음 이벤트 전까지 갱신되지 않을 수 있었다.
+- 새 데스크탑을 만들거나 Mission Control을 닫은 뒤, 기존 wallpaper `NSWindow`는 남아도
+  `AVPlayerLayer`의 WindowServer 표시 표면만 비어 검은 배경이 보일 수 있었다.
+- 실제 macOS 15.7.9에서 Native mapping과 system asset은 정상인데도 unlock ramp-down 중
+  `WallpaperVideoCore.VideoSampleReadingErrors` Code 4가 발생했다. 고착된
+  `WallpaperVideoExtension`은 다음 잠금에서 frame을 enqueue하지 않아 검은 화면을 보였다.
+
+### 조치
+
+- 일반 build/test와 Native Local compile/test를 macOS 15 및 26 runner matrix로
+  전환했다. major release 호환성 job은 중복 실행을 피하면서 macOS 14 검증을 추가로
+  유지한다. Native Local CI는 macOS 26에서도 앱을 실행하거나 system write를 하지 않고
+  compile/test와 번들 격리만 확인한다.
+- Native Local 앱의 제품명과 표시명을 `Hikari`로 변경했다. 로컬 빌드 스크립트는
+  산출물을 `/Applications/Hikari.app`에 교체 설치하고 Launch Services와 Spotlight에
+  명시적으로 등록해 검색 후 직접 실행할 수 있게 한다. bundle ID와 별도 저장소,
+  CI의 compile/test-only 격리는 그대로 유지한다.
+- 일반 wallpaper는 콘텐츠가 있는 동안 5초 간격으로 display topology, player 오류,
+  다중 session drift를 함께 조정한다. Pause 중에도 topology 확인은 유지한다.
+- Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
+  확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
+- Native Local은 active mapping을 5초마다 확인하고 drift가 있을 때만 user index를
+  transaction 방식으로 조정한다. 새 choice의 원래 값은 exact path restore overlay에
+  저장해 나중에 현재 display/Space topology를 보존하며 복원한다.
+- active transaction이 있으면 앱 시작과 unlock 직후 `WallpaperAgent`를 한 번 재시작해
+  다음 잠금 전에 system video renderer를 새로 구성한다. 주기 검사는 관리자 승인,
+  privileged helper 또는 system manifest/media write를 실행하지 않는다.
+
+### 검증
+
+- workflow YAML과 matrix 구성을 로컬에서 검증하고, push 뒤 macOS 15/26 표준 및
+  Native Local GitHub Actions 결과를 확인한다.
+- `Hikari.app`의 앱 이름, 실행 파일, bundle ID, 설치 경로, ad-hoc 서명 및 Spotlight
+  등록을 로컬 빌드와 Native Local CI 번들 검사에서 확인한다.
+- `swift build`와 Native Local 로컬 앱 빌드, macOS 13 standard 직접 컴파일 통과.
+- 임시 user index에서 새 display choice 추가 → 자동 reconcile → 전체 asset ID 일치 →
+  restore overlay로 새 display 원래 값과 기존 원래 값을 각각 복구하는 round trip 통과.
+- 기존 v0.3.1 active journal에 새 optional 필드가 없는 상태로 새 앱을 실행해 record를
+  읽고 `WallpaperAgent`/`WallpaperVideoExtension` PID가 교체되며 refresh 로그가 남는
+  것을 확인했다.
+- Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
+  Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
+- 실제 잠금 화면의 영상 표시와 unlock 뒤 다음 잠금 재발 방지는 수동 확인 필요.
+
 ## v0.3.1 — 2026-08-14
 
 ### 이슈와 영향
