@@ -41,10 +41,11 @@ public enum NativeLockSafetyInspector {
         hasSelectedMedia: Bool,
         transactionPhase: NativeLockTransactionPhase? = nil
     ) -> NativeLockSafetyReport {
-        guard operatingSystemVersion.majorVersion == 15 else {
+        let majorVersion = operatingSystemVersion.majorVersion
+        guard majorVersion == 15 || majorVersion == 26 else {
             return NativeLockSafetyReport(
                 state: .unsupportedOperatingSystem,
-                title: "Reviewed macOS 15 build required",
+                title: "Reviewed macOS 15 or 26 build required",
                 detail: "Native Lock writes are disabled until this macOS major version's wallpaper schema is reviewed."
             )
         }
@@ -75,10 +76,13 @@ public enum NativeLockSafetyInspector {
             )
         }
 
+        let detail = majorVersion == 26
+            ? "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval."
+            : "Applying requires administrator approval and creates verified user and system rollback records."
         return NativeLockSafetyReport(
             state: .ready,
             title: "Ready to apply locally",
-            detail: "Applying requires administrator approval and creates verified user and system rollback records."
+            detail: detail
         )
     }
 }

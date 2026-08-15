@@ -11,6 +11,13 @@ public enum NativeLockTransactionPhase: String, Codable, Sendable {
     case recoveryRequired
 }
 
+public enum NativeLockTransactionBackend: String, Codable, Sendable {
+    /// The macOS 15 root-owned idleassets catalog transaction.
+    case systemCatalog
+    /// The macOS 26 per-user Aerial manifest transaction.
+    case userAerials
+}
+
 public struct NativeLockRequest: Codable, Equatable, Sendable {
     public static let schemaVersion = 1
 
@@ -59,6 +66,11 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
     /// original byte-for-byte backup. In that case restore must merge choices
     /// into the current topology instead of replacing the entire index.
     public var requiresSelectiveWallpaperRestore: Bool?
+    /// Optional so journals created before the backend split remain readable.
+    public var backend: NativeLockTransactionBackend?
+    /// macOS 26 keeps its active Aerial manifest in the user domain. Its
+    /// original digest protects the byte-for-byte rollback copy.
+    public var originalModernManifestSHA256: String?
     public var systemManifestAppliedSHA256: String?
     public var lastError: String?
     public let createdAt: Date
@@ -71,6 +83,8 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         originalWallpaperIndexSHA256: String,
         appliedWallpaperIndexSHA256: String? = nil,
         requiresSelectiveWallpaperRestore: Bool? = nil,
+        backend: NativeLockTransactionBackend? = nil,
+        originalModernManifestSHA256: String? = nil,
         systemManifestAppliedSHA256: String? = nil,
         lastError: String? = nil,
         createdAt: Date = Date(),
@@ -83,6 +97,8 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         self.originalWallpaperIndexSHA256 = originalWallpaperIndexSHA256
         self.appliedWallpaperIndexSHA256 = appliedWallpaperIndexSHA256
         self.requiresSelectiveWallpaperRestore = requiresSelectiveWallpaperRestore
+        self.backend = backend
+        self.originalModernManifestSHA256 = originalModernManifestSHA256
         self.systemManifestAppliedSHA256 = systemManifestAppliedSHA256
         self.lastError = lastError
         self.createdAt = createdAt
@@ -171,6 +187,7 @@ public enum NativeLockPaths {
     public static let requestFilename = "request.json"
     public static let journalFilename = "journal.json"
     public static let originalWallpaperIndexFilename = "Index.original.plist"
+    public static let originalModernManifestFilename = "Aerial.entries.original.json"
     public static let restoreOverlayFilename = "Index.restore-overlay.plist"
     public static let stagedMediaFilename = "media.mov"
     public static let stagedPreviewFilename = "preview.jpg"
@@ -380,13 +397,21 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
 
     public func markSystemApplied(
         transactionID: UUID,
-        manifestSHA256: String
+        manifestSHA256: String,
+        backend: NativeLockTransactionBackend = .systemCatalog,
+        originalModernManifestSHA256: String? = nil
     ) throws -> NativeLockTransactionRecord {
         guard NativeLockDigest.isValidSHA256(manifestSHA256) else {
             throw NativeLockTransactionError.invalidHash
         }
+        if let originalModernManifestSHA256,
+           !NativeLockDigest.isValidSHA256(originalModernManifestSHA256) {
+            throw NativeLockTransactionError.invalidHash
+        }
         return try updateJournal(transactionID: transactionID) { journal in
             journal.phase = .systemApplied
+            journal.backend = backend
+            journal.originalModernManifestSHA256 = originalModernManifestSHA256
             journal.systemManifestAppliedSHA256 = manifestSHA256
             journal.lastError = nil
         }
@@ -394,6 +419,21 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
 
     public func applyWallpaperMapping(
         transactionID: UUID
+    ) throws -> NativeLockTransactionRecord {
+        try applyWallpaperMapping(transactionID: transactionID, scope: .all)
+    }
+
+    /// macOS 26 accepts custom Aerial assets for the Lock Screen's linked
+    /// choices. Desktop and Idle choices are intentionally left untouched.
+    public func applyLinkedWallpaperMapping(
+        transactionID: UUID
+    ) throws -> NativeLockTransactionRecord {
+        try applyWallpaperMapping(transactionID: transactionID, scope: .linked)
+    }
+
+    private func applyWallpaperMapping(
+        transactionID: UUID,
+        scope: WallpaperChoiceScope
     ) throws -> NativeLockTransactionRecord {
         let current = try record(for: transactionID)
         let currentData = try Data(contentsOf: wallpaperIndexURL)
@@ -423,7 +463,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         )
         let (updatedValue, replacements) = Self.replacingWallpaperChoices(
             in: currentDictionary,
-            configuration: configuration
+            configuration: configuration,
+            scope: scope
         )
         guard replacements > 0,
               let updatedDictionary = updatedValue as? [String: Any] else {
@@ -450,12 +491,24 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
     }
 
     public func wallpaperMappingMatches(transactionID: UUID) throws -> Bool {
+        try wallpaperMappingMatches(transactionID: transactionID, scope: .all)
+    }
+
+    public func linkedWallpaperMappingMatches(transactionID: UUID) throws -> Bool {
+        try wallpaperMappingMatches(transactionID: transactionID, scope: .linked)
+    }
+
+    private func wallpaperMappingMatches(
+        transactionID: UUID,
+        scope: WallpaperChoiceScope
+    ) throws -> Bool {
         let record = try record(for: transactionID)
         let data = try Data(contentsOf: wallpaperIndexURL)
         let dictionary = try Self.wallpaperDictionary(from: data)
         let counts = Self.wallpaperChoiceCounts(
             in: dictionary,
-            matching: record.request.assetID.uuidString
+            matching: record.request.assetID.uuidString,
+            scope: scope
         )
         return counts.total > 0 && counts.total == counts.matching
     }
@@ -468,6 +521,19 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
     public func reconcileWallpaperMapping(
         transactionID: UUID
     ) throws -> NativeLockTransactionRecord {
+        try reconcileWallpaperMapping(transactionID: transactionID, scope: .all)
+    }
+
+    public func reconcileLinkedWallpaperMapping(
+        transactionID: UUID
+    ) throws -> NativeLockTransactionRecord {
+        try reconcileWallpaperMapping(transactionID: transactionID, scope: .linked)
+    }
+
+    private func reconcileWallpaperMapping(
+        transactionID: UUID,
+        scope: WallpaperChoiceScope
+    ) throws -> NativeLockTransactionRecord {
         let current = try record(for: transactionID)
         guard current.journal.phase == .active else {
             throw NativeLockTransactionError.transactionMismatch
@@ -476,7 +542,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         let currentDictionary = try Self.wallpaperDictionary(from: currentData)
         let counts = Self.wallpaperChoiceCounts(
             in: currentDictionary,
-            matching: current.request.assetID.uuidString
+            matching: current.request.assetID.uuidString,
+            scope: scope
         )
         guard counts.total > 0 else {
             throw NativeLockTransactionError.noWallpaperChoices
@@ -492,6 +559,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             in: currentDictionary,
             path: [],
             assetID: current.request.assetID.uuidString,
+            scope: scope,
             choices: &restoreChoices
         )
         let overlayData = try PropertyListSerialization.data(
@@ -513,7 +581,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         )
         let (updatedValue, replacements) = Self.replacingWallpaperChoices(
             in: currentDictionary,
-            configuration: configuration
+            configuration: configuration,
+            scope: scope
         )
         guard replacements == counts.total,
               let updatedDictionary = updatedValue as? [String: Any] else {
@@ -698,13 +767,21 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         }
     }
 
+    private enum WallpaperChoiceScope: Equatable {
+        case all
+        case linked
+    }
+
     private static func replacingWallpaperChoices(
         in value: Any,
-        configuration: Data
+        configuration: Data,
+        scope: WallpaperChoiceScope,
+        isWithinLinkedContainer: Bool = false
     ) -> (Any, Int) {
         if var dictionary = value as? [String: Any] {
             if dictionary["Provider"] is String,
-               dictionary["Configuration"] is Data {
+               dictionary["Configuration"] is Data,
+               scope == .all || isWithinLinkedContainer {
                 dictionary["Provider"] = "com.apple.wallpaper.choice.aerials"
                 dictionary["Configuration"] = configuration
                 dictionary["Files"] = [Any]()
@@ -714,7 +791,9 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             for key in dictionary.keys {
                 let (updated, count) = replacingWallpaperChoices(
                     in: dictionary[key] as Any,
-                    configuration: configuration
+                    configuration: configuration,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer || key == "Linked"
                 )
                 dictionary[key] = updated
                 replacements += count
@@ -732,7 +811,9 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             let updated = array.map { item -> Any in
                 let (replacement, count) = replacingWallpaperChoices(
                     in: item,
-                    configuration: configuration
+                    configuration: configuration,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer
                 )
                 replacements += count
                 return replacement
@@ -858,12 +939,15 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         in value: Any,
         path: [String],
         assetID: String,
+        scope: WallpaperChoiceScope,
+        isWithinLinkedContainer: Bool = false,
         choices: inout [String: Any]
     ) {
         if let dictionary = value as? [String: Any] {
             if dictionary["Provider"] is String,
                dictionary["Configuration"] is Data {
-                if choiceAssetID(in: dictionary) != assetID {
+                if (scope == .all || isWithinLinkedContainer),
+                   choiceAssetID(in: dictionary) != assetID {
                     choices[wallpaperChoiceExactPathKey(path: path)] = dictionary
                 }
                 return
@@ -873,6 +957,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     in: dictionary[key] as Any,
                     path: path + [key],
                     assetID: assetID,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer || key == "Linked",
                     choices: &choices
                 )
             }
@@ -884,6 +970,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     in: item,
                     path: path + [String(index)],
                     assetID: assetID,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer,
                     choices: &choices
                 )
             }
@@ -905,26 +993,42 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
 
     private static func wallpaperChoiceCounts(
         in value: Any,
-        matching assetID: String
+        matching assetID: String,
+        scope: WallpaperChoiceScope,
+        isWithinLinkedContainer: Bool = false
     ) -> (total: Int, matching: Int) {
         if let dictionary = value as? [String: Any] {
             if dictionary["Provider"] is String,
                dictionary["Configuration"] is Data {
+                guard scope == .all || isWithinLinkedContainer else {
+                    return (total: 0, matching: 0)
+                }
                 return (
                     total: 1,
                     matching: choiceAssetID(in: dictionary) == assetID ? 1 : 0
                 )
             }
-            return dictionary.values.reduce(into: (total: 0, matching: 0)) {
-                result, child in
-                let counts = wallpaperChoiceCounts(in: child, matching: assetID)
+            return dictionary.reduce(into: (total: 0, matching: 0)) {
+                result, entry in
+                let counts = wallpaperChoiceCounts(
+                    in: entry.value,
+                    matching: assetID,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer
+                        || entry.key == "Linked"
+                )
                 result.total += counts.total
                 result.matching += counts.matching
             }
         }
         if let array = value as? [Any] {
             return array.reduce(into: (total: 0, matching: 0)) { result, child in
-                let counts = wallpaperChoiceCounts(in: child, matching: assetID)
+                let counts = wallpaperChoiceCounts(
+                    in: child,
+                    matching: assetID,
+                    scope: scope,
+                    isWithinLinkedContainer: isWithinLinkedContainer
+                )
                 result.total += counts.total
                 result.matching += counts.matching
             }

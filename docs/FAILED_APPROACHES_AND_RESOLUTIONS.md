@@ -339,3 +339,18 @@ catalog의 인덱싱·선택 유지까지 호환된다고 볼 수 없었다.
 - 추후 재시도는 macOS 26 extension이 공식적으로 제공하는 catalog refresh 또는
   selection API를 확인하고, 실제 Apply → lock → unlock → Restore 왕복이 성공한
   뒤에만 허용한다.
+
+### 후속 조사와 수정된 해결
+
+macOS 26에서 실제로 동작 중인 별도 로컬 Aerial 클라이언트를 읽기 전용으로
+조사한 결과, 새 extension은 root-owned legacy catalog 대신 현재 사용자의
+`~/Library/Application Support/com.apple.wallpaper/aerials`를 읽는다. 동영상과
+미리보기를 그 store에 두고, schema version 1 `entries.json`에 `file://` URL의
+asset/category를 병합한 다음 `Index.plist`의 `Linked` choice만 새 `assetID`로
+바꾸면 선택값이 유지됐다. `Desktop`과 `Idle` choice는 유지됐다.
+
+따라서 macOS 15 root transaction을 macOS 26에 되살리지 않는다. Hikari에는 별도
+user Aerial transaction을 구현하고, 원본 manifest/index bytes와 hash를 journal에
+보관한다. 격리된 임시 store에서 Apply → Linked 검증 → Restore 왕복은 통과했지만,
+Hikari 실제 장비 적용 전에는 같은 저장소를 변경하는 다른 도구를 종료하거나
+복원해 동시 transaction을 피한다.

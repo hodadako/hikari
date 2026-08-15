@@ -808,7 +808,7 @@ private struct NativeLockSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Hikari-owned system assets."
+                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the macOS Aerial store. macOS 15 requires administrator approval; macOS 26 uses the current user's Aerial catalog. Restore returns the saved wallpaper mapping and removes only Hikari-owned assets."
                     )
                 )
             }
