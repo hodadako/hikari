@@ -116,9 +116,10 @@ final class SystemStateMonitor {
             isScreenSaverRunning = false
             scheduleStateChanged()
             // WindowServer tears down the lock-screen surfaces asynchronously.
-            // A second check covers a late power/display notification and
-            // reissues playback after those surfaces are available again.
-            scheduleRecovery(after: 450_000_000)
+            // Re-evaluate playback after that transition, but do not treat an
+            // unlock as a display change. Rebuilding the desktop AVPlayerLayer
+            // here closes the live surface and produces a black flash.
+            scheduleStateChanged(after: 450_000_000)
         }
         observe(distributed, name: InterprocessSignal.screenSaverDidStart) { [weak self] in
             guard let self else { return }

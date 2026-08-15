@@ -54,6 +54,7 @@ final class AppModel: ObservableObject {
     #if LUMINA_NATIVE_LOCAL
     private lazy var nativeLockController = NativeLockController(container: container)
     private var nativeLockMaintenanceTask: Task<Void, Never>?
+    private var nativeRendererRefreshTask: Task<Void, Never>?
     private var nativeLockMaintenanceInProgress = false
     private var nativeRendererRefreshRequested = false
     private var didPresentNativeMaintenanceError = false
@@ -102,7 +103,7 @@ final class AppModel: ObservableObject {
             let didUnlock = self.wasScreenLocked && !self.stateMonitor.isScreenLocked
             self.wasScreenLocked = self.stateMonitor.isScreenLocked
             if didUnlock {
-                self.requestNativeRendererRefresh()
+                self.requestNativeRendererRefreshAfterUnlock()
             }
             #endif
             self.reconcilePlayback()
@@ -247,6 +248,8 @@ final class AppModel: ObservableObject {
                 self.nativeLockRecord = try await self.nativeLockController.apply(
                     content: content
                 )
+                self.nativeRendererRefreshTask?.cancel()
+                self.nativeRendererRefreshTask = nil
                 self.nativeRendererRefreshRequested = false
             } catch {
                 self.nativeLockRecord = self.nativeLockController.currentRecord()
@@ -263,6 +266,8 @@ final class AppModel: ObservableObject {
         do {
             try nativeLockController.restore()
             nativeLockRecord = nativeLockController.currentRecord()
+            nativeRendererRefreshTask?.cancel()
+            nativeRendererRefreshTask = nil
             nativeRendererRefreshRequested = false
         } catch {
             nativeLockRecord = nativeLockController.currentRecord()
@@ -840,6 +845,8 @@ final class AppModel: ObservableObject {
         #if LUMINA_NATIVE_LOCAL
         nativeLockMaintenanceTask?.cancel()
         nativeLockMaintenanceTask = nil
+        nativeRendererRefreshTask?.cancel()
+        nativeRendererRefreshTask = nil
         #endif
         wallpaperController.closeWindows()
     }
@@ -894,10 +901,18 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func requestNativeRendererRefresh() {
-        nativeRendererRefreshRequested = true
-        Task { [weak self] in
-            await self?.performNativeLockMaintenance()
+    private func requestNativeRendererRefreshAfterUnlock() {
+        nativeRendererRefreshTask?.cancel()
+        nativeRendererRefreshTask = Task { [weak self] in
+            // WallpaperAgent owns the outgoing Lock Screen surface briefly
+            // after the unlock notification. Restarting it immediately tears
+            // down that surface during the transition and visibly flashes the
+            // desktop. Wait for the transition to settle, then refresh once
+            // while the session is safely unlocked.
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let self else { return }
+            self.nativeRendererRefreshRequested = true
+            await self.performNativeLockMaintenance()
         }
     }
 

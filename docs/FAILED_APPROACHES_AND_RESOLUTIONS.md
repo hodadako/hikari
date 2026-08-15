@@ -314,6 +314,49 @@ Code 4가 발생했다. 같은 `WallpaperVideoExtension` 프로세스는 이후 
   종료해 launchd가 video extension을 새로 구성하게 한다. 잠금 상태나 고정 주기마다
   renderer를 반복 종료하지 않는다.
 
+## macOS 26 user Aerial transaction에서 renderer 새로 시작을 건너뜀
+
+### 관찰
+
+활성 transaction의 manifest, staged media 및 모든 `Linked` choice가 정상인데도
+다음 잠금 화면이 검게 표시됐다. 앱 시작과 unlock 후 실행되는 renderer refresh가
+legacy backend에만 제한돼 macOS 26 user Aerial backend에서는 실행되지 않았다.
+
+### 해결
+
+backend와 무관하게, active transaction이 있고 시작에 의한 refresh가 요청된 경우
+`WallpaperAgent`를 한 번 새로 시작한다. unlock 뒤에는 Lock Screen 전환이 끝난
+뒤에만 같은 refresh를 실행한다. mapping을 재조정해 이미 agent를 교체한 경우에는
+중복 실행하지 않으며, 잠금 중 또는 주기 maintenance에서는 재시작하지 않는다.
+
+## Lock Screen 영상의 movie header를 media 뒤에 둠
+
+### 관찰
+
+활성 Hikari 영상은 66MB 4K H.264 파일의 마지막에 `moov` movie header가 있었다.
+Lock Screen extension이 cold start에서 이 header를 찾으려면 media payload를 먼저
+읽어야 하므로 첫 프레임 표시가 늦어질 수 있었다.
+
+### 해결
+
+Native Lock 준비 단계의 passthrough export에 fast-start 최적화를 사용한다. 영상
+codec·해상도·화질은 유지하면서 movie header와 track index를 파일 앞쪽으로 옮긴다.
+이미 적용된 transaction의 hash-보호 media는 자동으로 덮어쓰지 않으며, Restore 후
+같은 영상을 다시 Apply할 때 새 레이아웃이 사용된다.
+
+## unlock을 display recovery로 처리
+
+### 관찰
+
+잠금 해제 알림 뒤의 보조 확인이 display recovery를 호출해 3회에 걸쳐 desktop
+window와 `AVPlayerLayer`를 재생성했다. Lock Screen surface가 사라지는 동안 이
+재생성이 겹치면 해제 직후 검은 프레임이 번쩍였다.
+
+### 해결
+
+unlock 뒤에는 재생 정책만 한 번 더 확인하고 desktop surface를 재생성하지 않는다.
+실제 잠자기 복귀, 디스플레이 변경 및 Space 전환의 display recovery는 유지한다.
+
 ## macOS 26에서 macOS 15의 Native catalog transaction을 그대로 활성화
 
 ### 시도
