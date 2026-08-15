@@ -2,6 +2,82 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.3 (4) — 2026-08-16
+
+### 이슈와 영향
+
+- unlock의 보조 playback 확인이 display recovery까지 실행해 desktop 영상 surface를
+  세 번 재생성했다. Lock Screen 전환 중 이 재생성은 검은 프레임 플래시를 만들 수
+  있었다.
+
+### 조치
+
+- unlock 뒤에는 delayed playback state 확인만 실행한다. desktop surface 재생성은
+  실제 잠자기 복귀, 디스플레이 변경 및 Space 전환에만 남긴다.
+
+### 검증
+
+- `swift build`, native 로컬 앱 빌드와 ad-hoc 서명 검증을 통과한다.
+- unlock 경로가 `scheduleRecovery`를 호출하지 않고 delayed state 확인만 예약하는지
+  코드 검사를 수행한다.
+
+### 남은 제약
+
+- 실제 잠금·unlock 전환의 화면 품질은 사용자 수동 확인이 필요하다.
+
+## Hikari v0.1.2 (3) — 2026-08-16
+
+### 이슈와 영향
+
+- unlock 알림 뒤 약 120ms에 `WallpaperAgent`를 재시작해 Lock Screen의 퇴장
+  surface와 겹치면서 데스크톱이 번쩍일 수 있었다.
+- 기존 Native Lock export는 fast-start를 끈 채 movie header를 media 뒤에 두어,
+  고비트레이트 영상의 첫 프레임 준비가 지연될 수 있었다.
+
+### 조치
+
+- unlock 뒤 2초 동안 Lock Screen 전환이 안정될 때까지 기다린 다음 renderer를 한 번
+  새로 시작한다. 잠금 중이면 pending 상태를 유지해 다음 안전한 unlock 뒤 처리한다.
+- 새 Native Lock 영상은 passthrough 품질을 유지하면서 fast-start MOV로 export한다.
+  기존 active transaction의 hash-보호 영상은 자동 변경하지 않는다.
+
+### 검증
+
+- `swift build`, native 로컬 앱 빌드와 ad-hoc 서명 검증을 통과한다.
+- 실제 활성 4K 영상에서 movie header가 media 뒤에 있음을 확인하고, 새 export 경로가
+  fast-start 옵션을 사용하는 것을 코드·native compilation으로 검증한다.
+
+### 남은 제약
+
+- 기존 적용 영상은 Restore 후 동일 영상을 다시 Apply해야 fast-start layout으로
+  교체된다. 실제 잠금·unlock 전환 품질은 사용자 수동 확인이 필요하다.
+
+## Hikari v0.1.1 (2) — 2026-08-16
+
+### 이슈와 영향
+
+- macOS 26 user Aerial backend는 활성 transaction이어도 앱 시작과 unlock 뒤
+  `WallpaperAgent` 재시작을 건너뛰었다. 이전 video renderer가 고착되면 다음
+  잠금 화면이 검게 표시될 수 있었다.
+
+### 조치
+
+- backend와 무관하게, active transaction의 시작·unlock refresh 요청은
+  `WallpaperAgent`를 한 번 새로 시작한다. choice mapping을 재조정해 이미 agent를
+  교체한 경우에는 중복으로 재시작하지 않는다.
+
+### 검증
+
+- macOS 26의 실제 active transaction에서 새 Hikari를 실행해 `WallpaperAgent`가
+  새 PID로 다시 시작했고, 모든 `Linked` choice가 Hikari asset ID를 유지하는 것을
+  확인한다.
+- `swift build`, native 로컬 앱 빌드 및 ad-hoc 서명 검증을 통과한다.
+
+### 남은 제약
+
+- 실제 잠금 → unlock → 다음 잠금의 영상 표시 검증은 잠금 세션을 조작하므로
+  사용자 수동 확인이 필요하다.
+
 ## Hikari v0.1.0 (1) — 2026-08-16
 
 ### 이슈와 영향

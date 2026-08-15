@@ -85,7 +85,10 @@ final class NativeLockController {
             )
         }
 
-        if refreshRenderer, !restartedAgent, !usesModernAerials {
+        // Both supported backends use WallpaperAgent to host the Lock Screen
+        // video extension. After launch or unlock, restart it once so a stale
+        // reader cannot carry a black presentation surface into the next lock.
+        if refreshRenderer, !restartedAgent {
             try refreshWallpaperRenderer()
             nativeLockLogger.notice(
                 "Refreshed the native wallpaper renderer for \(current.request.transactionID.uuidString, privacy: .public)"
@@ -254,7 +257,10 @@ final class NativeLockController {
         ) else {
             throw LuminaError.unreadableVideo
         }
-        export.shouldOptimizeForNetworkUse = false
+        // The Lock Screen extension opens this movie cold. Keep the movie
+        // header before its media payload so it can discover the first frame
+        // without scanning a high-bitrate 4K file from the end.
+        export.shouldOptimizeForNetworkUse = true
         try await export.export(to: destinationURL, as: .mov)
     }
 
