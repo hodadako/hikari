@@ -19,6 +19,8 @@
 - macOS 26.6.1에서는 manifest schema version 1과 user index의 기본 구조가 읽혔지만,
   실제 local Apply 뒤 macOS가 새 wallpaper mapping을 유지하지 않아 Native Lock을
   활성 상태로 전환할 수 없었다.
+- 메뉴 막대 팝오버가 외부 클릭 뒤에도 남는 경우가 있었고, 기존 앱 비활성화 처리는
+  별도 설정 창까지 함께 숨겼다.
 
 ### 조치
 
@@ -43,6 +45,8 @@
 - active transaction이 있으면 앱 시작과 unlock 직후 `WallpaperAgent`를 한 번 재시작해
   다음 잠금 전에 system video renderer를 새로 구성한다. 주기 검사는 관리자 승인,
   privileged helper 또는 system manifest/media write를 실행하지 않는다.
+- 메뉴 막대 팝오버가 표시된 동안 외부 마우스 클릭을 감시해 닫되, 별도 설정 창을
+  숨기던 app-deactivation 처리는 제거한다. 큰 설정 창은 빨간 닫기 버튼으로만 숨긴다.
 
 ### 검증
 

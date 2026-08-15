@@ -12,6 +12,7 @@ final class MenuBarStatusItemController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private var iconHostingView: PassthroughHostingView<MenuBarCompositeIconView>?
+    private var externalClickMonitor: Any?
 
     init(model: AppModel) {
         self.model = model
@@ -24,6 +25,9 @@ final class MenuBarStatusItemController: NSObject {
     }
 
     deinit {
+        if let externalClickMonitor {
+            NSEvent.removeMonitor(externalClickMonitor)
+        }
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 
@@ -52,6 +56,7 @@ final class MenuBarStatusItemController: NSObject {
     private func configurePopover() {
         popover.behavior = .transient
         popover.animates = true
+        popover.delegate = self
         popover.contentSize = NSSize(width: 300, height: 420)
         popover.contentViewController = NSHostingController(
             rootView: MenuBarView(model: model)
@@ -71,6 +76,38 @@ final class MenuBarStatusItemController: NSObject {
                 preferredEdge: .minY
             )
         }
+    }
+
+    /// `NSPopover.behavior.transient` normally dismisses a status-item popover
+    /// after a click elsewhere. In an agent app, AppKit can leave that popover
+    /// open when the click belongs to another application or the desktop.
+    /// Monitor those external mouse-down events while shown as a fallback.
+    private func installExternalClickMonitor() {
+        guard externalClickMonitor == nil else { return }
+        externalClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self, self.popover.isShown else { return }
+                self.popover.performClose(nil)
+            }
+        }
+    }
+
+    private func removeExternalClickMonitor() {
+        guard let externalClickMonitor else { return }
+        NSEvent.removeMonitor(externalClickMonitor)
+        self.externalClickMonitor = nil
+    }
+}
+
+extension MenuBarStatusItemController: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        installExternalClickMonitor()
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        removeExternalClickMonitor()
     }
 }
 
