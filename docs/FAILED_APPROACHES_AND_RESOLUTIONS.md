@@ -313,3 +313,29 @@ Code 4가 발생했다. 같은 `WallpaperVideoExtension` 프로세스는 이후 
 - active transaction이 있으면 앱 시작과 매 unlock 뒤 user `WallpaperAgent`를 한 번
   종료해 launchd가 video extension을 새로 구성하게 한다. 잠금 상태나 고정 주기마다
   renderer를 반복 종료하지 않는다.
+
+## macOS 26에서 macOS 15의 Native catalog transaction을 그대로 활성화
+
+### 시도
+
+macOS 26.6.1의 manifest schema version 1과 user index의 기본 choice 구조가
+읽기 전용 검사와 격리된 Apply → Restore 복사본 검증을 통과한 것을 근거로, 새
+wallpaper extension lifecycle에 맞춰 catalog host 재시작과 option-value 정규화를
+더한 뒤 실제 local Apply를 한 번 실행했다.
+
+### 결과
+
+system manifest와 Hikari asset은 생성됐지만 macOS가 새 user wallpaper mapping을
+유지하지 않아 30초 안정화 검증이 `wallpaperMappingRejected`로 실패했다. 앱은
+`recoveryRequired`를 기록했다. 즉 schema가 읽힌다는 사실만으로 실제 system
+catalog의 인덱싱·선택 유지까지 호환된다고 볼 수 없었다.
+
+### 해결
+
+- macOS 26의 system write 허용을 즉시 제거하고 macOS 15 전용 guard를 유지한다.
+- 즉시 Restore를 실행해 manifest의 Hikari asset/category를 제거하고, user index에
+  staged asset 참조가 남지 않았으며 transaction journal이 `restored`로 끝난 것을
+  확인한다.
+- 추후 재시도는 macOS 26 extension이 공식적으로 제공하는 catalog refresh 또는
+  selection API를 확인하고, 실제 Apply → lock → unlock → Restore 왕복이 성공한
+  뒤에만 허용한다.
