@@ -27,7 +27,9 @@
 - 문서화되지 않은 macOS wallpaper/aerial 상태를 변경하는 native 잠금 화면 실험은 소스에서 직접 빌드한 로컬 실행본으로만 제공한다. Portable 릴리스와 앱 내 업데이트는 이 privileged 기능을 설치하거나 갱신하지 않는다.
 - native 잠금 화면 실험은 관리자 승인, 변경 전 검증 가능한 백업, 단계별 transaction journal, 조건부 rollback 및 명시적인 제거 경로가 마련되기 전에는 실제 system write를 수행하지 않는다. CI 빌드 성공은 이 root 변경의 런타임 안전성을 보증하지 않는다.
 - Native Local의 root 작업은 앱 번들에서 매번 관리자 승인을 받아 실행하는 고정 인자 one-shot 도구로만 수행한다. 상시 daemon, LaunchDaemon 또는 persistent privileged helper로 바꾸지 않는다.
-- system write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 실제 schema와 복구 절차를 다시 검증하기 전까지 쓰기를 차단한다.
+- root-owned legacy catalog write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 이 경로를 활성화하지 않는다.
+- macOS 26 Native Lock은 root catalog를 사용하지 않고, 현재 사용자의 `com.apple.wallpaper/aerials` manifest·media store만 transaction으로 변경한다. 적용 전 `entries.json`과 `Index.plist` 원본 bytes를 보관하고, Hikari asset/category와 `Linked` choice만 추가·변경한다. `Desktop`·`Idle` choice나 다른 도구가 소유한 manifest record는 바꾸지 않는다.
+- macOS 26 user Aerial transaction은 manifest/media를 먼저 원자적으로 준비한 뒤 `WallpaperAgent`를 정지한 상태에서 `Linked` choice를 바꾸고, 재시작 뒤 30초 안정화 동안 모든 `Linked` choice가 Hikari asset ID를 유지하는지 검증한다. Restore는 원본 bytes가 적용 hash와 맞을 때만 전체 복원하고, 그 외에는 Hikari-owned asset/category/choice만 선택적으로 제거한다.
 - 미완료 Native Lock transaction이 있으면 설정에 macOS major 업데이트 전 Restore 경고를 표시한다. `restored` 전에는 새 major version으로의 이동이 안전하다고 안내하지 않는다.
 - 사용자 wallpaper index를 바꿀 때는 실행 중인 `WallpaperAgent`를 먼저 정지하고 원자적 교체가 끝난 뒤 종료·재시작한다. 파일을 먼저 쓴 다음 에이전트를 종료하는 순서로 되돌리지 않는다. 재시작 뒤 모든 기존 choice가 같은 transaction asset ID를 유지하는지도 확인한다.
 - Native Local의 주기 유지보수는 사용자 wallpaper choice만 읽고 drift가 있을 때만 조정한다. 관리자 승인, privileged helper, system manifest/media 쓰기를 주기적으로 실행하지 않는다. 새 display/Space choice를 자동 적용하기 전에는 exact topology path별 원래 choice를 restore overlay에 먼저 저장하며, 이후 복원은 현재 topology를 보존하는 선택적 병합을 사용한다.

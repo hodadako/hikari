@@ -58,6 +58,23 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertEqual(report.state, .ready)
     }
 
+    func testReportsMacOS26UserAerialPathAsReady() {
+        let report = NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: OperatingSystemVersion(
+                majorVersion: 26,
+                minorVersion: 0,
+                patchVersion: 0
+            ),
+            hasSelectedMedia: true
+        )
+
+        XCTAssertEqual(report.state, .ready)
+        XCTAssertEqual(
+            report.detail,
+            "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval."
+        )
+    }
+
     func testActiveReportUsesHikariProductName() {
         let report = NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: OperatingSystemVersion(

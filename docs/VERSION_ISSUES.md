@@ -51,6 +51,12 @@
   숨기던 app-deactivation 처리는 제거한다. 큰 설정 창은 빨간 닫기 버튼으로만 숨긴다.
 - Native Lock의 미완료 transaction에는 설정 화면에서 macOS major 업데이트 전 Restore를
   요구하는 경고를 표시한다. 현재 major-version write guard는 유지한다.
+- macOS 26에는 root-owned legacy catalog를 사용하지 않는 user Aerial transaction을
+  추가했다. Hikari 영상과 PNG preview를 현재 사용자의 Aerial media store에 두고,
+  schema version 1 manifest에 Hikari 전용 asset/category를 병합한다. user index에서는
+  Lock Screen 경로인 `Linked` choice만 Hikari asset ID로 바꾸며 `Desktop`과 `Idle`은
+  보존한다. Apply와 Restore는 원본 manifest/index bytes, hash, 단계별 journal 및
+  선택적 외부 변경 보존을 사용한다. macOS 15 root helper 경로는 그대로 유지한다.
 
 ### 검증
 
@@ -76,6 +82,11 @@
   대상이며, macOS 26은 공식 catalog refresh/selection 경로가 확인될 때까지 차단한다.
 - active·recoveryRequired·restored·없음의 transaction phase별 major-update Restore 경고
   조건을 Native Lock 단위 테스트로 검증한다.
+- 격리된 임시 macOS 26 user Aerial store에서 Hikari Apply → 모든 `Linked` choice의
+  asset ID 유지 → Desktop/Idle 원본 보존 → Restore 후 원본 manifest/index bytes 일치와
+  staged media 삭제까지 확인했다. 실제 사용자 store에는 Hikari Apply를 실행하지
+  않았다. 같은 store를 수정하는 다른 도구가 실행 중이면 먼저 해당 transaction을
+  복원하거나 종료한 뒤 실제 Hikari lock → unlock → Restore 수동 검증을 수행한다.
 
 ## v0.3.1 — 2026-08-14
 

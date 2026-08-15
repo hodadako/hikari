@@ -57,24 +57,35 @@ final class NativeLockController {
 
         var record = current
         var restartedAgent = false
-        if try !store.wallpaperMappingMatches(
-            transactionID: current.request.transactionID
-        ) {
+        let usesModernAerials = current.journal.backend == .userAerials
+        let mappingMatches = try usesModernAerials
+            ? store.linkedWallpaperMappingMatches(
+                transactionID: current.request.transactionID
+            )
+            : store.wallpaperMappingMatches(
+                transactionID: current.request.transactionID
+            )
+        if !mappingMatches {
             record = try withWallpaperAgentSuspended {
-                try store.reconcileWallpaperMapping(
-                    transactionID: current.request.transactionID
-                )
+                try usesModernAerials
+                    ? store.reconcileLinkedWallpaperMapping(
+                        transactionID: current.request.transactionID
+                    )
+                    : store.reconcileWallpaperMapping(
+                        transactionID: current.request.transactionID
+                    )
             }
             restartedAgent = true
             try await verifyWallpaperMapping(
-                transactionID: current.request.transactionID
+                transactionID: current.request.transactionID,
+                modernAerials: usesModernAerials
             )
             nativeLockLogger.notice(
                 "Reconciled active wallpaper choices for \(current.request.transactionID.uuidString, privacy: .public)"
             )
         }
 
-        if refreshRenderer, !restartedAgent {
+        if refreshRenderer, !restartedAgent, !usesModernAerials {
             try refreshWallpaperRenderer()
             nativeLockLogger.notice(
                 "Refreshed the native wallpaper renderer for \(current.request.transactionID.uuidString, privacy: .public)"
@@ -96,7 +107,11 @@ final class NativeLockController {
         )
         defer { try? FileManager.default.removeItem(at: workURL) }
         let mediaURL = workURL.appendingPathComponent("media.mov")
-        let previewURL = workURL.appendingPathComponent("preview.jpg")
+        let usesModernAerials = ProcessInfo.processInfo
+            .operatingSystemVersion.majorVersion == 26
+        let previewURL = workURL.appendingPathComponent(
+            usesModernAerials ? "preview.png" : "preview.jpg"
+        )
         try await prepareMedia(from: sourceURL, to: mediaURL)
         try await generatePreview(from: mediaURL, to: previewURL)
 
@@ -110,6 +125,34 @@ final class NativeLockController {
             "Prepared transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
         )
         do {
+            if usesModernAerials {
+                let manager = NativeLockModernTransactionManager(environment: .live)
+                let result = try manager.apply(
+                    request: prepared.request,
+                    sourceTransactionURL: store.transactionDirectoryURL(
+                        for: prepared.request.transactionID
+                    )
+                )
+                _ = try store.markSystemApplied(
+                    transactionID: prepared.request.transactionID,
+                    manifestSHA256: result.manifestSHA256,
+                    backend: .userAerials,
+                    originalModernManifestSHA256: result.originalManifestSHA256
+                )
+                let active = try withWallpaperAgentSuspended {
+                    try store.applyLinkedWallpaperMapping(
+                        transactionID: prepared.request.transactionID
+                    )
+                }
+                try await verifyWallpaperMapping(
+                    transactionID: prepared.request.transactionID,
+                    modernAerials: true
+                )
+                nativeLockLogger.notice(
+                    "Activated macOS 26 user Aerial transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
+                )
+                return active
+            }
             let result = try runPrivilegedTool(
                 operation: "apply",
                 transactionID: prepared.request.transactionID,
@@ -131,7 +174,8 @@ final class NativeLockController {
                 )
             }
             try await verifyWallpaperMapping(
-                transactionID: prepared.request.transactionID
+                transactionID: prepared.request.transactionID,
+                modernAerials: false
             )
             nativeLockLogger.notice(
                 "Activated transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
@@ -163,11 +207,25 @@ final class NativeLockController {
                     transactionID: record.request.transactionID
                 )
             }
-            _ = try runPrivilegedTool(
-                operation: "restore",
-                transactionID: record.request.transactionID,
-                assetID: record.request.assetID
-            )
+            if record.journal.backend == .userAerials {
+                guard let originalManifestSHA256 = record.journal.originalModernManifestSHA256 else {
+                    throw NativeLockTransactionError.invalidHash
+                }
+                try NativeLockModernTransactionManager(environment: .live).restore(
+                    request: record.request,
+                    sourceTransactionURL: store.transactionDirectoryURL(
+                        for: record.request.transactionID
+                    ),
+                    originalManifestSHA256: originalManifestSHA256,
+                    appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
+                )
+            } else {
+                _ = try runPrivilegedTool(
+                    operation: "restore",
+                    transactionID: record.request.transactionID,
+                    assetID: record.request.assetID
+                )
+            }
             try store.markRestored(transactionID: record.request.transactionID)
             nativeLockLogger.notice(
                 "Restored transaction \(record.request.transactionID.uuidString, privacy: .public)"
@@ -216,9 +274,11 @@ final class NativeLockController {
                 actualTime: nil
             )
         }
+        let isPNG = destinationURL.pathExtension.lowercased() == "png"
+        let imageType = isPNG ? UTType.png.identifier : UTType.jpeg.identifier
         guard let destination = CGImageDestinationCreateWithURL(
             destinationURL as CFURL,
-            UTType.jpeg.identifier as CFString,
+            imageType as CFString,
             1,
             nil
         ) else {
@@ -227,7 +287,9 @@ final class NativeLockController {
         CGImageDestinationAddImage(
             destination,
             image,
-            [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary
+            isPNG ? nil : [
+                kCGImageDestinationLossyCompressionQuality: 0.9
+            ] as CFDictionary
         )
         guard CGImageDestinationFinalize(destination) else {
             throw LuminaError.unreadableVideo
@@ -317,9 +379,15 @@ final class NativeLockController {
         }
     }
 
-    private func verifyWallpaperMapping(transactionID: UUID) async throws {
+    private func verifyWallpaperMapping(
+        transactionID: UUID,
+        modernAerials: Bool
+    ) async throws {
         for _ in 0..<200 {
-            if try store.wallpaperMappingMatches(transactionID: transactionID) {
+            let matches = try modernAerials
+                ? store.linkedWallpaperMappingMatches(transactionID: transactionID)
+                : store.wallpaperMappingMatches(transactionID: transactionID)
+            if matches {
                 // A first successful read only proves the atomic write landed.
                 // Keep sampling while WallpaperAgent and idleassetsd settle so
                 // their delayed normalization cannot turn into a false success.

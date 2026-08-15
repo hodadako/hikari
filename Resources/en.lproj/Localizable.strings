@@ -185,12 +185,13 @@
 "Disabled" = "Disabled";
 "Managed media" = "Managed media";
 "Local source build — automatic updates disabled" = "Local source build — automatic updates disabled";
-"Reviewed macOS 15 build required" = "Reviewed macOS 15 build required";
+"Reviewed macOS 15 or 26 build required" = "Reviewed macOS 15 or 26 build required";
 "Native Lock writes are disabled until this macOS major version's wallpaper schema is reviewed." = "Native Lock writes are disabled until this macOS major version's wallpaper schema is reviewed.";
 "Import a video first" = "Import a video first";
 "The selected video remains in Hikari's private application-support directory." = "The selected video remains in Hikari's private application-support directory.";
 "Ready to apply locally" = "Ready to apply locally";
 "Applying requires administrator approval and creates verified user and system rollback records." = "Applying requires administrator approval and creates verified user and system rollback records.";
+"Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval." = "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval.";
 "Native Lock is active" = "Native Lock is active";
 "The macOS-owned Lock Screen uses the staged Hikari video." = "The macOS-owned Lock Screen uses the staged Hikari video.";
 "Native Lock recovery required" = "Native Lock recovery required";
@@ -198,6 +199,6 @@
 "Applied video" = "Applied video";
 "Apply Selected Video" = "Apply Selected Video";
 "Restore Previous Wallpaper" = "Restore Previous Wallpaper";
-"Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Hikari-owned system assets." = "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Hikari-owned system assets.";
+"Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the macOS Aerial store. macOS 15 requires administrator approval; macOS 26 uses the current user's Aerial catalog. Restore returns the saved wallpaper mapping and removes only Hikari-owned assets." = "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the macOS Aerial store. macOS 15 requires administrator approval; macOS 26 uses the current user's Aerial catalog. Restore returns the saved wallpaper mapping and removes only Hikari-owned assets.";
 "Native Lock is available only in the Hikari Native Local target." = "Native Lock is available only in the Hikari Native Local target.";
 "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Native Lock transaction may not be recoverable after the update." = "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Native Lock transaction may not be recoverable after the update.";
