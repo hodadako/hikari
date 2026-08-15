@@ -76,6 +76,33 @@ final class NativeLockSafetyTests: XCTestCase {
         )
     }
 
+    func testUnfinishedTransactionRequiresRestoreBeforeMajorOSUpdate() {
+        XCTAssertTrue(
+            NativeLockUpgradeGuard
+                .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                    transactionPhase: .active
+                )
+        )
+        XCTAssertTrue(
+            NativeLockUpgradeGuard
+                .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                    transactionPhase: .recoveryRequired
+                )
+        )
+        XCTAssertFalse(
+            NativeLockUpgradeGuard
+                .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                    transactionPhase: .restored
+                )
+        )
+        XCTAssertFalse(
+            NativeLockUpgradeGuard
+                .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                    transactionPhase: nil
+                )
+        )
+    }
+
     func testReportsRecoveryRequired() {
         let report = NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: OperatingSystemVersion(

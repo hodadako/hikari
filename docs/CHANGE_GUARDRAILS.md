@@ -28,6 +28,7 @@
 - native 잠금 화면 실험은 관리자 승인, 변경 전 검증 가능한 백업, 단계별 transaction journal, 조건부 rollback 및 명시적인 제거 경로가 마련되기 전에는 실제 system write를 수행하지 않는다. CI 빌드 성공은 이 root 변경의 런타임 안전성을 보증하지 않는다.
 - Native Local의 root 작업은 앱 번들에서 매번 관리자 승인을 받아 실행하는 고정 인자 one-shot 도구로만 수행한다. 상시 daemon, LaunchDaemon 또는 persistent privileged helper로 바꾸지 않는다.
 - system write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 실제 schema와 복구 절차를 다시 검증하기 전까지 쓰기를 차단한다.
+- 미완료 Native Lock transaction이 있으면 설정에 macOS major 업데이트 전 Restore 경고를 표시한다. `restored` 전에는 새 major version으로의 이동이 안전하다고 안내하지 않는다.
 - 사용자 wallpaper index를 바꿀 때는 실행 중인 `WallpaperAgent`를 먼저 정지하고 원자적 교체가 끝난 뒤 종료·재시작한다. 파일을 먼저 쓴 다음 에이전트를 종료하는 순서로 되돌리지 않는다. 재시작 뒤 모든 기존 choice가 같은 transaction asset ID를 유지하는지도 확인한다.
 - Native Local의 주기 유지보수는 사용자 wallpaper choice만 읽고 drift가 있을 때만 조정한다. 관리자 승인, privileged helper, system manifest/media 쓰기를 주기적으로 실행하지 않는다. 새 display/Space choice를 자동 적용하기 전에는 exact topology path별 원래 choice를 restore overlay에 먼저 저장하며, 이후 복원은 현재 topology를 보존하는 선택적 병합을 사용한다.
 - active Native transaction이 있을 때 앱 시작과 unlock 뒤 `WallpaperAgent`를 한 번 새로 띄워 이전 `WallpaperVideoExtension`의 sample-reader 오류가 다음 잠금까지 남지 않게 한다. 잠금 중 반복 종료하거나 고정 주기로 renderer를 재시작하지 않는다.

@@ -725,6 +725,29 @@ private struct NativeLockSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
+                if NativeLockUpgradeGuard
+                    .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                        transactionPhase: model.nativeLockPhase
+                    ) {
+                    Label {
+                        Text(
+                            localized(
+                                "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Native Lock transaction may not be recoverable after the update."
+                            )
+                        )
+                        .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+                    .padding(10)
+                    .background(
+                        Color.orange.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+                }
+
                 if let title = model.nativeLockAppliedContentTitle,
                    model.nativeLockPhase != .restored {
                     LabeledContent("Applied video") {

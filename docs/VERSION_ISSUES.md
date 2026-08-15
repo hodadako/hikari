@@ -21,6 +21,8 @@
   활성 상태로 전환할 수 없었다.
 - 메뉴 막대 팝오버가 외부 클릭 뒤에도 남는 경우가 있었고, 기존 앱 비활성화 처리는
   별도 설정 창까지 함께 숨겼다.
+- Native Lock이 활성 또는 복구 필요 상태인 채 macOS major version을 올리면, 새 OS에서
+  write가 차단될 뿐 아니라 기존 transaction의 Restore도 같은 guard에 막힐 수 있다.
 
 ### 조치
 
@@ -47,6 +49,8 @@
   privileged helper 또는 system manifest/media write를 실행하지 않는다.
 - 메뉴 막대 팝오버가 표시된 동안 외부 마우스 클릭을 감시해 닫되, 별도 설정 창을
   숨기던 app-deactivation 처리는 제거한다. 큰 설정 창은 빨간 닫기 버튼으로만 숨긴다.
+- Native Lock의 미완료 transaction에는 설정 화면에서 macOS major 업데이트 전 Restore를
+  요구하는 경고를 표시한다. 현재 major-version write guard는 유지한다.
 
 ### 검증
 
@@ -70,6 +74,8 @@
   Native 설정의 Apply 버튼도 safety report가 `ready`가 아닌 동안 비활성화한다.
 - 실제 잠금 화면의 영상 표시와 unlock 뒤 다음 잠금 재발 방지는 macOS 15에서만 수동 확인
   대상이며, macOS 26은 공식 catalog refresh/selection 경로가 확인될 때까지 차단한다.
+- active·recoveryRequired·restored·없음의 transaction phase별 major-update Restore 경고
+  조건을 Native Lock 단위 테스트로 검증한다.
 
 ## v0.3.1 — 2026-08-14
 

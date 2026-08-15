@@ -20,6 +20,19 @@ public struct NativeLockSafetyReport: Equatable, Sendable {
     }
 }
 
+/// A Native Lock transaction must be restored before an operating-system
+/// major-version update. The system catalog and its service lifecycle can
+/// change across major versions, so an unfinished transaction must not be
+/// carried into an unreviewed environment.
+public enum NativeLockUpgradeGuard {
+    public static func requiresRestoreBeforeMajorOperatingSystemUpdate(
+        transactionPhase: NativeLockTransactionPhase?
+    ) -> Bool {
+        guard let transactionPhase else { return false }
+        return transactionPhase != .restored
+    }
+}
+
 /// Evaluates prerequisites without elevated privileges. The separate system
 /// transaction manager repeats the OS and schema checks before every write.
 public enum NativeLockSafetyInspector {
