@@ -81,14 +81,23 @@ swiftc \
   -o "${app_path}/Contents/MacOS/${app_name}"
 
 ditto Resources/LuminaNative-Info.plist "${app_path}/Contents/Info.plist"
-version="$(awk '/MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+hikari_marketing_version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+hikari_build_number="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
+if [[ ! "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  print -u2 "Invalid HIKARI_MARKETING_VERSION in project.yml"
+  exit 1
+fi
+if [[ ! "${hikari_build_number}" =~ ^[0-9]+$ ]]; then
+  print -u2 "Invalid HIKARI_BUILD_NUMBER in project.yml"
+  exit 1
+fi
 plutil -replace CFBundleDevelopmentRegion -string en "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleExecutable -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleName -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string com.hodadako.Lumina.NativeLocal "${app_path}/Contents/Info.plist"
-plutil -replace CFBundleShortVersionString -string "${version}" "${app_path}/Contents/Info.plist"
-plutil -replace CFBundleVersion -string 1 "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "${hikari_marketing_version}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "${hikari_build_number}" "${app_path}/Contents/Info.plist"
 plutil -replace LSMinimumSystemVersion -string 15.0 "${app_path}/Contents/Info.plist"
 plutil -insert CFBundleIconFile -string AppIcon "${app_path}/Contents/Info.plist"
 

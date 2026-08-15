@@ -2,6 +2,36 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.0 (1) — 2026-08-16
+
+### 이슈와 영향
+
+- Hikari는 별도 bundle ID와 설치 경로를 사용하지만 마케팅 버전은 Lumina의
+  `MARKETING_VERSION`을 공유했고, 로컬 빌드 번호는 항상 `1`로 고정됐다.
+  따라서 Hikari 코드를 갱신해도 About과 bundle plist만으로 어떤 빌드인지
+  구분하거나 독립적으로 버전을 올릴 수 없었다.
+
+### 조치
+
+- `project.yml`에 Hikari 전용 `HIKARI_MARKETING_VERSION`과
+  `HIKARI_BUILD_NUMBER`을 추가하고 첫 독립 기준을 `0.1.0 (1)`로 정했다.
+- Hikari Info.plist, Xcode 타깃, 로컬 빌드 스크립트, Native Local CI가 모두
+  같은 두 값을 사용·검증하도록 연결했다. 일반 Lumina의 `0.3.1 (1)`과
+  release tag 검증은 바꾸지 않았다.
+
+### 검증
+
+- 로컬 Hikari 빌드의 `CFBundleShortVersionString`이 `0.1.0`,
+  `CFBundleVersion`이 `1`인지 확인한다.
+- Native Local CI의 macOS 15·26 Xcode 빌드가 같은 bundle plist 값을
+  검사한다.
+
+### 남은 제약
+
+- Hikari는 source-only 로컬 빌드이며 앱 내 업데이트, artifact, GitHub Release
+  또는 전용 태그를 만들지 않는다. 다음 Hikari 변경 전
+  `HIKARI_MARKETING_VERSION`과 `HIKARI_BUILD_NUMBER`을 함께 올린다.
+
 ## Unreleased — Native 지속 검증 및 검은 잠금 화면 복구
 
 ### 이슈와 영향

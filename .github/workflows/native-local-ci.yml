@@ -92,6 +92,14 @@ jobs:
             "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
             "${app_path}/Contents/Info.plist")" = "Hikari"
+          hikari_marketing_version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+          hikari_build_number="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
+          [[ "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${hikari_build_number}" =~ ^[0-9]+$ ]]
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+            "${app_path}/Contents/Info.plist")" = "${hikari_marketing_version}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            "${app_path}/Contents/Info.plist")" = "${hikari_build_number}"
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' \
             "${app_path}/Contents/Info.plist")" = "15.0"
       - name: Validate local build script syntax

@@ -14,6 +14,8 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 0.3.1
+    HIKARI_MARKETING_VERSION: 0.1.0
+    HIKARI_BUILD_NUMBER: 1
 targets:
   LuminaCore:
     type: framework.static
@@ -133,8 +135,8 @@ targets:
       properties:
         CFBundleDisplayName: Hikari
         CFBundleName: Hikari
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(HIKARI_MARKETING_VERSION)
+        CFBundleVersion: $(HIKARI_BUILD_NUMBER)
         LSApplicationCategoryType: public.app-category.utilities
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSUIElement: true
