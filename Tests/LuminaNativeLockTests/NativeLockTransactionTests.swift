@@ -84,6 +84,7 @@ final class NativeLockTransactionTests: XCTestCase {
         XCTAssertTrue(
             try manifestContainsLuminaAsset(record.request.assetID)
         )
+        XCTAssertEqual(try nativeCategoryDisplayName(), "Hikari")
         XCTAssertNotNil(try manager.activeTransaction())
 
         _ = try store.beginRestore(transactionID: record.request.transactionID)
@@ -643,5 +644,18 @@ final class NativeLockTransactionTests: XCTestCase {
         let root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         let assets = root["assets"] as! [[String: Any]]
         return assets.contains { $0["id"] as? String == assetID.uuidString }
+    }
+
+    private func nativeCategoryDisplayName() throws -> String? {
+        let data = try Data(
+            contentsOf: idleAssetsURL.appendingPathComponent(
+                "Customer/entries.json"
+            )
+        )
+        let root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let categories = root["categories"] as! [[String: Any]]
+        return categories.first {
+            $0["id"] as? String == NativeLockSystemTransactionManager.categoryID
+        }?["localizedNameKey"] as? String
     }
 }

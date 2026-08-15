@@ -50,7 +50,7 @@ public enum NativeLockSafetyInspector {
             return NativeLockSafetyReport(
                 state: .active,
                 title: "Native Lock is active",
-                detail: "The macOS-owned Lock Screen uses the staged Lumina video."
+                detail: "The macOS-owned Lock Screen uses the staged Hikari video."
             )
         }
 
@@ -58,7 +58,7 @@ public enum NativeLockSafetyInspector {
             return NativeLockSafetyReport(
                 state: .mediaRequired,
                 title: "Import a video first",
-                detail: "The selected video remains in Lumina Native Local's private application-support directory."
+                detail: "The selected video remains in Hikari's private application-support directory."
             )
         }
 

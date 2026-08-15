@@ -93,7 +93,7 @@ final class AppModel: ObservableObject {
             self.contents = contentStore.load()
             self.settings = settingsStore.load()
         } catch {
-            fatalError("Lumina could not prepare its storage: \(error.localizedDescription)")
+            fatalError("\(variant.displayName) could not prepare its storage: \(error.localizedDescription)")
         }
 
         stateMonitor.onStateChanged = { [weak self] in
@@ -208,6 +208,13 @@ final class AppModel: ObservableObject {
 
     var appDisplayName: String { variant.displayName }
 
+    var attentionTitle: String {
+        NSLocalizedString(
+            variant.isNativeLocal ? "Hikari Needs Attention" : "Lumina Needs Attention",
+            comment: "App-specific error alert title"
+        )
+    }
+
     var isNativeLocalBuild: Bool { variant.isNativeLocal }
 
     var supportsScreenSaver: Bool { variant.supportsScreenSaver }
@@ -275,7 +282,10 @@ final class AppModel: ObservableObject {
     var menuBarIconImage: NSImage {
         menuBarIconImage(for: settings.menuBarIconStyle)
             ?? NSImage(named: "MenuBarIconLumina")
-            ?? NSImage(systemSymbolName: "sparkles.tv", accessibilityDescription: "Lumina")
+            ?? NSImage(
+                systemSymbolName: "sparkles.tv",
+                accessibilityDescription: variant.displayName
+            )
             ?? NSImage()
     }
 
@@ -344,7 +354,15 @@ final class AppModel: ObservableObject {
             reconcilePlayback()
             synchronizeScreenSaverContent()
         } catch {
-            presentedError = error.localizedDescription
+            if variant.isNativeLocal,
+               error as? LuminaError == .duplicateContent {
+                presentedError = NSLocalizedString(
+                    "This video is already in your Hikari library.",
+                    comment: "Native Local duplicate video error"
+                )
+            } else {
+                presentedError = error.localizedDescription
+            }
         }
     }
 

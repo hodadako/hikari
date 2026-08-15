@@ -39,6 +39,10 @@ final class NativeLockSafetyTests: XCTestCase {
         )
 
         XCTAssertEqual(report.state, .mediaRequired)
+        XCTAssertEqual(
+            report.detail,
+            "The selected video remains in Hikari's private application-support directory."
+        )
     }
 
     func testReportsReadyWhenPrerequisitesArePresent() {
@@ -52,6 +56,24 @@ final class NativeLockSafetyTests: XCTestCase {
         )
 
         XCTAssertEqual(report.state, .ready)
+    }
+
+    func testActiveReportUsesHikariProductName() {
+        let report = NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: OperatingSystemVersion(
+                majorVersion: 15,
+                minorVersion: 0,
+                patchVersion: 0
+            ),
+            hasSelectedMedia: true,
+            transactionPhase: .active
+        )
+
+        XCTAssertEqual(report.state, .active)
+        XCTAssertEqual(
+            report.detail,
+            "The macOS-owned Lock Screen uses the staged Hikari video."
+        )
     }
 
     func testReportsRecoveryRequired() {
