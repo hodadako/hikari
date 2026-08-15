@@ -16,6 +16,9 @@
 - 실제 macOS 15.7.9에서 Native mapping과 system asset은 정상인데도 unlock ramp-down 중
   `WallpaperVideoCore.VideoSampleReadingErrors` Code 4가 발생했다. 고착된
   `WallpaperVideoExtension`은 다음 잠금에서 frame을 enqueue하지 않아 검은 화면을 보였다.
+- macOS 26.6.1에서는 manifest schema version 1과 user index의 기본 구조가 읽혔지만,
+  실제 local Apply 뒤 macOS가 새 wallpaper mapping을 유지하지 않아 Native Lock을
+  활성 상태로 전환할 수 없었다.
 
 ### 조치
 
@@ -57,7 +60,12 @@
   것을 확인했다.
 - Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
   Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
-- 실제 잠금 화면의 영상 표시와 unlock 뒤 다음 잠금 재발 방지는 수동 확인 필요.
+- macOS 26.6.1 실제 local Apply는 `wallpaperMappingRejected`로 실패했다. 즉시 Restore를
+  실행해 Hikari system asset/category와 staged asset reference가 모두 제거되고 journal이
+  `restored`로 끝난 것을 확인했다. 따라서 macOS 26 system write는 활성화하지 않는다.
+  Native 설정의 Apply 버튼도 safety report가 `ready`가 아닌 동안 비활성화한다.
+- 실제 잠금 화면의 영상 표시와 unlock 뒤 다음 잠금 재발 방지는 macOS 15에서만 수동 확인
+  대상이며, macOS 26은 공식 catalog refresh/selection 경로가 확인될 때까지 차단한다.
 
 ## v0.3.1 — 2026-08-14
 

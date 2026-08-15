@@ -746,10 +746,7 @@ private struct NativeLockSettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(
-                        model.selectedContent == nil
-                            || model.isNativeLockWorking
-                            || (model.nativeLockPhase != nil
-                                && model.nativeLockPhase != .restored)
+                        report.state != .ready || model.isNativeLockWorking
                     )
 
                     if model.nativeLockPhase != nil,
