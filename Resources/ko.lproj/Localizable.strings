@@ -200,3 +200,4 @@
 "Restore Previous Wallpaper" = "이전 배경화면 복원";
 "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Hikari-owned system assets." = "Native Local은 Control-Command-Q를 가로채지 않고 macOS 시스템 잠금 경로로 지원합니다. 적용 전에 검증된 백업과 journal을 만든 뒤 비공개 macOS aerial 저장소를 변경합니다. 복원은 저장된 배경화면 매핑을 되돌리고 Hikari 소유 시스템 asset만 제거합니다.";
 "Native Lock is available only in the Hikari Native Local target." = "Native 잠금은 Hikari Native Local 타깃에서만 사용할 수 있습니다.";
+"Before installing a new macOS major version, restore Hikari from this screen. An unfinished Native Lock transaction may not be recoverable after the update." = "새 macOS major 버전을 설치하기 전에 이 화면에서 Hikari를 복원하세요. 미완료 Native Lock transaction은 업데이트 뒤 복원하지 못할 수 있습니다.";
