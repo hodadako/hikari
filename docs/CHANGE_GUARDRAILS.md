@@ -49,3 +49,4 @@
 
 - 이미 push한 태그는 이동하거나 재사용하지 않는다. 후속 수정은 새 버전과 새 태그로 릴리스한다.
 - 릴리스 전에 `project.yml`의 마케팅 버전, 태그, 릴리스 JSON 해석, 설치된 화면 보호기 업데이트 흐름을 함께 점검한다.
+- Hikari는 `HIKARI_MARKETING_VERSION`과 `HIKARI_BUILD_NUMBER`으로 Lumina와 독립 관리한다. Hikari 로컬 빌드 또는 검증용 배포 전에 두 값을 함께 올리고, 로컬 빌드·Xcode 빌드·Native Local CI의 bundle plist가 그 값과 일치해야 한다. Hikari는 source-only이므로 이 버전 변경이 일반 Lumina 릴리스 태그나 앱 내 업데이트를 만들지는 않는다.
