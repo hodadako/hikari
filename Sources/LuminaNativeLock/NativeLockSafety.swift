@@ -46,7 +46,7 @@ public enum NativeLockSafetyInspector {
             return NativeLockSafetyReport(
                 state: .unsupportedOperatingSystem,
                 title: "Reviewed macOS 15 or 26 build required",
-                detail: "Native Lock writes are disabled until this macOS major version's wallpaper schema is reviewed."
+                detail: "Lock Screen changes are disabled until this macOS major version is reviewed."
             )
         }
 
@@ -55,7 +55,7 @@ public enum NativeLockSafetyInspector {
            transactionPhase != .restored {
             return NativeLockSafetyReport(
                 state: .recoveryRequired,
-                title: "Native Lock recovery required",
+                title: "Lock Screen recovery required",
                 detail: "Restore the saved wallpaper state before applying another video."
             )
         }
@@ -63,7 +63,7 @@ public enum NativeLockSafetyInspector {
         if transactionPhase == .active {
             return NativeLockSafetyReport(
                 state: .active,
-                title: "Native Lock is active",
+                title: "Lock Screen is active",
                 detail: "The macOS-owned Lock Screen uses the staged Hikari video."
             )
         }

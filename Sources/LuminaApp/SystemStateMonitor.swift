@@ -86,11 +86,14 @@ final class SystemStateMonitor {
         observe(defaultCenter, name: NSApplication.didBecomeActiveNotification) { [weak self] in
             guard let self else { return }
             // Becoming active is not proof of an unlock. Ask WindowServer for
-            // the current lock state and let the normal policy decide.
+            // the current lock state and let the normal policy decide.  An
+            // ordinary app activation does not invalidate display surfaces;
+            // rebuilding them here visibly flashes the desktop black before
+            // AVFoundation has produced a new frame.
             refreshPowerState()
             refreshLockState()
             refreshScreenSaverState()
-            scheduleRecovery(after: 180_000_000)
+            scheduleStateChanged(after: 180_000_000)
         }
         observe(defaultCenter, name: .NSProcessInfoPowerStateDidChange) { [weak self] in
             guard let self else { return }
