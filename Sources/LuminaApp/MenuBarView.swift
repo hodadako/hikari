@@ -52,7 +52,7 @@ struct MenuBarView: View {
                 showSettings()
             } label: {
                 Label(
-                    model.isNativeLocalBuild ? "Native Lock Setup…" : "Settings…",
+                    model.isNativeLocalBuild ? "Lock Screen Settings…" : "Settings…",
                     systemImage: model.isNativeLocalBuild ? "lock.display" : "gearshape"
                 )
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -60,7 +60,7 @@ struct MenuBarView: View {
 
             if model.isNativeLocalBuild {
                 HStack {
-                    Label("Native Lock Shortcut", systemImage: "lock.fill")
+                    Label("Lock Screen Shortcut", systemImage: "lock.fill")
                     Spacer()
                     ShortcutKeyCapsView(compact: true)
                 }

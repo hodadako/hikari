@@ -57,12 +57,9 @@ struct SettingsView: View {
                 GeneralSettingsView(model: model)
                     .tabItem { Label("General", systemImage: "gearshape") }
                     .tag(SettingsSection.general)
-                AppearanceSettingsView(model: model)
-                    .tabItem { Label("Appearance", systemImage: "paintbrush") }
-                    .tag(SettingsSection.appearance)
                 if model.isNativeLocalBuild {
                     NativeLockSettingsView(model: model)
-                        .tabItem { Label("Native Lock", systemImage: "lock.display") }
+                        .tabItem { Label("Lock Screen", systemImage: "lock.display") }
                         .tag(SettingsSection.nativeLock)
                 } else {
                     ScreenSaverSettingsView(model: model)
@@ -91,7 +88,6 @@ struct SettingsView: View {
 
 private enum SettingsSection: Hashable {
     case general
-    case appearance
     case screenSaver
     case nativeLock
     case about
@@ -178,10 +174,52 @@ private struct WelcomeView: View {
 
 private struct GeneralSettingsView: View {
     @ObservedObject var model: AppModel
+    @State private var pendingDeletion: LiveContent?
 
     var body: some View {
         Form {
-            Section {
+            Section("Library") {
+                ForEach(model.contents) { content in
+                    HStack(spacing: 12) {
+                        ThumbnailView(url: model.thumbnailURL(for: content))
+                            .frame(width: 72, height: 44)
+                        VStack(alignment: .leading) {
+                            Text(content.title)
+                            Text(
+                                "\(content.width) × \(content.height) · "
+                                    + durationText(content.duration)
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if content.id == model.selectedContent?.id {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel("Selected")
+                        } else {
+                            Button("Use") {
+                                model.select(content)
+                            }
+                        }
+                        Button(role: .destructive) {
+                            pendingDeletion = content
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Delete \(content.title)")
+                    }
+                    .padding(.vertical, 3)
+                }
+                Button {
+                    chooseVideo()
+                } label: {
+                    Label("Import Video…", systemImage: "plus")
+                }
+            }
+
+            Section("Playback") {
                 Toggle(
                     isOn: Binding(
                         get: { model.settings.launchAtLogin },
@@ -210,30 +248,8 @@ private struct GeneralSettingsView: View {
                         set: model.setMuted
                     )
                 )
-            } header: {
-                Text("Playback")
-            } footer: {
-                Text(
-                    localized(
-                        model.isNativeLocalBuild
-                            ? "Hikari keeps the macOS wallpaper and menu bar unchanged. "
-                                + "Playback pauses while the Mac is locked or asleep."
-                            : "Lumina keeps the macOS wallpaper and menu bar unchanged. "
-                                + "Playback pauses while the Mac is locked or asleep."
-                    )
-                )
             }
-        }
-        .formStyle(.grouped)
-    }
-}
 
-private struct AppearanceSettingsView: View {
-    @ObservedObject var model: AppModel
-    @State private var pendingDeletion: LiveContent?
-
-    var body: some View {
-        Form {
             Section("App Icon") {
                 HStack(spacing: 16) {
                     ForEach(AppIconStyle.allCases) { style in
@@ -281,19 +297,6 @@ private struct AppearanceSettingsView: View {
                         )
                     }
                 }
-                Text(
-                    localized(
-                        model.isNativeLocalBuild
-                            ? "Choose a preset or import your own image. Your choice is used "
-                                + "by Hikari in Finder, Spotlight, and the app switcher. "
-                                + "The menu bar icon has its own setting below."
-                            : "Choose a preset or import your own image. Your choice is used "
-                                + "by Lumina in Finder, Spotlight, and the app switcher. "
-                                + "The menu bar icon has its own setting below."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
             Section("Menu Bar Icon") {
@@ -340,13 +343,6 @@ private struct AppearanceSettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                Text(
-                    localized(
-                        "This icon is independent from the app icon and appears only in the menu bar."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
             Section("Scaling") {
@@ -361,57 +357,8 @@ private struct AppearanceSettingsView: View {
                     Text("Fit").tag(ScalingMode.fit)
                 }
                 .pickerStyle(.segmented)
-                Text(
-                    localized(
-                        model.settings.scalingMode == .fill
-                            ? "Fills each display; some edges may be cropped."
-                            : "Shows the whole video; letterboxing may appear."
-                    )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
 
-            Section("Library") {
-                ForEach(model.contents) { content in
-                    HStack(spacing: 12) {
-                        ThumbnailView(url: model.thumbnailURL(for: content))
-                            .frame(width: 72, height: 44)
-                        VStack(alignment: .leading) {
-                            Text(content.title)
-                            Text(
-                                "\(content.width) × \(content.height) · "
-                                    + durationText(content.duration)
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if content.id == model.selectedContent?.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.tint)
-                                .accessibilityLabel("Selected")
-                        } else {
-                            Button("Use") {
-                                model.select(content)
-                            }
-                        }
-                        Button(role: .destructive) {
-                            pendingDeletion = content
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel("Delete \(content.title)")
-                    }
-                    .padding(.vertical, 3)
-                }
-                Button {
-                    chooseVideo()
-                } label: {
-                    Label("Import Video…", systemImage: "plus")
-                }
-            }
         }
         .formStyle(.grouped)
         .confirmationDialog(
@@ -732,7 +679,7 @@ private struct NativeLockSettingsView: View {
                     Label {
                         Text(
                             localized(
-                                "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Native Lock transaction may not be recoverable after the update."
+                                "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update."
                             )
                         )
                         .fixedSize(horizontal: false, vertical: true)
@@ -780,38 +727,15 @@ private struct NativeLockSettingsView: View {
                         .disabled(model.isNativeLockWorking)
                     }
                 }
+
                 #else
-                Text("Native Lock is available only in the Hikari Native Local target.")
+                Text("Lock Screen controls are available in Hikari.")
                     .foregroundStyle(.secondary)
                 #endif
             } header: {
-                Text("Native Lock (Local)")
+                Text("Lock Screen")
             }
 
-            Section {
-                LabeledContent("System lock shortcut") {
-                    HStack(spacing: 8) {
-                        Text("Supported (system-owned)")
-                        ShortcutKeyCapsView()
-                    }
-                }
-                LabeledContent("Automatic updates") {
-                    Text("Disabled")
-                }
-                LabeledContent("Managed media") {
-                    Text(model.managedMediaDirectoryDisplayPath)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                }
-            } header: {
-                Text("Isolation")
-            } footer: {
-                Text(
-                    localized(
-                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the macOS Aerial store. macOS 15 requires administrator approval; macOS 26 uses the current user's Aerial catalog. Restore returns the saved wallpaper mapping and removes only Hikari-owned assets."
-                    )
-                )
-            }
         }
         .formStyle(.grouped)
     }
@@ -836,7 +760,7 @@ private struct AboutView: View {
                 .font(.title.bold())
             Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)
-            Text("Native live wallpaper and screen saver for macOS.")
+            Text("Live wallpaper for macOS.")
                 .foregroundStyle(.secondary)
             Link(
                 "GitHub Repository",
