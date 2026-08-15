@@ -27,6 +27,9 @@
   산출물을 `/Applications/Hikari.app`에 교체 설치하고 Launch Services와 Spotlight에
   명시적으로 등록해 검색 후 직접 실행할 수 있게 한다. bundle ID와 별도 저장소,
   CI의 compile/test-only 격리는 그대로 유지한다.
+- Native Local의 설정, 환영 화면, 메뉴, 오류 안내와 system Aerial category에 남아 있던
+  일반 앱 제품명을 `Hikari`로 분기했다. 일반 빌드의 `Lumina` 표기와 기존 저장소 경로,
+  bundle ID 및 transaction 식별자는 호환성을 위해 유지한다.
 - 일반 wallpaper는 콘텐츠가 있는 동안 5초 간격으로 display topology, player 오류,
   다중 session drift를 함께 조정한다. Pause 중에도 topology 확인은 유지한다.
 - Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
@@ -43,7 +46,9 @@
 - workflow YAML과 matrix 구성을 로컬에서 검증하고, push 뒤 macOS 15/26 표준 및
   Native Local GitHub Actions 결과를 확인한다.
 - `Hikari.app`의 앱 이름, 실행 파일, bundle ID, 설치 경로, ad-hoc 서명 및 Spotlight
-  등록을 로컬 빌드와 Native Local CI 번들 검사에서 확인한다.
+  등록을 로컬 빌드와 Native Local CI 번들 검사에서 확인한다. macOS 26.6.1 로컬
+  실행에서 일반·모양·Native 잠금·정보 탭의 제품명 표기가 `Hikari`이며, 같은 소스의
+  macOS 13 일반 빌드 compilation condition도 통과했다.
 - `swift build`와 Native Local 로컬 앱 빌드, macOS 13 standard 직접 컴파일 통과.
 - 임시 user index에서 새 display choice 추가 → 자동 reconcile → 전체 asset ID 일치 →
   restore overlay로 새 display 원래 값과 기존 원래 값을 각각 복구하는 round trip 통과.

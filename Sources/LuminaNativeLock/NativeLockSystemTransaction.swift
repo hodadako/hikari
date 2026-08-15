@@ -507,18 +507,18 @@ public final class NativeLockSystemTransactionManager: @unchecked Sendable {
         let subcategory: [String: Any] = [
             "id": Self.subcategoryID,
             "previewImage": previewURL.absoluteString,
-            "localizedNameKey": "Lumina",
+            "localizedNameKey": "Hikari",
             "preferredOrder": 0,
             "representativeAssetID": assetID,
-            "localizedDescriptionKey": "Local videos managed by Lumina Native Local"
+            "localizedDescriptionKey": "Local videos managed by Hikari"
         ]
         let category: [String: Any] = [
             "subcategories": [subcategory],
             "id": Self.categoryID,
             "previewImage": previewURL.absoluteString,
-            "localizedNameKey": "Lumina",
+            "localizedNameKey": "Hikari",
             "preferredOrder": 0,
-            "localizedDescriptionKey": "Local videos managed by Lumina Native Local",
+            "localizedDescriptionKey": "Local videos managed by Hikari",
             "representativeAssetID": assetID
         ]
         assets.append(asset)

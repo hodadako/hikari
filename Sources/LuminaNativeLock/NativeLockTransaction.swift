@@ -156,7 +156,7 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
         case .systemManifestChanged:
             "The system aerial manifest changed during the transaction."
         case .systemAssetChanged:
-            "A staged system asset changed after Lumina applied it."
+            "A staged system asset changed after Hikari applied it."
         case .helperMissing:
             "The Native Lock privileged helper is missing from this local build."
         case let .helperFailed(message):
@@ -950,7 +950,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return String((sanitized.isEmpty ? "Lumina Video" : sanitized).prefix(120))
+        return String((sanitized.isEmpty ? "Hikari Video" : sanitized).prefix(120))
     }
 }
 

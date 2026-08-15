@@ -75,7 +75,7 @@ struct SettingsView: View {
             }
             .padding(20)
             .alert(
-                "Lumina Needs Attention",
+                model.attentionTitle,
                 isPresented: Binding(
                     get: { model.presentedError != nil },
                     set: { if !$0 { model.presentedError = nil } }
@@ -110,7 +110,13 @@ private struct WelcomeView: View {
             VStack(spacing: 8) {
                 Text("Welcome to \(model.appDisplayName)")
                     .font(.largeTitle.bold())
-                Text("Choose a video and Lumina will copy it into a managed library,\nthen play it quietly behind your desktop.")
+                Text(
+                    localized(
+                        model.isNativeLocalBuild
+                            ? "Choose a video and Hikari will copy it into a managed library,\nthen play it quietly behind your desktop."
+                            : "Choose a video and Lumina will copy it into a managed library,\nthen play it quietly behind your desktop."
+                    )
+                )
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }
@@ -146,7 +152,7 @@ private struct WelcomeView: View {
         }
         .padding(36)
         .alert(
-            "Lumina Needs Attention",
+            model.attentionTitle,
             isPresented: Binding(
                 get: { model.presentedError != nil },
                 set: { if !$0 { model.presentedError = nil } }
@@ -177,12 +183,19 @@ private struct GeneralSettingsView: View {
         Form {
             Section {
                 Toggle(
-                    "Launch Lumina at login",
                     isOn: Binding(
                         get: { model.settings.launchAtLogin },
                         set: model.setLaunchAtLogin
                     )
-                )
+                ) {
+                    Text(
+                        localized(
+                            model.isNativeLocalBuild
+                                ? "Launch Hikari at login"
+                                : "Launch Lumina at login"
+                        )
+                    )
+                }
                 Toggle(
                     "Pause while on battery",
                     isOn: Binding(
@@ -202,8 +215,11 @@ private struct GeneralSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "Lumina keeps the macOS wallpaper and menu bar unchanged. "
-                            + "Playback pauses while the Mac is locked or asleep."
+                        model.isNativeLocalBuild
+                            ? "Hikari keeps the macOS wallpaper and menu bar unchanged. "
+                                + "Playback pauses while the Mac is locked or asleep."
+                            : "Lumina keeps the macOS wallpaper and menu bar unchanged. "
+                                + "Playback pauses while the Mac is locked or asleep."
                     )
                 )
             }
@@ -233,7 +249,7 @@ private struct AppearanceSettingsView: View {
                                     image: model.appIconImage(for: style),
                                     size: 64
                                 )
-                                Text(style.localizedName)
+                                Text(appIconDisplayName(for: style))
                                     .font(.caption)
                             }
                             .padding(8)
@@ -260,16 +276,20 @@ private struct AppearanceSettingsView: View {
                                     "%@ app icon",
                                     comment: "App icon option accessibility label"
                                 ),
-                                style.localizedName
+                                appIconDisplayName(for: style)
                             )
                         )
                     }
                 }
                 Text(
                     localized(
-                        "Choose a preset or import your own image. Your choice is used "
-                            + "by Lumina in Finder, Spotlight, and the app switcher. "
-                            + "The menu bar icon has its own setting below."
+                        model.isNativeLocalBuild
+                            ? "Choose a preset or import your own image. Your choice is used "
+                                + "by Hikari in Finder, Spotlight, and the app switcher. "
+                                + "The menu bar icon has its own setting below."
+                            : "Choose a preset or import your own image. Your choice is used "
+                                + "by Lumina in Finder, Spotlight, and the app switcher. "
+                                + "The menu bar icon has its own setting below."
                     )
                 )
                 .font(.caption)
@@ -295,7 +315,7 @@ private struct AppearanceSettingsView: View {
                                     size: 58,
                                     isTemplate: style.isTemplate
                                 )
-                                Text(style.localizedName)
+                                Text(menuBarIconDisplayName(for: style))
                                     .font(.caption)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.center)
@@ -395,7 +415,11 @@ private struct AppearanceSettingsView: View {
         }
         .formStyle(.grouped)
         .confirmationDialog(
-            "Delete this video from Lumina?",
+            localized(
+                model.isNativeLocalBuild
+                    ? "Delete this video from Hikari?"
+                    : "Delete this video from Lumina?"
+            ),
             isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
@@ -431,7 +455,11 @@ private struct AppearanceSettingsView: View {
         panel.allowedContentTypes = [.image]
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = localized("Choose an image for your custom Lumina icon.")
+        panel.message = localized(
+            model.isNativeLocalBuild
+                ? "Choose an image for your custom Hikari icon."
+                : "Choose an image for your custom Lumina icon."
+        )
         guard panel.runModal() == .OK, let url = panel.url else { return }
         model.importCustomAppIcon(from: url)
     }
@@ -449,6 +477,18 @@ private struct AppearanceSettingsView: View {
     private func durationText(_ duration: Double) -> String {
         let seconds = Int(duration.rounded())
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private func appIconDisplayName(for style: AppIconStyle) -> String {
+        model.isNativeLocalBuild && style == .lumina
+            ? model.appDisplayName
+            : style.localizedName
+    }
+
+    private func menuBarIconDisplayName(for style: MenuBarIconStyle) -> String {
+        model.isNativeLocalBuild && style == .lumina
+            ? model.appDisplayName
+            : style.localizedName
     }
 }
 
@@ -721,7 +761,7 @@ private struct NativeLockSettingsView: View {
                     }
                 }
                 #else
-                Text("Native Lock is available only in the Lumina Native Local target.")
+                Text("Native Lock is available only in the Hikari Native Local target.")
                     .foregroundStyle(.secondary)
                 #endif
             } header: {
@@ -748,7 +788,7 @@ private struct NativeLockSettingsView: View {
             } footer: {
                 Text(
                     localized(
-                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Lumina-owned system assets."
+                        "Native Local supports Control-Command-Q through the macOS system lock path instead of intercepting it. Apply creates verified backups and journals before changing the private macOS aerial store. Restore returns the saved wallpaper mapping and removes only Hikari-owned system assets."
                     )
                 )
             }

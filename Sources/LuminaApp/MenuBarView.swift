@@ -131,7 +131,7 @@ struct MenuBarView: View {
         .padding(14)
         .frame(width: 300)
         .alert(
-            "Lumina Needs Attention",
+            model.attentionTitle,
             isPresented: Binding(
                 get: { model.presentedError != nil },
                 set: { if !$0 { model.presentedError = nil } }
@@ -197,7 +197,11 @@ struct MenuBarView: View {
         panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = localized("Choose a video for your Lumina wallpaper.")
+        panel.message = localized(
+            model.isNativeLocalBuild
+                ? "Choose a video for your Hikari wallpaper."
+                : "Choose a video for your Lumina wallpaper."
+        )
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             await model.importVideo(from: url)
