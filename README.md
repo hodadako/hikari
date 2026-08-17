@@ -140,8 +140,10 @@ it with Launch Services and Spotlight, and prints that path. You can then find
 and launch `Hikari` from Spotlight. Import
 the video first, then use Settings → Native Lock → Apply Selected Video. Apply
 and Restore each request macOS administrator authorization. Native Lock system
-writes are schema-gated to macOS 15; other major versions remain read-only until
-their wallpaper format is reviewed.
+writes use separate reviewed paths for macOS 15 and macOS 26; other major
+versions remain read-only until their format is reviewed. For a complete new-Mac
+setup, build, verification, and recovery guide, see
+[Building Hikari Native Local on Another Mac](docs/LOCAL_NATIVE_BUILD.md).
 
 For local apply/restore diagnostics, stream the transaction and one-shot tool
 events in another Terminal window:
