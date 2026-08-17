@@ -357,6 +357,24 @@ window와 `AVPlayerLayer`를 재생성했다. Lock Screen surface가 사라지�
 unlock 뒤에는 재생 정책만 한 번 더 확인하고 desktop surface를 재생성하지 않는다.
 실제 잠자기 복귀, 디스플레이 변경 및 Space 전환의 display recovery는 유지한다.
 
+## 상태 항목 symbol effect를 비반복 옵션으로만 변경
+
+### 시도
+
+메뉴 막대 반짝임의 `.repeating` 옵션만 제거하고 `isActive: true` 기반의 symbol
+effect를 유지했다.
+
+### 결과
+
+macOS 26에서 `isActive`가 true인 동안 `RBSymbolAnimator`와 SwiftUI display list
+렌더링이 계속 실행됐다. 4K 영상 재생 중 CPU 표본이 다시 약 16~21%까지 올라가
+상태 항목의 지속 비용을 제거하지 못했다.
+
+### 해결
+
+메뉴 막대 반짝임을 정적 symbol로 표시한다. 아이콘 크기와 반짝임의 위쪽 offset은
+유지하면서 SwiftUI의 지속 animation transaction을 만들지 않는다.
+
 ## macOS 26에서 macOS 15의 Native catalog transaction을 그대로 활성화
 
 ### 시도
