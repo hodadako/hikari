@@ -119,7 +119,6 @@ private final class PassthroughHostingView<Content: View>: NSHostingView<Content
 
 private struct MenuBarCompositeIconView: View {
     @ObservedObject var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -147,42 +146,14 @@ private struct MenuBarCompositeIconView: View {
                 .font(.system(size: 5.5, weight: .semibold))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(.white)
-                .symbolEffect(
-                    .pulse.wholeSymbol,
-                    options: .repeating,
-                    isActive: !reduceMotion
-                )
                 .offset(y: -2)
         } else if let heartbeatImage = model.menuBarHeartbeatImage {
-            LegacyHeartbeatView(
-                image: heartbeatImage,
-                reduceMotion: reduceMotion
-            )
-            .frame(width: 5.5, height: 5.5)
-            .offset(y: -2)
+            Image(nsImage: heartbeatImage)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 5.5, height: 5.5)
+                .offset(y: -2)
         }
-    }
-}
-
-private struct LegacyHeartbeatView: View {
-    let image: NSImage
-    let reduceMotion: Bool
-    @State private var isPulsing = false
-
-    var body: some View {
-        Image(nsImage: image)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .opacity(isPulsing ? 0.3 : 1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(
-                    .easeInOut(duration: 0.85)
-                        .repeatForever(autoreverses: true)
-                ) {
-                    isPulsing = true
-                }
-            }
     }
 }
