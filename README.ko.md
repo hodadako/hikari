@@ -131,8 +131,10 @@ scripts/build-native-local.sh
 Services와 Spotlight에 등록한 뒤 해당 경로를 출력합니다. Spotlight에서 `Hikari`를
 검색해 실행하고 영상을 가져온 뒤
 설정 → Native 잠금 → 선택한 영상 적용을 사용합니다. 적용과 복원 때마다 macOS
-관리자 승인이 필요합니다. system write는 검토된 macOS 15 schema에서만 허용하며,
-다른 major 버전은 해당 wallpaper 형식을 다시 검토하기 전까지 read-only입니다.
+관리자 승인이 필요합니다. system write는 검토된 macOS 15와 macOS 26의 별도 경로에서만
+허용하며, 다른 major 버전은 해당 형식을 다시 검토하기 전까지 read-only입니다. 새 Mac
+준비, 빌드, 검증과 복원까지의 전체 절차는
+[다른 Mac에서 Hikari Native Local 빌드하기](docs/LOCAL_NATIVE_BUILD.ko.md)를 확인하세요.
 
 로컬 적용·복원 진단 시 다른 Terminal 창에서 transaction과 one-shot 도구 로그를
 확인할 수 있습니다.
