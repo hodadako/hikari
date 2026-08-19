@@ -18,6 +18,12 @@ Native Lock은 관리자 승인을 받은 뒤 macOS가 관리하는 비공개 �
 - Hikari는 소스 전용입니다. 일반 Lumina Portable 릴리스는 별도 앱이며 Native Lock을
   포함하지 않습니다.
 
+직접 빌드 스크립트는 출력을 만들기 전에 compiler 도구, 소스 디렉터리, localization과
+아이콘, `LuminaNative-Info.plist`, Hikari 버전 값을 읽기 전용으로 사전 점검합니다.
+`entries.json`과 `Index.plist`는 빌드 입력이 아닙니다. macOS의 사용자 또는 system
+wallpaper 저장소가 소유하며, 실행 중인 Native Lock transaction이 시작된 뒤 검증하고
+snapshot합니다. 빌드 스크립트는 이 runtime 파일을 bundle 안에 만들거나 복사하지 않습니다.
+
 ## 1. Mac 준비
 
 Xcode 16 이상 전체 설치본을 설치하고 한 번 실행한 다음 라이선스를 승인하세요.

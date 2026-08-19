@@ -85,4 +85,11 @@ final class DisplayTopologyTests: XCTestCase {
             2
         )
     }
+
+    func testDisplayRecoveryRebuildsOnlyAfterTopologySettles() {
+        XCTAssertEqual(
+            DisplayRecoveryPolicy.passes(for: [0, 250, 650]),
+            [.topology, .topology, .settled]
+        )
+    }
 }

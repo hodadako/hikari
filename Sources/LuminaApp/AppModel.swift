@@ -110,7 +110,15 @@ final class AppModel: ObservableObject {
             self.refreshLockShortcutIfNeeded()
         }
         stateMonitor.onDisplaysChanged = { [weak self] in
+            guard let self, self.hasPlayableContent else { return }
+            // Early WindowServer snapshots only update display membership and
+            // geometry. Recreating every AVPlayer here restarts all displays.
+            self.wallpaperController.synchronizeDisplayTopology()
+        }
+        stateMonitor.onDisplaysSettled = { [weak self] in
             guard let self else { return }
+            // Recreate the presentation surface once, after the display
+            // topology has settled and WindowServer can back it reliably.
             self.wallpaperController.rebuildWindowsIfContentAvailable(
                 self.hasPlayableContent
             )
