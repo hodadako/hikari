@@ -19,6 +19,13 @@ video-selection store.
 - Hikari is source-only. The normal Lumina portable release is a separate app
   and does not include Native Lock.
 
+The direct build performs a read-only preflight for its compiler tools, source
+directories, localized resources, icons, `LuminaNative-Info.plist`, and Hikari
+version values before creating output. `entries.json` and `Index.plist` are not
+build inputs: they belong to macOS's user or system wallpaper stores, and the
+running Native Lock transaction validates and snapshots them after launch.
+The build script never creates or copies those runtime files into the bundle.
+
 ## 1. Prepare the Mac
 
 Install full Xcode 16 or later, launch it once, and accept its license. If the

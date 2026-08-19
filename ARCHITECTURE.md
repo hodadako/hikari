@@ -29,8 +29,10 @@ depend on a framework inside `Lumina.app`.
 observes system state, and reconciles state changes through `PlaybackPolicy`.
 
 `WallpaperController` creates one non-interactive desktop-level window and one
-player session per `NSScreen`. Display changes reconcile stable display IDs;
-wake rebuilds the whole window set to replace stale WindowServer surfaces.
+player session per `NSScreen`. Display changes first reconcile stable display IDs
+while WindowServer settles, then rebuild the whole window set once after the
+final topology snapshot while preserving playback state. Wake and Space recovery
+use the same surface rebuild to replace stale WindowServer surfaces.
 
 The menu bar and settings UI use SwiftUI system controls. The app has `LSUIElement`
 enabled and does not appear in the Dock.
@@ -46,19 +48,23 @@ the macOS-owned system lock path instead of installing a competing event tap;
 the standard target retains its optional event-tap shortcut override.
 
 `LuminaNativeLock` owns both sides of a native transaction. The user side stages
-hashed MOV/JPEG files, snapshots the complete wallpaper `Index.plist`, writes a
-phase journal, updates every existing display/Space choice, and can selectively
-restore only Lumina-owned mappings if an external change occurred. Before each
-user-store write, the app stops the current `WallpaperAgent`; after launchd
-restarts it, the app polls the persisted mapping before reporting success.
+hashed media and preview files, snapshots the complete wallpaper `Index.plist` (and the
+macOS 26 Aerial `entries.json`), writes a phase journal, updates only the
+reviewed wallpaper choices, and can selectively restore Lumina-owned mappings if
+an external change occurred. Before each user-store write, the app stops the
+current `WallpaperAgent`; after launchd restarts it, the app polls the persisted
+mapping before reporting success.
 
-`LuminaNativeTool` is embedded only in the Native Local app. Each apply or
-restore is a one-shot `do shell script ... with administrator privileges`
-operation with fixed arguments, not an installed daemon. It accepts only a
-local user ID and transaction UUID, verifies ownership and hashes, pins writes
-to the reviewed macOS 15 manifest schema, and maintains a root-only backup and
-phase journal. Restore uses the exact original manifest when unchanged, or
-removes only Lumina-owned entries when another process changed it meanwhile.
+On macOS 15, `LuminaNativeTool` is embedded only in the Native Local app. Each
+legacy catalog apply or restore is a one-shot
+`do shell script ... with administrator privileges` operation with fixed
+arguments, not an installed daemon. It accepts only a local user ID and
+transaction UUID, verifies ownership and hashes, pins writes to the reviewed
+macOS 15 manifest schema, and maintains a root-only backup and phase journal.
+On macOS 26, `NativeLockModernTransaction` performs the reviewed user Aerial
+manifest/media transaction without the root-owned legacy catalog or privileged
+tool. Both restore paths use the exact original data when unchanged, or remove
+only Lumina-owned entries when another process changed it meanwhile.
 
 ## Lumina screen saver
 
@@ -98,6 +104,16 @@ Native Local uses the same layout under a separate `LuminaNative/` root and adds
 └── Transactions/<transaction-uuid>/
     ├── entries.original.json
     └── system-journal.json
+```
+
+On macOS 26, `NativeLockModernTransaction` uses the current user's Aerial store
+instead of the root-owned legacy catalog:
+
+```text
+~/Library/Application Support/com.apple.wallpaper/aerials/
+├── manifest/entries.json
+├── videos/<asset-uuid>.mov
+└── thumbnails/<asset-uuid>.png
 ```
 
 Imported media is copied into this directory so playback does not depend on

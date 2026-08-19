@@ -172,8 +172,17 @@
   bundle ID 및 transaction 식별자는 호환성을 위해 유지한다.
 - 일반 wallpaper는 콘텐츠가 있는 동안 5초 간격으로 display topology, player 오류,
   다중 session drift를 함께 조정한다. Pause 중에도 topology 확인은 유지한다.
+- 디스플레이 변경 복구는 WindowServer가 topology를 만드는 동안 초기 확인에서
+  display membership와 geometry만 동기화하고, 최종 안정화 확인에서만 wallpaper
+  surface를 한 번 재생성한다. 재생 중인 영상의 위치와 재생 의도도 보존한다.
 - Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
   확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
+- 표준 CI의 대표 macOS 15 job에서 `Lumina` XCTest coverage를 Codecov에 보고하되,
+  macOS 26 compatibility job과 Native Local compile/test-only workflow는 중복
+  upload나 artifact를 만들지 않는다.
+- Native Local 직접 빌드는 compiler 도구, 소스·resource 입력, plist와 Hikari 버전의
+  읽기 전용 preflight를 먼저 수행한다. macOS가 관리하는 `entries.json`과
+  `Index.plist`는 bundle 입력으로 취급하지 않는다.
 - Native Local은 active mapping을 5초마다 확인하고 drift가 있을 때만 user index를
   transaction 방식으로 조정한다. 새 choice의 원래 값은 exact path restore overlay에
   저장해 나중에 현재 display/Space topology를 보존하며 복원한다.
@@ -207,6 +216,12 @@
   것을 확인했다.
 - Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
   Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
+- 디스플레이 복구 정책과 모든 session의 playback position 복원 단위 테스트를 추가하고,
+  전체 Xcode 환경의 SwiftPM 57개 테스트와 `LuminaNative` 57개 XCTest를 실패 없이
+  실행했다. 표준 `Lumina` coverage XCTest도 35개가 모두 통과했다.
+- Native Local build script의 `zsh -n`, plist lint, Swift build 및 workflow YAML
+  구문 검사를 통과했다. 실제 `/Applications` 설치와 privileged Native Apply는
+  system-write guardrail에 따라 실행하지 않았다.
 - macOS 26.6.1 실제 local Apply는 `wallpaperMappingRejected`로 실패했다. 즉시 Restore를
   실행해 Hikari system asset/category와 staged asset reference가 모두 제거되고 journal이
   `restored`로 끝난 것을 확인했다. 따라서 macOS 26 system write는 활성화하지 않는다.

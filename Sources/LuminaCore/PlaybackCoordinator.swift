@@ -42,6 +42,15 @@ public final class PlaybackCoordinator {
         sessions.count
     }
 
+    public var currentTime: Double? {
+        guard let leaderID = sessionIDs.first,
+              let currentTime = sessions[leaderID]?.currentTime,
+              currentTime.isFinite else {
+            return nil
+        }
+        return currentTime
+    }
+
     public func addSession(
         id: UInt32,
         session: any PlaybackSession
@@ -135,6 +144,14 @@ public final class PlaybackCoordinator {
             if abs(session.currentTime - leader.currentTime) > driftTolerance {
                 session.seek(to: leader.currentTime)
             }
+        }
+    }
+
+    public func seekAll(to seconds: Double) {
+        guard seconds.isFinite else { return }
+        let position = max(0, seconds)
+        for session in sessions.values {
+            session.seek(to: position)
         }
     }
 

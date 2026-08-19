@@ -86,6 +86,20 @@ final class PlaybackCoordinatorTests: XCTestCase {
         XCTAssertTrue(second.isPlaying)
     }
 
+    func testSeekAllRestoresEveryDisplayPosition() {
+        let coordinator = PlaybackCoordinator()
+        let first = MockSession()
+        let second = MockSession()
+        coordinator.addSession(id: 1, session: first)
+        coordinator.addSession(id: 2, session: second)
+        coordinator.setContent(url: videoURL, muted: true)
+
+        coordinator.seekAll(to: 42.5)
+
+        XCTAssertEqual(first.currentTime, 42.5)
+        XCTAssertEqual(second.currentTime, 42.5)
+    }
+
     func testSameContentDoesNotReloadEveryPolicyChange() {
         let coordinator = PlaybackCoordinator()
         let session = MockSession()

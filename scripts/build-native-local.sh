@@ -17,6 +17,84 @@ install_directory="${LUMINA_NATIVE_INSTALL_DIRECTORY:-/Applications}"
 installed_app_path="${install_directory}/${app_name}.app"
 install_staging_path="${install_directory}/.${app_name}.app.installing.$$"
 
+required_commands=(
+  swiftc
+  date
+  uname
+  mkdir
+  rm
+  mv
+  touch
+  ditto
+  plutil
+  awk
+  iconutil
+  codesign
+)
+for command_name in "${required_commands[@]}"; do
+  if ! command -v "${command_name}" >/dev/null 2>&1; then
+    print -u2 "Missing required command: ${command_name}"
+    exit 1
+  fi
+done
+
+required_paths=(
+  "${repository_root}/project.yml"
+  "${repository_root}/Sources/LuminaCore"
+  "${repository_root}/Sources/LuminaNativeLock"
+  "${repository_root}/Sources/LuminaNativeTool"
+  "${repository_root}/Sources/LuminaApp"
+  "${repository_root}/Resources/LuminaNative-Info.plist"
+  "${repository_root}/Resources/en.lproj"
+  "${repository_root}/Resources/ko.lproj"
+  "${repository_root}/Resources/Assets.xcassets/LuminaIconDefault.imageset/lumina_new_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconLumina.imageset/lumina_menu_bar_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/lumina_menu_bar_icon_heartbeat.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png"
+)
+for required_path in "${required_paths[@]}"; do
+  if [[ ! -e "${required_path}" ]]; then
+    print -u2 "Missing Native Local build input: ${required_path#${repository_root}/}"
+    exit 1
+  fi
+done
+
+if ! plutil -lint "${repository_root}/Resources/LuminaNative-Info.plist" \
+  >/dev/null; then
+  print -u2 "Invalid Resources/LuminaNative-Info.plist"
+  exit 1
+fi
+
+hikari_marketing_version="$(
+  awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' \
+    "${repository_root}/project.yml"
+)"
+hikari_build_number="$(
+  awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' \
+    "${repository_root}/project.yml"
+)"
+if [[ ! "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  print -u2 "Invalid HIKARI_MARKETING_VERSION in project.yml"
+  exit 1
+fi
+if [[ ! "${hikari_build_number}" =~ ^[0-9]+$ ]]; then
+  print -u2 "Invalid HIKARI_BUILD_NUMBER in project.yml"
+  exit 1
+fi
+
+# entries.json and Index.plist belong to macOS runtime stores. Native Lock
+# validates and snapshots them after launch; they are intentionally not build
+# inputs and must never be copied into this source-only app bundle.
+
 cleanup_install_staging() {
   if [[ -n "${install_staging_path}" && -e "${install_staging_path}" ]]; then
     rm -rf "${install_staging_path}"
@@ -81,16 +159,6 @@ swiftc \
   -o "${app_path}/Contents/MacOS/${app_name}"
 
 ditto Resources/LuminaNative-Info.plist "${app_path}/Contents/Info.plist"
-hikari_marketing_version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
-hikari_build_number="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
-if [[ ! "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  print -u2 "Invalid HIKARI_MARKETING_VERSION in project.yml"
-  exit 1
-fi
-if [[ ! "${hikari_build_number}" =~ ^[0-9]+$ ]]; then
-  print -u2 "Invalid HIKARI_BUILD_NUMBER in project.yml"
-  exit 1
-fi
 plutil -replace CFBundleDevelopmentRegion -string en "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleExecutable -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string "${app_name}" "${app_path}/Contents/Info.plist"

@@ -59,6 +59,21 @@ public struct DisplayTopologyDiff: Equatable, Sendable {
     }
 }
 
+public enum DisplayRecoveryPass: Equatable, Sendable {
+    case topology
+    case settled
+}
+
+public enum DisplayRecoveryPolicy {
+    public static func passes(
+        for intervals: [UInt64]
+    ) -> [DisplayRecoveryPass] {
+        intervals.indices.map { index in
+            index == intervals.count - 1 ? .settled : .topology
+        }
+    }
+}
+
 public enum DisplayTopology {
     public static func plans(
         for descriptors: [DisplayDescriptor]
