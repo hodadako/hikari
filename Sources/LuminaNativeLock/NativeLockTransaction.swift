@@ -136,6 +136,10 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
     case systemAssetChanged
     case helperMissing
     case helperFailed(String)
+    /// The macOS 26 per-user Aerial catalog has not been initialized.
+    case aerialCatalogMissing
+    /// A legacy system-catalog transaction cannot be restored on the current OS.
+    case legacyTransactionUnsupportedOnCurrentOperatingSystem(Int)
 
     public var errorDescription: String? {
         switch self {
@@ -177,6 +181,10 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
             "The Native Lock privileged helper is missing from this local build."
         case let .helperFailed(message):
             "The Native Lock helper failed: \(message)"
+        case .aerialCatalogMissing:
+            "Initialize Apple Aerial wallpapers first."
+        case let .legacyTransactionUnsupportedOnCurrentOperatingSystem(majorVersion):
+            "The legacy system-catalog transaction cannot be used on macOS \(majorVersion). Restore using the original macOS version."
         }
     }
 }

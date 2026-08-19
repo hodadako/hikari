@@ -646,6 +646,30 @@ final class NativeLockTransactionTests: XCTestCase {
         return assets.contains { $0["id"] as? String == assetID.uuidString }
     }
 
+    // MARK: - Error model
+
+    func testAerialCatalogMissingErrorHasUsefulDescription() {
+        let error = NativeLockTransactionError.aerialCatalogMissing
+        XCTAssertEqual(error.errorDescription, "Initialize Apple Aerial wallpapers first.")
+    }
+
+    func testLegacyTransactionUnsupportedOnCurrentOSErrorHasUsefulDescription() {
+        let error = NativeLockTransactionError
+            .legacyTransactionUnsupportedOnCurrentOperatingSystem(26)
+        XCTAssertTrue(
+            error.errorDescription?.contains("26") == true,
+            "Error description should mention the OS version"
+        )
+    }
+
+    func testUnsupportedOperatingSystemErrorMentionsVersion() {
+        let error = NativeLockTransactionError.unsupportedOperatingSystem(26)
+        XCTAssertTrue(
+            error.errorDescription?.contains("26") == true,
+            "Error description should mention the OS version"
+        )
+    }
+
     private func nativeCategoryDisplayName() throws -> String? {
         let data = try Data(
             contentsOf: idleAssetsURL.appendingPathComponent(

@@ -179,6 +179,10 @@
 "Safety Status" = "안전 상태";
 "Local source build — automatic updates disabled" = "로컬 소스 빌드 — 자동 업데이트 비활성화";
 "Reviewed macOS 15 or 26 build required" = "검증된 macOS 15 또는 26 빌드 필요";
+"Initialize Apple Aerial wallpapers first" = "먼저 Apple Aerial 배경화면을 초기화하세요";
+"Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock." = "Native Lock을 적용하기 전에 시스템 설정 → 배경화면에서 Apple Aerial 배경화면을 다운로드하거나 선택하세요.";
+"Aerial wallpaper store is not recognized" = "Aerial 배경화면 저장소를 인식할 수 없습니다";
+"The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store." = "macOS Aerial 매니페스트가 존재하지만 예상된 스키마와 일치하지 않습니다. Native Lock은 인식되지 않는 저장소를 수정할 수 없습니다.";
 "Lock Screen changes are disabled until this macOS major version is reviewed." = "이 macOS 주 버전을 검토하기 전까지 잠금 화면 변경이 비활성화됩니다.";
 "Import a video first" = "먼저 영상을 가져오세요";
 "The selected video remains in Hikari's private application-support directory." = "선택한 영상은 Hikari 전용 Application Support 폴더에 보관됩니다.";

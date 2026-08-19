@@ -2,6 +2,8 @@ import Foundation
 
 public enum NativeLockSafetyState: String, Codable, Sendable {
     case unsupportedOperatingSystem
+    /// macOS 26: the per-user Aerial catalog has not been initialized.
+    case aerialCatalogRequired
     case mediaRequired
     case ready
     case active
@@ -36,10 +38,34 @@ public enum NativeLockUpgradeGuard {
 /// Evaluates prerequisites without elevated privileges. The separate system
 /// transaction manager repeats the OS and schema checks before every write.
 public enum NativeLockSafetyInspector {
+    /// Returns whether the macOS 26 per-user Aerial manifest exists and has
+    /// the expected schema. Does not read or modify any wallpaper state.
+    public static func aerialManifestState(
+        manifestURL: URL
+    ) -> AerialManifestState {
+        guard let data = try? Data(contentsOf: manifestURL) else {
+            return .missing
+        }
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              root["version"] as? Int == 1,
+              root["assets"] is [[String: Any]],
+              root["categories"] is [[String: Any]] else {
+            return .invalid
+        }
+        return .ready
+    }
+
+    public enum AerialManifestState {
+        case ready
+        case missing
+        case invalid
+    }
+
     public static func evaluate(
         operatingSystemVersion: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion,
         hasSelectedMedia: Bool,
-        transactionPhase: NativeLockTransactionPhase? = nil
+        transactionPhase: NativeLockTransactionPhase? = nil,
+        aerialManifestURL: URL? = nil
     ) -> NativeLockSafetyReport {
         let majorVersion = operatingSystemVersion.majorVersion
         guard majorVersion == 15 || majorVersion == 26 else {
@@ -66,6 +92,27 @@ public enum NativeLockSafetyInspector {
                 title: "Lock Screen is active",
                 detail: "The macOS-owned Lock Screen uses the staged Hikari video."
             )
+        }
+
+        // On macOS 26, verify the Aerial catalog exists before allowing Apply.
+        if majorVersion == 26 {
+            let manifestURL = aerialManifestURL ?? NativeLockModernEnvironment.live.manifestURL
+            switch aerialManifestState(manifestURL: manifestURL) {
+            case .missing:
+                return NativeLockSafetyReport(
+                    state: .aerialCatalogRequired,
+                    title: "Initialize Apple Aerial wallpapers first",
+                    detail: "Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock."
+                )
+            case .invalid:
+                return NativeLockSafetyReport(
+                    state: .aerialCatalogRequired,
+                    title: "Aerial wallpaper store is not recognized",
+                    detail: "The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store."
+                )
+            case .ready:
+                break
+            }
         }
 
         guard hasSelectedMedia else {

@@ -14,10 +14,44 @@ video-selection store.
 - The Hikari app requires macOS 15 or macOS 26 for Native Lock work. Its macOS
   15 and macOS 26 storage paths differ; other major versions are intentionally
   blocked from Native Lock writes until their format is reviewed.
+- **macOS 15** uses the privileged legacy system catalog at
+  `/Library/Application Support/com.apple.idleassetsd/Customer/entries.json`.
+  Each Apply and Restore requires administrator authorization via a one-shot
+  helper tool (`lumina-native-tool`).
+- **macOS 26** uses the current user's Aerial catalog at
+  `~/Library/Application Support/com.apple.wallpaper/aerials/`. No
+  administrator authorization is required, but Apple's Aerial catalog must
+  have been initialized first (see Prerequisites below).
+- Native Lock never fabricates Apple's manifest. It uses Apple's existing
+  initialized manifest as the baseline for transactional modification and
+  rollback.
 - The direct build script needs a Swift toolchain with the macOS 15 SDK or
   newer. A full Xcode installation is required for Xcode builds and tests.
 - Hikari is source-only. The normal Lumina portable release is a separate app
   and does not include Native Lock.
+
+## Prerequisites for macOS 26 Native Lock
+
+On macOS 26, Native Lock writes to Apple's per-user Aerial catalog. This
+catalog is created by macOS only after the user downloads or selects an Apple
+Aerial wallpaper. If the catalog has never been initialized, Hikari reports:
+
+> Initialize Apple Aerial wallpapers first
+
+To initialize the catalog:
+
+1. Open **System Settings → Wallpaper**.
+2. Select any **Aerial** wallpaper and wait for it to download.
+3. Return to Hikari's **Lock Screen** tab. The safety status should now show
+   **Ready to apply locally**.
+
+Do not attempt to create or edit the Aerial catalog manually. Hikari requires
+Apple's existing initialized manifest as the baseline for its transaction.
+
+After rebuilding Hikari from source, always relaunch the app before applying
+or restoring a Native Lock transaction. The build script terminates any running
+Hikari process before installing the new bundle so the old executable cannot
+read files from the newly replaced bundle.
 
 ## 1. Prepare the Mac
 
@@ -123,6 +157,9 @@ transaction files manually.
 | The install step cannot write to `/Applications` | Use `LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications"` as shown above. |
 | Spotlight does not show Hikari yet | Run `open /Applications/Hikari.app`, or use the matching `$HOME/Applications` path, then allow indexing to finish. |
 | Hikari reports Native Lock writes are unavailable | Confirm the Mac is on macOS 15 or 26. Do not bypass the operating-system safety gate. |
+| Hikari reports "Initialize Apple Aerial wallpapers first" (macOS 26) | Open System Settings → Wallpaper, select an Apple Aerial wallpaper, wait for it to download, then return to Hikari. |
+| Hikari reports "Aerial wallpaper store is not recognized" (macOS 26) | The Aerial manifest exists but has an unexpected schema. Do not modify it manually; file a bug with the transaction details. |
+| After rebuilding, Hikari still behaves like the old version | The build script now terminates the old Hikari before installing. If the issue persists, quit Hikari manually and rerun the build script. |
 | An Apply or lock-screen test looks wrong | Stop testing, use Restore, and preserve the transaction/error details before trying another change. |
 
 For diagnostics during Apply or Restore, use:

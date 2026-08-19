@@ -127,6 +127,25 @@ codesign --force --deep --sign - "${app_path}"
 codesign --verify --deep --strict "${app_path}"
 
 mkdir -p "${install_directory}"
+
+# Terminate the currently running Hikari process (bundle ID
+# com.hodadako.Lumina.NativeLocal) before replacing the bundle so the old
+# executable cannot continue reading files from the newly installed bundle.
+# Only target Hikari; do not kill unrelated applications.
+if /usr/bin/pgrep -f "com.hodadako.Lumina.NativeLocal" >/dev/null 2>&1 || \
+   /usr/bin/osascript -e 'id of app "Hikari"' >/dev/null 2>&1; then
+  /usr/bin/osascript -e \
+    'tell application id "com.hodadako.Lumina.NativeLocal" to quit' \
+    >/dev/null 2>&1 || true
+  # Give the app up to 3 seconds to quit gracefully before continuing.
+  for _i in 1 2 3; do
+    sleep 1
+    /usr/bin/pgrep -qf "com.hodadako.Lumina.NativeLocal" || break
+  done
+  # If still running, send SIGTERM to the specific bundle only.
+  /usr/bin/pkill -TERM -f "com.hodadako.Lumina.NativeLocal" >/dev/null 2>&1 || true
+fi
+
 rm -rf "${install_staging_path}"
 ditto "${app_path}" "${install_staging_path}"
 codesign --verify --deep --strict "${install_staging_path}"

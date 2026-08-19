@@ -121,6 +121,43 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
     }
 
+    func testApplyThrowsAerialCatalogMissingWhenManifestAbsent() throws {
+        // Remove the manifest to simulate an uninitialized Aerial catalog.
+        try FileManager.default.removeItem(at: manifestURL)
+
+        let store = NativeLockUserTransactionStore(
+            supportRootURL: supportURL,
+            wallpaperIndexURL: wallpaperIndexURL,
+            userID: UInt32(getuid())
+        )
+        let mediaURL = rootURL.appendingPathComponent("source.mov")
+        let previewURL = rootURL.appendingPathComponent("source.png")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+        let record = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Test Movie",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+
+        let manager = NativeLockModernTransactionManager(environment: environment())
+        XCTAssertThrowsError(
+            try manager.apply(
+                request: record.request,
+                sourceTransactionURL: store.transactionDirectoryURL(
+                    for: record.request.transactionID
+                )
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? NativeLockTransactionError,
+                .aerialCatalogMissing,
+                "Expected aerialCatalogMissing but got \(error)"
+            )
+        }
+    }
+
     private func environment() -> NativeLockModernEnvironment {
         NativeLockModernEnvironment(
             wallpaperRootURL: wallpaperRootURL,
