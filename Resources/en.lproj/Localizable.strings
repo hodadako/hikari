@@ -179,6 +179,10 @@
 "Safety Status" = "Safety Status";
 "Local source build — automatic updates disabled" = "Local source build — automatic updates disabled";
 "Reviewed macOS 15 or 26 build required" = "Reviewed macOS 15 or 26 build required";
+"Initialize Apple Aerial wallpapers first" = "Initialize Apple Aerial wallpapers first";
+"Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock." = "Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock.";
+"Aerial wallpaper store is not recognized" = "Aerial wallpaper store is not recognized";
+"The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store." = "The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store.";
 "Lock Screen changes are disabled until this macOS major version is reviewed." = "Lock Screen changes are disabled until this macOS major version is reviewed.";
 "Import a video first" = "Import a video first";
 "The selected video remains in Hikari's private application-support directory." = "The selected video remains in Hikari's private application-support directory.";

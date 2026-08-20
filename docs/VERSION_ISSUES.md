@@ -2,6 +2,35 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — macOS 26 Native Lock 초기화 및 구형 헬퍼 실행 수정
+
+### 이슈와 영향
+
+- macOS 26에서 Native Lock 적용 시 `The Native Lock helper failed: Native Lock system writes are not enabled for macOS 26.` 오류가 발생했다. `restore()`에서 `journal.backend == nil`인 구형 저널이 macOS 26에서도 `runPrivilegedTool()`로 라우팅됐기 때문이다.
+- macOS 26에서 Apple Aerial 카탈로그가 초기화되지 않은 경우 `entries.json`이 없어 `apply()` 중 저수준 파일 없음 오류가 발생했다.
+- `build-native-local.sh`가 기존 Hikari 프로세스를 종료하지 않고 번들을 교체해, 구형 실행 파일이 새 번들 파일을 계속 사용할 수 있었다.
+
+### 조치
+
+- `NativeLockRuntimeBackend` 열거형(`legacySystemCatalog`, `userAerials`, `unknownLegacy`)을 추가해 백엔드를 명시적으로 결정한다. `nil` 백엔드 저널은 macOS 26에서 `unknownLegacy`로 처리하고 `legacyTransactionUnsupportedOnCurrentOperatingSystem` 오류를 반환한다.
+- `runPrivilegedTool()`에 방어적 macOS 26 가드를 추가해 라우팅 오류가 있어도 헬퍼를 실행하지 않는다.
+- `NativeLockModernTransactionManager.apply()`에서 `entries.json` 부재 시 `aerialCatalogMissing` 도메인 오류를 반환한다.
+- `NativeLockSafetyInspector`에 Aerial 카탈로그 사전 검사를 추가하고 `aerialCatalogRequired` 안전 상태를 노출한다. 매니페스트 없음·스키마 불일치를 구분한다.
+- `build-native-local.sh`가 번들 교체 전 `com.hodadako.Lumina.NativeLocal` 프로세스만 정상 종료 후 SIGTERM으로 처리한다.
+- 영어·한국어 로컬라이제이션에 새 안전 상태 문자열을 추가한다.
+- `LOCAL_NATIVE_BUILD.md`에 macOS 15/26 백엔드 차이, macOS 26 Aerial 카탈로그 초기화 전제 조건, 재빌드 후 재실행 안내를 추가한다.
+
+### 검증
+
+- `swift build` 및 `swiftc -typecheck -D LUMINA_NATIVE_LOCAL Sources/LuminaApp/NativeLockController.swift` 통과.
+- `swiftc -typecheck Sources/LuminaNativeLock/*.swift` 통과.
+- 새 안전 검사 테스트(매니페스트 없음·불일치·정상), 새 오류 모델 테스트, 기존 모던 트랜잭션 테스트 추가. XCTest 실행은 전체 Xcode가 있는 CI에서 확인한다.
+
+### 남은 제약
+
+- `unknownLegacy` 저널(macOS 26에서 `backend == nil` 구형 트랜잭션)은 복원 불가 오류를 반환한다. 해당 트랜잭션은 원래 macOS 15에서 생성됐으므로 macOS 15 환경에서 복원해야 한다.
+- macOS 26 실제 장비에서 Aerial 카탈로그 초기화 후 Apply → lock → unlock → Restore 왕복은 수동 확인이 필요하다.
+
 ## Hikari v0.1.5 (6) — 2026-08-16
 
 ### 이슈와 영향

@@ -89,6 +89,9 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         try validateOperatingSystem()
         try validate(request)
 
+        guard FileManager.default.fileExists(atPath: environment.manifestURL.path) else {
+            throw NativeLockTransactionError.aerialCatalogMissing
+        }
         let originalManifest = try Data(contentsOf: environment.manifestURL)
         let originalManifestSHA256 = NativeLockDigest.sha256(of: originalManifest)
         var manifest = try manifestDictionary(from: originalManifest)

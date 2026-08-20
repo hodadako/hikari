@@ -14,6 +14,25 @@ private let nativeLockLogger = Logger(
     category: "NativeLock"
 )
 
+/// Resolved backend for a Native Lock transaction. Distinct from
+/// `NativeLockTransactionBackend` so that nil journals can be represented
+/// explicitly rather than silently defaulting to the legacy path.
+private enum NativeLockRuntimeBackend: Equatable {
+    case legacySystemCatalog
+    case userAerials
+    /// Old journal with no backend field on an OS where the legacy path is
+    /// not safe to assume (macOS 26).
+    case unknownLegacy
+
+    var logDescription: String {
+        switch self {
+        case .legacySystemCatalog: "legacySystemCatalog"
+        case .userAerials: "userAerials"
+        case .unknownLegacy: "unknownLegacy"
+        }
+    }
+}
+
 @MainActor
 final class NativeLockController {
     private let container: SharedContainer
@@ -210,7 +229,20 @@ final class NativeLockController {
                     transactionID: record.request.transactionID
                 )
             }
-            if record.journal.backend == .userAerials {
+            // Resolve the backend explicitly. A nil backend in an old journal
+            // must never silently fall through to the privileged helper on
+            // macOS 26 — that would write to the legacy root-owned catalog.
+            let currentMajorVersion = ProcessInfo.processInfo
+                .operatingSystemVersion.majorVersion
+            let resolvedBackend = resolveBackend(
+                journalBackend: record.journal.backend,
+                currentMajorVersion: currentMajorVersion
+            )
+            nativeLockLogger.notice(
+                "Restore backend=\(resolvedBackend.logDescription, privacy: .public) macOS=\(currentMajorVersion, privacy: .public) transactionID=\(record.request.transactionID.uuidString, privacy: .public) journalBackend=\(record.journal.backend?.rawValue ?? "nil", privacy: .public)"
+            )
+            switch resolvedBackend {
+            case .userAerials:
                 guard let originalManifestSHA256 = record.journal.originalModernManifestSHA256 else {
                     throw NativeLockTransactionError.invalidHash
                 }
@@ -222,12 +254,21 @@ final class NativeLockController {
                     originalManifestSHA256: originalManifestSHA256,
                     appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
                 )
-            } else {
+            case .legacySystemCatalog:
                 _ = try runPrivilegedTool(
                     operation: "restore",
                     transactionID: record.request.transactionID,
                     assetID: record.request.assetID
                 )
+            case .unknownLegacy:
+                // The journal predates the backend field and we are on macOS 26.
+                // We cannot safely invoke the legacy helper or the modern
+                // manager. Return a recovery-oriented error.
+                nativeLockLogger.error(
+                    "Restore refused: old journal with nil backend on macOS \(currentMajorVersion, privacy: .public) for \(record.request.transactionID.uuidString, privacy: .public)"
+                )
+                throw NativeLockTransactionError
+                    .legacyTransactionUnsupportedOnCurrentOperatingSystem(currentMajorVersion)
             }
             try store.markRestored(transactionID: record.request.transactionID)
             nativeLockLogger.notice(
@@ -302,11 +343,45 @@ final class NativeLockController {
         }
     }
 
+    /// Resolves the effective backend for a transaction, handling old journals
+    /// where `backend` is nil. On macOS 26, nil must never map to the legacy
+    /// system catalog — it is treated as an unidentifiable old transaction.
+    private func resolveBackend(
+        journalBackend: NativeLockTransactionBackend?,
+        currentMajorVersion: Int
+    ) -> NativeLockRuntimeBackend {
+        switch journalBackend {
+        case .userAerials:
+            return .userAerials
+        case .systemCatalog:
+            return .legacySystemCatalog
+        case nil:
+            // Old journal with no backend field. On macOS 26 we cannot safely
+            // assume this is a legacy catalog transaction — refuse it.
+            if currentMajorVersion == 26 {
+                return .unknownLegacy
+            }
+            // On macOS 15 a nil backend is a pre-split legacy transaction.
+            return .legacySystemCatalog
+        }
+    }
+
     private func runPrivilegedTool(
         operation: String,
         transactionID: UUID,
         assetID: UUID
     ) throws -> NativeLockSystemResult {
+        // Defensive guard: the privileged helper must never be invoked on
+        // macOS 26. If routing logic fails elsewhere this is the last line
+        // of defence before launching the legacy root-owned catalog tool.
+        let currentMajorVersion = ProcessInfo.processInfo
+            .operatingSystemVersion.majorVersion
+        guard currentMajorVersion != 26 else {
+            nativeLockLogger.error(
+                "runPrivilegedTool called on macOS 26 — routing error, refusing to invoke helper"
+            )
+            throw NativeLockTransactionError.unsupportedOperatingSystem(currentMajorVersion)
+        }
         guard let helperURL = Bundle.main.url(
             forAuxiliaryExecutable: "lumina-native-tool"
         ) else {
