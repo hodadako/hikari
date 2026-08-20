@@ -52,8 +52,10 @@ final class WallpaperController {
         // topology-only update cannot detect that case when the connected
         // displays have not changed, so recreate every session. This restores
         // the pre-v0.1.15 wake behavior while retaining the current
-        // per-display playback architecture.
+        // per-display playback architecture. Preserve the playback position
+        // as well as the URL so a surface recovery does not restart the video.
         let currentURL = playback.currentURL
+        let playbackPosition = playback.currentTime
         let muted = playback.isMuted
         let wantsPlayback = playback.wantsPlayback
         closeWindows()
@@ -61,6 +63,9 @@ final class WallpaperController {
 
         guard let currentURL else { return }
         playback.setContent(url: currentURL, muted: muted)
+        if let playbackPosition {
+            playback.seekAll(to: playbackPosition)
+        }
         if wantsPlayback {
             playback.play()
             startMaintenanceMonitoring()

@@ -2,6 +2,8 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Codecov](https://codecov.io/gh/hodadako/lumina/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/lumina)
+
 **Bring your desktop to life.**
 
 Lumina is a native, open-source live wallpaper and screen saver for macOS. Import
@@ -68,7 +70,7 @@ store at the same time. GitHub Actions will continue to build and test Lumina,
 but a successful CI run or downloadable artifact does **not** validate or
 endorse privileged changes on a user's Mac. The normal live wallpaper and
 ScreenSaver.framework features remain separate from this experiment. The
-The `LuminaNative` scheme is therefore deliberately local-only: it uses a one-shot
+`LuminaNative` scheme is therefore deliberately local-only: it uses a one-shot
 bundled tool after an explicit administrator prompt, creates user and root-owned
 backups and transaction journals before activation, verifies the result, and
 exposes an explicit restore action. It installs no daemon or persistent
@@ -120,7 +122,7 @@ xcodebuild \
 The Xcode build embeds `Lumina.saver` in the app. Open Lumina Settings →
 Screen Saver → Install Screen Saver, then select Lumina in System Settings.
 
-To inspect the separate local-only target on macOS 15, select the
+To inspect the separate local-only target on macOS 15 or macOS 26, select the
 `LuminaNative` scheme. It builds `Hikari.app` with bundle ID
 `com.hodadako.Lumina.NativeLocal`, uses
 `~/Library/Application Support/LuminaNative`, supports `Control-Command-Q`

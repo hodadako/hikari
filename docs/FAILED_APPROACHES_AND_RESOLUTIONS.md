@@ -415,3 +415,27 @@ user Aerial transaction을 구현하고, 원본 manifest/index bytes와 hash를 
 보관한다. 격리된 임시 store에서 Apply → Linked 검증 → Restore 왕복은 통과했지만,
 Hikari 실제 장비 적용 전에는 같은 저장소를 변경하는 다른 도구를 종료하거나
 복원해 동시 transaction을 피한다.
+
+## 디스플레이 topology 안정화 중 wallpaper surface를 반복 재생성
+
+### 관찰
+
+외부 요인으로 디스플레이 번호나 연결 상태가 바뀌면 WindowServer가 여러 화면
+parameter 알림을 연속해서 보냈다. 각 확인에서 wallpaper 창과 `AVPlayerLayer`를
+다시 만들면서 영상이 여러 번 멈췄다가 다시 시작했고, 화면마다 재생 위치도
+처음으로 돌아갈 수 있었다.
+
+### 원인
+
+초기 알림은 디스플레이 membership와 geometry만 바뀐 불안정한 snapshot일 수 있다.
+이 단계에서 `AVPlayer` 기반 surface까지 재생성하면 다음 알림이 도착할 때마다
+현재 재생 세션을 해제하고 새로 만들게 된다.
+
+### 해결
+
+- 초기 display recovery pass에서는 기존 session을 유지한 채 display topology만
+  동기화하고, 최종 안정화 pass에서만 surface를 한 번 재생성한다.
+- rebuild 전에 대표 session의 유효한 playback position과 재생 의도를 저장하고,
+  새 session을 만든 뒤 모든 display에 position을 복원한 다음 재생을 재개한다.
+- `DisplayRecoveryPolicy`와 모든 session의 `seekAll` 동작을 단위 테스트로 고정해
+  topology 확인 횟수와 playback 복원 규칙이 다시 합쳐지지 않도록 한다.

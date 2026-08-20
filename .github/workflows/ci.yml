@@ -85,7 +85,7 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             build
-      - name: Unit test
+      - name: Unit test with coverage
         run: |
           set -o pipefail
           xcodebuild \
@@ -93,8 +93,17 @@ jobs:
             -scheme Lumina \
             -configuration Debug \
             -destination 'platform=macOS' \
+            -enableCodeCoverage YES \
+            -resultBundlePath "${RUNNER_TEMP}/Lumina.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
+      - name: Upload standard coverage to Codecov
+        if: matrix.runner == 'macos-15'
+        uses: codecov/codecov-action@v5
+        with:
+          plugins: xcode
+          swift_project: Lumina
+          fail_ci_if_error: false
       - name: Release build and bundle checks
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData

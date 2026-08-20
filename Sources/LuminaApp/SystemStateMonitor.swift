@@ -10,6 +10,7 @@ import LuminaCore
 final class SystemStateMonitor {
     var onStateChanged: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
+    var onDisplaysSettled: (() -> Void)?
     var onActiveSpaceChanged: (() -> Void)?
     var onActiveSpaceSettled: (() -> Void)?
 
@@ -25,8 +26,8 @@ final class SystemStateMonitor {
 
     // WindowServer can publish the screen-parameter notification before the
     // newly attached display has a stable NSScreen/window surface. Recheck
-    // the topology at increasing delays so one early snapshot cannot become
-    // the permanent state for the app.
+    // the topology at increasing delays, but only recreate AVPlayer-backed
+    // surfaces after the final snapshot has settled.
     private let displayRecoveryIntervals: [UInt64] = [
         0,
         250_000_000,
@@ -217,14 +218,21 @@ final class SystemStateMonitor {
     private func scheduleDisplaysChanged(after delay: UInt64 = 120_000_000) {
         displayTask?.cancel()
         let recoveryIntervals = displayRecoveryIntervals
+        let recoveryPasses = DisplayRecoveryPolicy.passes(for: recoveryIntervals)
         displayTask = Task { [weak self] in
-            for interval in recoveryIntervals {
+            for (index, interval) in recoveryIntervals.enumerated() {
                 try? await Task.sleep(
                     nanoseconds: delay + interval
                 )
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    self?.onDisplaysChanged?()
+                    guard let self else { return }
+                    switch recoveryPasses[index] {
+                    case .topology:
+                        self.onDisplaysChanged?()
+                    case .settled:
+                        self.onDisplaysSettled?()
+                    }
                 }
             }
         }

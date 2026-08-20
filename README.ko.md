@@ -2,6 +2,8 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Codecov](https://codecov.io/gh/hodadako/lumina/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/lumina)
+
 **데스크톱에 생동감을 더하세요.**
 
 Lumina는 macOS용 네이티브 오픈 소스 라이브 배경화면 및 화면 보호기입니다.
@@ -112,7 +114,7 @@ xcodebuild \
 빌드된 앱에는 `Lumina.saver`가 포함됩니다. Lumina 설정 → 화면 보호기에서
 설치한 뒤 macOS 시스템 설정에서 Lumina를 직접 선택해야 합니다.
 
-macOS 15에서 별도 로컬 전용 버전을 확인하려면 `LuminaNative` 스킴을
+macOS 15 또는 macOS 26에서 별도 로컬 전용 버전을 확인하려면 `LuminaNative` 스킴을
 선택하세요. `Hikari.app`은 bundle ID
 `com.hodadako.Lumina.NativeLocal`과
 `~/Library/Application Support/LuminaNative` 저장소를 사용합니다. 시스템
