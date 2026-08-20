@@ -101,6 +101,8 @@ jobs:
         if: matrix.runner == 'macos-15'
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: hodadako/lumina
           plugins: xcode
           swift_project: Lumina
           fail_ci_if_error: false

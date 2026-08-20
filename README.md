@@ -3,6 +3,7 @@
 [English](README.md) | [한국어](README.ko.md)
 
 [![Codecov](https://codecov.io/gh/hodadako/lumina/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/lumina)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hodadako/lumina)
 
 **Bring your desktop to life.**
 
