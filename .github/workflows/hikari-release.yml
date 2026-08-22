@@ -1,0 +1,191 @@
+name: Hikari Release
+
+on:
+  push:
+    tags:
+      - "hikari-v*"
+
+# Hikari is packaged separately from the normal Lumina portable release. The
+# package is deliberately ad-hoc signed, verified, and clearly labeled as an
+# experimental Native Local build.
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    name: Validate Hikari release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Validate Hikari tag and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+          build="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
+          expected_tag="hikari-v${version}"
+          if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Hikari version ${version}" >&2
+            exit 1
+          fi
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${build}" =~ ^[0-9]+$ ]]
+          {
+            echo "version=${version}"
+            echo "build=${build}"
+          } >> "${GITHUB_OUTPUT}"
+
+  build-and-test:
+    name: Hikari build and test (${{ matrix.runner }})
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Debug build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme LuminaNative \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Unit test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme LuminaNative \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Release compile and bundle checks
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
+          HIKARI_VERSION: ${{ needs.metadata.outputs.version }}
+          HIKARI_BUILD_NUMBER: ${{ needs.metadata.outputs.build }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme LuminaNative \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
+          test -d "${app_path}"
+          test -x "${app_path}/Contents/MacOS/Hikari"
+          test -x "${app_path}/Contents/MacOS/lumina-native-tool"
+          test ! -e "${app_path}/Contents/PlugIns/Lumina.saver"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+            "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
+            "${app_path}/Contents/Info.plist")" = "Hikari"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+            "${app_path}/Contents/Info.plist")" = "${HIKARI_VERSION}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            "${app_path}/Contents/Info.plist")" = "${HIKARI_BUILD_NUMBER}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' \
+            "${app_path}/Contents/Info.plist")" = "15.0"
+
+  package:
+    name: Package Hikari ad-hoc release
+    needs: [metadata, build-and-test]
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build and ad-hoc sign Hikari
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
+          HIKARI_VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme LuminaNative \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
+          test -d "${app_path}"
+          codesign --force --deep --sign - "${app_path}"
+          codesign --verify --deep --strict "${app_path}"
+          codesign -dv --verbose=4 "${app_path}" 2>&1 | grep -q 'Signature=adhoc'
+
+          artifact_base="Hikari-macOS-native-v${HIKARI_VERSION}"
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${app_path}" \
+            "dist/${artifact_base}.zip"
+          (
+            cd dist
+            shasum -a 256 "${artifact_base}.zip" > "${artifact_base}.zip.sha256"
+            shasum -a 256 -c "${artifact_base}.zip.sha256"
+          )
+      - name: Upload Hikari release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
+          path: |
+            dist/Hikari-macOS-native-v${{ needs.metadata.outputs.version }}.zip
+            dist/Hikari-macOS-native-v${{ needs.metadata.outputs.version }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish Hikari tagged release
+    needs: [metadata, package]
+    if: needs.package.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Hikari release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
+          path: dist
+      - name: Create or update Hikari GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HIKARI_VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          artifact_base="Hikari-macOS-native-v${HIKARI_VERSION}"
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" \
+              "dist/${artifact_base}.zip" \
+              "dist/${artifact_base}.zip.sha256" \
+              --clobber \
+              --repo "${GITHUB_REPOSITORY}"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              "dist/${artifact_base}.zip" \
+              "dist/${artifact_base}.zip.sha256" \
+              --title "Hikari v${HIKARI_VERSION} (ad-hoc Native Local)" \
+              --notes "Hikari Native Local is an ad-hoc-signed, unnotarized experimental build for macOS 15 and macOS 26. It is distributed separately from Lumina Portable and uses the macOS-owned lock shortcut without Lumina's optional global event-tap shortcut." \
+              --repo "${GITHUB_REPOSITORY}"
+          fi

@@ -1,11 +1,16 @@
 # 다른 Mac에서 Hikari Native Local 빌드하기
 
-Hikari Native Local은 소스에서 직접 빌드하는 실험용 버전입니다. Portable 다운로드나
-앱 내 업데이트에 포함되지 않으므로, 사용할 Mac에서 직접 빌드하세요. 다른 기기에서
-만든 앱을 복사해 사용하는 방식은 지원하지 않습니다.
+Hikari Native Local은 소스에서 직접 빌드할 수 있는 실험용 버전이며, 별도 Hikari
+ad-hoc release asset으로 게시할 수 있습니다. 첫 Hikari tag가 release되기 전에는
+사용할 Mac에서 직접 빌드해야 합니다. Lumina Portable 다운로드나 앱 내 업데이트에는
+포함되지 않습니다. ad-hoc release를 다른 Mac에 설치하면 Gatekeeper 경고가 나타날 수
+있으므로, 가능하면 사용할 Mac에서 직접 빌드하세요. Hikari는 macOS가 소유한 잠금 단축키를
+사용하고 Lumina의 선택적 전역 event-tap 단축키를 시작하지 않으므로, 이 Native Local 경로에는
+Accessibility와 Input Monitoring 권한이 필요하지 않습니다.
 
-Native Lock은 관리자 승인을 받은 뒤 macOS가 관리하는 비공개 영상 선택 데이터를
-바꿉니다. 먼저 Mac을 백업하고 Restore 동작을 사용할 수 있게 두세요. 같은 macOS
+Native Lock은 macOS 15에서는 관리자 승인을 받은 뒤, macOS 26에서는 현재 사용자
+권한으로 macOS가 관리하는 비공개 영상 선택 데이터를 바꿉니다. 먼저 Mac을 백업하고 Restore
+동작을 사용할 수 있게 두세요. 같은 macOS
 영상 선택 저장소를 수정하는 다른 프로그램과 동시에 실행해서는 안 됩니다. 알려진
 Backdrop wallpaper renderer가 실행 중이면 Hikari가 적용 직전에 해당 renderer만 종료하며,
 Backdrop manifest와 media record는 삭제하지 않습니다.
@@ -23,8 +28,9 @@ Backdrop manifest와 media record는 삭제하지 않습니다.
   한 번 내려받아 catalog를 초기화해야 합니다.
 - 직접 빌드 스크립트에는 macOS 15 SDK 이상이 포함된 Swift toolchain이 필요합니다.
   Xcode 빌드와 테스트에는 전체 Xcode 설치본이 필요합니다.
-- Hikari는 소스 전용입니다. 일반 Lumina Portable 릴리스는 별도 앱이며 Native Lock을
-  포함하지 않습니다.
+- Hikari는 소스에서 빌드하며 별도 ad-hoc release asset으로 게시할 수 있습니다. 첫
+  Hikari release 전까지 일반 Lumina Portable 릴리스는 별도 앱이며 Native Lock을 포함하지
+  않습니다.
 
 직접 빌드 스크립트는 출력을 만들기 전에 compiler 도구, 소스 디렉터리, localization과
 아이콘, `LuminaNative-Info.plist`, Hikari 버전 값을 읽기 전용으로 사전 점검합니다.
@@ -113,6 +119,14 @@ Hikari는 agent 앱이므로 Dock 대신 메뉴 막대에 나타납니다. 스�
 Spotlight에서 `Hikari`를 찾을 수 있습니다. Spotlight 색인이 끝나기 전에는 위의
 `open` 명령으로 직접 실행할 수 있습니다.
 
+### Hikari ad-hoc release asset
+
+`hikari-vX.Y.Z` tag를 push하면 Hikari Release workflow가 macOS 15·26 compile/test를
+통과한 뒤 `Hikari-macOS-native-vX.Y.Z.zip`과 SHA-256 checksum을 별도 GitHub Release에
+올립니다. asset은 현재와 같은 ad-hoc 서명·비공증 상태이며 일반 Lumina release와 분리됩니다.
+설치 전 checksum과 `codesign --verify --deep --strict`를 확인하고, 앱 업데이트 기능은
+사용하지 않습니다. Hikari에는 Lumina의 선택적 전역 event-tap 단축키가 포함되지 않습니다.
+
 ## 4. 선택: Xcode 빌드와 테스트
 
 코드를 변경했거나 해당 Mac의 toolchain을 검증할 때 사용하세요. 이 단계는 빌드와
@@ -140,7 +154,8 @@ xcodebuild \
 
 1. Hikari를 실행하고 **General**에서 영상을 가져옵니다.
 2. **Lock Screen**에서 safety status를 읽은 뒤에만 선택 영상을 적용합니다.
-3. Apply와 Restore는 매번 macOS 관리자 승인을 요청합니다.
+3. macOS 15의 Apply와 Restore는 매번 관리자 승인을 요청합니다. macOS 26 user Aerial
+   transaction은 관리자 승인 없이 현재 사용자 저장소를 변경합니다.
 4. 사용하기 전에 lock → unlock → 다음 lock을 직접 시험합니다.
 5. macOS major 업데이트 전, Hikari를 삭제하기 전, 또는 실험이 끝났을 때는 반드시
    **Restore**를 사용합니다.

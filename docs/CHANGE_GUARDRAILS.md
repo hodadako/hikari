@@ -26,7 +26,7 @@
 - 현재 다른 앱 컨테이너에 직접 쓰는 저장 방식은 macOS 개인정보 접근 알림의 원인이다. 이 알림을 없애려면 단순 서명 변경이 아니라 App Group 등 공유 저장소 구조로 이전해야 한다.
 - Developer ID 서명과 notarization은 배포 정체성을 안정화하지만 TCC 권한을 자동으로 부여하거나 우회하지 않는다.
 - ad-hoc 서명으로 앱 정체성이 바뀌면 사용자가 시스템 권한을 다시 부여해야 할 수 있다. 서명 방식을 바꿀 때는 업데이트·권한 흐름을 실제 장비에서 검증한다.
-- 문서화되지 않은 macOS wallpaper/aerial 상태를 변경하는 native 잠금 화면 실험은 소스에서 직접 빌드한 로컬 실행본으로만 제공한다. Portable 릴리스와 앱 내 업데이트는 이 privileged 기능을 설치하거나 갱신하지 않는다.
+- 문서화되지 않은 macOS wallpaper/aerial 상태를 변경하는 Native Lock은 Hikari 전용으로 유지한다. Hikari는 별도 ad-hoc·비공증 release asset으로도 제공할 수 있지만 일반 Lumina Portable 릴리스와 앱 내 업데이트에는 privileged 기능을 포함하지 않는다. release notes에는 macOS 15/26 지원 범위와 ad-hoc·비공증 상태를 명시한다. 일반 Lumina의 선택적 전역 event-tap 단축키 권한 재승인 안내는 Hikari에 적용하지 않는다.
 - native 잠금 화면 실험은 관리자 승인, 변경 전 검증 가능한 백업, 단계별 transaction journal, 조건부 rollback 및 명시적인 제거 경로가 마련되기 전에는 실제 system write를 수행하지 않는다. CI 빌드 성공은 이 root 변경의 런타임 안전성을 보증하지 않는다.
 - Native Local의 root 작업은 앱 번들에서 매번 관리자 승인을 받아 실행하는 고정 인자 one-shot 도구로만 수행한다. 상시 daemon, LaunchDaemon 또는 persistent privileged helper로 바꾸지 않는다.
 - root-owned legacy catalog write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 이 경로를 활성화하지 않는다.
@@ -45,11 +45,11 @@
 - backup, transaction journal, active marker 및 원자적으로 교체한 system/user 파일은 파일과 상위 디렉터리의 `fsync`가 성공한 뒤에만 다음 phase로 진행한다.
 - Native Local의 user support root와 transaction staging은 현재 사용자 전용 권한으로 유지한다. system playback copy는 macOS 서비스 접근 때문에 root 소유 0644이며 활성 중 같은 Mac의 다른 로컬 계정이 읽을 수 있다는 고지를 유지한다. 복원은 hash가 일치하는 system copy만 제거한다.
 - 일반 `Lumina`와 Native Local 앱 `Hikari`는 서로 다른 bundle ID와 Application Support 저장소를 사용한다. 두 빌드 모두 `Control-Command-Q` 잠금을 지원한다. 일반 빌드는 선택형 event-tap 재정의를 유지하고, Native Local은 충돌하는 event tap 없이 macOS 소유 시스템 잠금 경로를 사용한다. Native Local은 앱 내 자동 업데이트를 실행하지 않는다.
-- 일반 CI만 Portable 앱을 패키징·업로드·릴리스한다. Native Local CI는 별도 workflow에서 compile/test와 번들 격리 검사만 하고 artifact, archive, release 또는 앱 실행을 하지 않는다.
+- 일반 CI는 Lumina Portable을 패키징·업로드·릴리스하고, 별도 Hikari Release workflow는 `hikari-vX.Y.Z` tag에서 Hikari ad-hoc asset과 checksum만 패키징·업로드·릴리스한다. Native Local CI 자체는 계속 compile/test와 번들 격리 검사만 하며 artifact, archive, release 또는 앱 실행을 하지 않는다.
 - 같은 system wallpaper/aerial 저장소를 수정하는 다른 도구와 native 잠금 화면 실험을 동시에 실행하지 않는다.
 
 ## 릴리스
 
 - 이미 push한 태그는 이동하거나 재사용하지 않는다. 후속 수정은 새 버전과 새 태그로 릴리스한다.
 - 릴리스 전에 `project.yml`의 마케팅 버전, 태그, 릴리스 JSON 해석, 설치된 화면 보호기 업데이트 흐름을 함께 점검한다.
-- Hikari는 `HIKARI_MARKETING_VERSION`과 `HIKARI_BUILD_NUMBER`으로 Lumina와 독립 관리한다. Hikari 로컬 빌드 또는 검증용 배포 전에 두 값을 함께 올리고, 로컬 빌드·Xcode 빌드·Native Local CI의 bundle plist가 그 값과 일치해야 한다. Hikari는 source-only이므로 이 버전 변경이 일반 Lumina 릴리스 태그나 앱 내 업데이트를 만들지는 않는다.
+- Hikari는 `HIKARI_MARKETING_VERSION`과 `HIKARI_BUILD_NUMBER`으로 Lumina와 독립 관리한다. Hikari 로컬 빌드 또는 ad-hoc release 전에 두 값을 함께 올리고, 로컬 빌드·Xcode 빌드·Native Local CI·Hikari Release workflow의 bundle plist가 그 값과 일치해야 한다. Hikari tag와 release는 일반 Lumina release tag와 분리하며, Hikari는 앱 내 자동 업데이트를 실행하지 않는다.

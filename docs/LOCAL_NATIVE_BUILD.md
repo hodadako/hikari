@@ -1,11 +1,17 @@
 # Building Hikari Native Local on Another Mac
 
-Hikari Native Local is a source-only, experimental build. It is not a portable
-download and it does not receive in-app updates. Build it on the Mac where it
-will run; do not copy an already-built app from another machine.
+Hikari Native Local is an experimental source build and can also be published as
+a separate ad-hoc release asset. It is not part of the Lumina portable download
+and it does not receive in-app updates. Until the first Hikari tag is released,
+build it on the Mac where it will run when possible; a copied ad-hoc build may
+trigger Gatekeeper warnings. Hikari
+uses the macOS-owned lock shortcut and does not enable Lumina's optional global
+event-tap shortcut, so this Native Local path does not require Accessibility or
+Input Monitoring permission.
 
-Native Lock modifies undocumented macOS-managed video-selection data after an
-explicit administrator authorization. Back up the Mac first, keep the Restore
+Native Lock modifies undocumented macOS-managed video-selection data. macOS 15
+requires explicit administrator authorization; macOS 26 uses the current user's
+Aerial store without administrator authorization. Back up the Mac first, keep the Restore
 action available, and do not run another program that edits the same macOS
 video-selection store at the same time. If the known Backdrop wallpaper
 renderer is running, Hikari stops that renderer during Native Lock apply; its
@@ -29,8 +35,9 @@ manifest and media records are preserved.
   rollback.
 - The direct build script needs a Swift toolchain with the macOS 15 SDK or
   newer. A full Xcode installation is required for Xcode builds and tests.
-- Hikari is source-only. The normal Lumina portable release is a separate app
-  and does not include Native Lock.
+- Hikari is built from source and can be published through separate ad-hoc
+  release assets. Until a Hikari tag is released, the normal Lumina portable
+  release is a separate app and does not include Native Lock.
 
 ## Prerequisites for macOS 26 Native Lock
 
@@ -128,6 +135,16 @@ The app is an agent app, so it appears in the menu bar rather than the Dock.
 After the script completes, Spotlight should find `Hikari`; the direct `open`
 command above also works while Spotlight finishes indexing.
 
+### Hikari ad-hoc release assets
+
+Pushing a `hikari-vX.Y.Z` tag runs the Hikari Release workflow. After macOS 15
+and macOS 26 compile/test gates pass, it publishes
+`Hikari-macOS-native-vX.Y.Z.zip` and its SHA-256 checksum in a separate GitHub
+Release. The asset keeps the current ad-hoc, unnotarized signing structure and
+is separate from the normal Lumina release. Verify the checksum and
+`codesign --verify --deep --strict` before opening it. Hikari has no in-app
+updater and does not include Lumina's optional global event-tap shortcut.
+
 ## 4. Optional Xcode build and test
 
 Use this path when changing code or validating the local toolchain. It builds
@@ -156,7 +173,9 @@ xcodebuild \
 1. Launch Hikari and import a video in **General**.
 2. Open **Lock Screen** and apply the selected video only after reading the
    safety status.
-3. macOS asks for administrator authorization for each Apply and Restore.
+3. macOS 15 asks for administrator authorization for each Apply and Restore.
+   macOS 26 user Aerial transactions use the current user's store without an
+   administrator prompt.
 4. Test lock → unlock → next lock before relying on it.
 5. Use **Restore** before a macOS major upgrade, before deleting Hikari, or
    whenever an experiment is finished.

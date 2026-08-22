@@ -47,17 +47,19 @@ screen saver.
 
 The full Xcode install is required for the Xcode schemes and XCTest suite. Native
 Local additionally needs a toolchain with the macOS 15 SDK (Xcode 16 or matching
-Apple Command Line Tools). Its source-only script can be compiled with Command
+Apple Command Line Tools). Its direct build script can be compiled with Command
 Line Tools, but that environment cannot run this repository's XCTest targets.
 
 ## Experimental native Lock Screen disclaimer
 
 Any experimental integration that places custom video in the native macOS Lock
-Screen is **source-only and intended for local builds**. It is not part of the
-supported portable release or in-app update path. This work may request
-administrator authorization and may modify undocumented macOS wallpaper/aerial
-state. Those formats can change without notice and a failed operation can leave
-the user's wallpaper configuration requiring repair.
+Screen is intended to be published by Hikari through a separate ad-hoc,
+unnotarized release workflow and is not part of the supported Lumina portable
+release or in-app update path. macOS 15 may request administrator authorization;
+macOS 26 uses the current user's Aerial store without that prompt. This work may
+modify undocumented macOS wallpaper/aerial state. Those formats can change
+without notice and a failed
+operation can leave the user's wallpaper configuration requiring repair.
 
 The transaction staging directory is user-only. While Native Lock is active,
 however, macOS system services require a root-owned, system-readable playback
@@ -129,8 +131,9 @@ To inspect the separate local-only target on macOS 15 or macOS 26, select the
 `~/Library/Application Support/LuminaNative`, supports `Control-Command-Q`
 through the macOS-owned system lock path, and disables automatic updates. The
 standard Lumina target retains its optional event-tap shortcut override. Native
-Local has its own compile/test-only GitHub Actions workflow; it is never packaged
-or uploaded as a release artifact.
+Local has its own compile/test-only GitHub Actions workflow. The separate Hikari
+Release workflow packages `Hikari` on `hikari-vX.Y.Z` tags as an ad-hoc release
+asset, independently from the normal Lumina release.
 
 For a local ad-hoc build without opening Xcode, run:
 
@@ -141,8 +144,9 @@ scripts/build-native-local.sh
 The script installs the ad-hoc signed app as `/Applications/Hikari.app`, registers
 it with Launch Services and Spotlight, and prints that path. You can then find
 and launch `Hikari` from Spotlight. Import
-the video first, then use Settings → Native Lock → Apply Selected Video. Apply
-and Restore each request macOS administrator authorization. Native Lock system
+the video first, then use Settings → Lock Screen → Apply Selected Video. Apply
+and Restore require administrator authorization on macOS 15; macOS 26 user Aerial
+transactions use the current user's store without an administrator prompt. Native Lock system
 writes use separate reviewed paths for macOS 15 and macOS 26; other major
 versions remain read-only until their format is reviewed. For a complete new-Mac
 setup, build, verification, and recovery guide, see
@@ -197,8 +201,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for lifecycle and storage details and
 - The same video is shown on every display using one independent player per
   display; per-display content is not supported
 - No playlist, online gallery, or per-display content
-- Portable distribution is ad-hoc signed and not Apple-notarized; Native Local
-  is source-only and is never a downloadable binary artifact
+- Portable distribution is ad-hoc signed and not Apple-notarized; Hikari Native
+  Local can be published as a separate ad-hoc, unnotarized artifact and has no
+  in-app updater
 - The PRD's long-duration performance gates require hands-on Instruments testing
 
 ## Contributing
