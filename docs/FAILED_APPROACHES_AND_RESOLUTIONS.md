@@ -32,6 +32,26 @@
 품질은 사용자가 잠금·해제해 수동 확인해야 하며, 여전히 늘어지면 renderer가 지원하는 다른
 placement 값이나 letterbox 전용 사전 렌더링을 별도로 검증한다.
 
+## `FillScreen` placement만으로 portrait Lock Screen 왜곡을 해결하려 한 접근
+
+### 결과
+
+사용자 확인 결과 바이너리 `FillScreen` option을 넣어도 세로 영상이 정상 비율로 보이지 않았다.
+즉 `EncodedOptionValues` 타입은 필요한 조건이지만, macOS 26 Aerial renderer가 세로 원본
+movie 자체를 Apple Aerial의 가로 canvas처럼 확장하는 문제까지 해결하지 못했다.
+
+### 해결
+
+Apple user Aerial store에 실제로 존재하는 로컬 영상은 3840×2160 또는 유사한 가로 비율이었다.
+Hikari의 준비 단계가 1080×1920 원본을 그대로 저장하지 않도록, 1920×1080 16:9 canvas를
+만들고 AVAsset video composition에서 source transform을 적용한 뒤 aspect-fit으로 중앙 합성한다.
+이때 빈 영역은 검은색으로 두고 non-uniform scale이나 crop을 하지 않는다. 합성 결과를 다시
+video-only 10-bit HEVC Main10으로 기록해 기존 Aerial codec 요구 조건도 유지한다.
+
+새 방식은 source metadata만 확인하는 이전 검증과 달리 실제 Aerial 입력 프레임의 canvas
+geometry를 바꾼다. 따라서 재적용 후 Lock Screen에서 portrait 내용이 늘어나지 않는지 수동
+확인한다.
+
 ## macOS 26에서 `Linked` choice가 없는 Aerial catalog에 Native Lock Apply
 
 ### 관찰

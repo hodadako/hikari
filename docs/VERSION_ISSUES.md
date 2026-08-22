@@ -50,6 +50,10 @@
   `active`가 됐고, 실제 user `Index.plist`의 Linked option을 바이너리 plist로 읽어
   `FillScreen` 값을 확인했다. Native Local 빌드는 통과했으며, Command Line Tools 환경에서는
   `XCTest` 모듈 부재 제약이 계속되어 회귀 테스트는 full Xcode CI에서 실행해야 한다.
+- `FillScreen` 옵션만으로는 세로 원본이 늘어지는 현상이 없어지지 않아, Apple 로컬 Aerial
+  영상이 사용하는 16:9 가로 캔버스(1920×1080)를 기준으로 다시 수정했다. 세로 원본은 이
+  캔버스 중앙에 비율을 유지해 letterbox로 합성하고 10-bit HEVC로 인코딩한다. 소스 transform은
+  합성 transform에 한 번만 반영하며, 회전 영상도 같은 fit geometry를 사용한다.
 
 ### 남은 제약
 
@@ -62,6 +66,9 @@
 - 실제 Lock Screen에서 세로 영상이 늘어나지 않는지와 FillScreen의 가장자리 crop 여부는 이
   Mac에서 잠금·해제 수동 확인이 필요하다. 옵션 타입/값과 영상 metadata만으로 최종 화면
   렌더링을 보증할 수는 없다.
+- 새 가로 캔버스 변환본으로 다시 Apply한 뒤 잠금·해제하는 수동 검증이 남아 있다. 16:9
+  캔버스와 다른 display 비율에서는 검은 letterbox가 보일 수 있지만 원본 영상은 비율을
+  유지해야 한다.
 
 ## Hikari v0.1.9 (10) — 2026-08-22
 

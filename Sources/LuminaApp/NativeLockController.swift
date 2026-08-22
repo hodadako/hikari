@@ -388,28 +388,85 @@ final class NativeLockController {
         }
 
         let transform = track.preferredTransform
-        let displayedSize = track.naturalSize.applying(transform)
-        let sourceWidth = abs(displayedSize.width)
-        let sourceHeight = abs(displayedSize.height)
+        let displayedBounds = CGRect(
+            origin: .zero,
+            size: track.naturalSize
+        )
+        .applying(transform)
+        .standardized
+        let sourceWidth = displayedBounds.width
+        let sourceHeight = displayedBounds.height
         guard sourceWidth > 0, sourceHeight > 0 else {
             throw LuminaError.unreadableVideo
         }
-        let scale = min(1.0, 1920.0 / max(sourceWidth, sourceHeight))
-        let outputWidth = max(2, Int((sourceWidth * scale / 2).rounded()) * 2)
-        let outputHeight = max(2, Int((sourceHeight * scale / 2).rounded()) * 2)
+        // Aerial's native video renderer expects a landscape canvas. Passing
+        // a portrait movie through unchanged makes some macOS 26 builds
+        // stretch the source to the display instead of preserving its aspect
+        // ratio. Render every custom asset into the same 16:9 canvas as
+        // Apple's Aerial movies and fit the source inside that canvas. This
+        // intentionally adds letterbox bars rather than cropping or scaling
+        // the source non-uniformly.
+        let outputWidth = 1920
+        let outputHeight = 1080
+        let sourceScale = min(
+            Double(outputWidth) / sourceWidth,
+            Double(outputHeight) / sourceHeight
+        )
+        let fittedWidth = sourceWidth * sourceScale
+        let fittedHeight = sourceHeight * sourceScale
+        let offsetX = (Double(outputWidth) - fittedWidth) / 2.0
+        let offsetY = (Double(outputHeight) - fittedHeight) / 2.0
         let frameRate = track.nominalFrameRate > 0
             ? max(1, Int(track.nominalFrameRate.rounded()))
             : 30
 
         let reader = try AVAssetReader(asset: asset)
-        let readerOutput = AVAssetReaderTrackOutput(
-            track: track,
-            outputSettings: [
+        let composition = AVMutableVideoComposition()
+        composition.renderSize = CGSize(
+            width: outputWidth,
+            height: outputHeight
+        )
+        composition.frameDuration = CMTime(
+            value: 1,
+            timescale: CMTimeScale(frameRate)
+        )
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(
+            start: .zero,
+            duration: asset.duration
+        )
+        instruction.backgroundColor = CGColor(gray: 0, alpha: 1)
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(
+            assetTrack: track
+        )
+        // Build the affine matrix explicitly. Using chained
+        // `concatenating` calls here scales the centering translation on some
+        // Core Graphics versions, which would introduce a second geometry
+        // error for rotated source movies.
+        let scale = CGFloat(sourceScale)
+        let fitTransform = CGAffineTransform(
+            a: transform.a * scale,
+            b: transform.b * scale,
+            c: transform.c * scale,
+            d: transform.d * scale,
+            tx: (transform.tx - displayedBounds.minX) * scale
+                + CGFloat(offsetX),
+            ty: (transform.ty - displayedBounds.minY) * scale
+                + CGFloat(offsetY)
+        )
+        layerInstruction.setTransform(fitTransform, at: .zero)
+        instruction.layerInstructions = [layerInstruction]
+        composition.instructions = [instruction]
+
+        let readerOutput = AVAssetReaderVideoCompositionOutput(
+            videoTracks: [track],
+            videoSettings: [
                 kCVPixelBufferPixelFormatTypeKey as String:
                     kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
             ]
         )
         readerOutput.alwaysCopiesSampleData = false
+        readerOutput.videoComposition = composition
         guard reader.canAdd(readerOutput) else {
             throw LuminaError.unreadableVideo
         }
@@ -433,7 +490,6 @@ final class NativeLockController {
             ]
         )
         writerInput.expectsMediaDataInRealTime = false
-        writerInput.transform = transform
         guard writer.canAdd(writerInput) else {
             throw LuminaError.unreadableVideo
         }
