@@ -30,8 +30,10 @@ on:
       - "scripts/build-native-local.sh"
   workflow_dispatch:
 
-# This workflow is a compile/test gate only. It must not publish, install, or
-# execute the Native Local app, and it never receives repository write access.
+# This workflow is a compile/test gate only. Hikari release packaging is handled
+# separately by hikari-release.yml on hikari-v* tags. This workflow must not
+# publish, install, or execute the Native Local app, and it never receives
+# repository write access.
 permissions:
   contents: read
 

@@ -2,6 +2,27 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## Native Local CI 테스트 helper에서 명시적 `return` 누락
+
+### 관찰
+
+2026-08-22 Native Local CI runs `32564671678`와 최신 `32587430131`에서 macOS 15·26 두
+runner의 Debug build는 통과했지만 Unit test 컴파일이
+`missing return in instance method expected to return 'Data'`로 실패했다. 실패 지점은
+`NativeLockModernTransactionTests.makeIndex(includeLinkedChoices:)`였다.
+
+### 원인
+
+`makeIndex`에 지역 변수와 조건문을 추가한 뒤 마지막
+`PropertyListSerialization.data(...)` expression을 단일 expression 함수처럼 남겼다.
+Swift는 앞에 실행문이 있는 함수에서 해당 expression을 암시적으로 반환하지 않는다.
+
+### 해결
+
+마지막 plist 생성식에 명시적인 `return`을 추가했다. 이 수정은 테스트 helper만 변경하며
+Native Lock production code나 ad-hoc signing 구조를 변경하지 않는다. 수정 후에는 macOS
+15·26 Native Local build/test와 Hikari release package gate를 다시 통과시켜야 한다.
+
 ## macOS 26 Lock Screen에서 portrait 영상이 세로로 늘어짐
 
 ### 관찰

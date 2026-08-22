@@ -2,6 +2,45 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — Hikari ad-hoc release channel
+
+### 이슈와 영향
+
+- Hikari는 Native Local compile/test와 별도 ad-hoc release asset을 게시할 수 있는
+  경로로 분리되어 있으며, 첫 Hikari tag 전에는 일반 Lumina Portable 릴리스에 포함되지
+  않는다.
+- Hikari `0.1.9 (10)` preflight 변경에서 Native Local CI 테스트 helper의 명시적 `return`이
+  누락되어 macOS 15·26 Unit test compile이 실패했다.
+
+### 조치
+
+- `hikari-vX.Y.Z` tag 전용 Hikari Release workflow를 추가했다. macOS 15·26 build/test와
+  Release bundle isolation을 통과한 뒤 현재 ad-hoc 서명 구조로 Hikari ZIP과 SHA-256
+  checksum을 만들고 별도 GitHub Release asset으로 게시한다.
+- 일반 Lumina Portable release workflow와 Hikari release를 분리하고, Hikari version/build
+  값을 tag·bundle plist·package output에서 검증한다.
+- 테스트 helper의 plist 생성식에 명시적 `return`을 추가했다.
+- transaction backup/hash 검증, `Linked` topology 안전성, macOS major-version guard,
+  Restore 및 외부 writer 보호 같은 Native Lock runtime guard는 유지한다.
+
+### 검증
+
+- 실패 run `32564671678`과 최신 run `32587430131`의 원인이 테스트 helper의 missing return임을
+  확인하고 수정했다.
+- Hikari package workflow는 ad-hoc signing, `codesign --verify --deep --strict`, ZIP
+  checksum 검증 및 Hikari bundle version/isolation 검사를 포함한다.
+- 실제 tag release 실행, GitHub asset 다운로드 후 checksum, Gatekeeper 경고, macOS 15
+  관리자 승인 동작의 수동 검증은 첫 Hikari release tag에서 수행해야 한다. Hikari는
+  Lumina의 선택적 전역 event-tap 단축키를 사용하지 않으므로 Accessibility/Input Monitoring
+  권한 재승인은 이 release 경로의 검증 항목이 아니다.
+
+### 남은 제약
+
+- Hikari release asset은 Developer ID/notarization이 아닌 ad-hoc·비공증 실험용 배포다.
+  앱 내 자동 업데이트에는 포함하지 않는다.
+- 실제 release tag를 push하기 전, 현재 Hikari `0.1.10 (11)`의 macOS 15·26 Native Local
+  CI와 release workflow를 다시 통과시켜야 한다.
+
 ## Hikari v0.1.10 (11) — 2026-08-23
 
 ### 이슈와 영향
@@ -63,8 +102,9 @@
 
 - 자동 Apply는 선택 영상이 이미 있고 macOS 26 user Aerial manifest에 로컬 Apple asset이
   하나 이상 있어야 한다. Apple manifest나 Space/display ID를 추측 생성하지 않는다.
-- Native Local은 source-only이며 앱 실행 시 실제 user wallpaper를 변경하므로, 적용 중 같은
-  wallpaper store를 수정하는 외부 앱을 동시에 실행하지 않는다.
+- Native Local은 source build와 별도 ad-hoc release asset으로 게시할 수 있으며 앱 실행 시
+  실제 user wallpaper를 변경하므로, 적용 중 같은 wallpaper store를 수정하는 외부 앱을
+  동시에 실행하지 않는다.
 - Hikari가 자동으로 종료하는 것은 알려진 `BackdropWallpaper` renderer process뿐이다. 다른
   wallpaper 도구가 같은 store를 쓰면 먼저 종료해야 하며, Hikari는 이를 임의로 제거하지 않는다.
 - 실제 Lock Screen에서 세로 영상이 늘어나지 않는지와 FillScreen의 가장자리 crop 여부는 이
@@ -326,9 +366,9 @@
 
 ### 남은 제약
 
-- Hikari는 source-only 로컬 빌드이며 앱 내 업데이트, artifact, GitHub Release
-  또는 전용 태그를 만들지 않는다. 다음 Hikari 변경 전
-  `HIKARI_MARKETING_VERSION`과 `HIKARI_BUILD_NUMBER`을 함께 올린다.
+- 당시 Hikari는 source-only 로컬 빌드였으며 앱 내 업데이트, artifact, GitHub Release 또는
+  전용 태그를 만들지 않았다. 다음 Hikari 변경 전 `HIKARI_MARKETING_VERSION`과
+  `HIKARI_BUILD_NUMBER`을 함께 올린다.
 
 ## Unreleased — Native 지속 검증 및 검은 잠금 화면 복구
 
@@ -505,8 +545,8 @@
 ### 남은 제약
 
 - Native system write는 확인된 macOS 15, manifest schema version 1에서만 활성화된다.
-- Native Local은 소스 전용이며 GitHub release artifact나 앱 내 업데이트로 배포하지
-  않는다. 일반 Portable 앱만 태그 workflow에서 패키징한다.
+- 당시 Native Local은 소스 전용이며 GitHub release artifact나 앱 내 업데이트로 배포하지
+  않았다. 현재 Hikari ad-hoc release channel은 일반 Portable 앱과 분리된다.
 - 다중 디스플레이·장시간 sleep/wake 실제 검증은 Git에서 제외된
   `.personal/MULTI_DISPLAY_SLEEP_WAKE_VALIDATION.md` 절차로 계속 수행한다.
 

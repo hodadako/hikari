@@ -45,17 +45,17 @@ AVFoundation에서 재생 가능한 영상(MP4, MOV, M4V 등)을 가져오면 �
 
 Xcode 스킴과 XCTest 전체 실행에는 전체 Xcode가 필요합니다. Native Local은
 macOS 15 SDK가 포함된 toolchain(Xcode 16 또는 대응 Apple Command Line Tools)도
-필요합니다. 소스 전용 Native Local 스크립트는 Command Line Tools만으로도
+필요합니다. Native Local 직접 빌드 스크립트는 Command Line Tools만으로도
 컴파일할 수 있지만, 이 환경은 저장소의 XCTest 타깃을 실행하지 못합니다.
 
 ## 실험적 native 잠금 화면 기능 고지
 
-사용자 지정 영상을 macOS native 잠금 화면에 표시하는 실험 기능은 **소스
-전용이며 로컬 빌드에서만 사용**합니다. 지원되는 Portable 배포판이나 앱 내
-업데이트 경로에 포함하지 않습니다. 이 기능은 관리자 인증을 요청하고 문서화되지
-않은 macOS wallpaper/aerial 상태를 변경할 수 있습니다. 해당 형식은 예고 없이
-바뀔 수 있으며 작업이 실패하면 사용자가 배경화면 설정을 직접 복구해야 할 수
-있습니다.
+사용자 지정 영상을 macOS native 잠금 화면에 표시하는 실험 기능은 Hikari의 별도
+ad-hoc·비공증 release workflow로 게시할 수 있으며, 지원되는 Lumina Portable 배포판이나 앱 내
+업데이트 경로에는 포함하지 않습니다. macOS 15에서는 관리자 인증을 요청하고 macOS 26은
+현재 사용자 Aerial 저장소를 사용합니다. 이 기능은 문서화되지 않은 macOS wallpaper/aerial
+상태를 변경할 수 있으며, 해당 형식은 예고 없이 바뀔 수 있습니다. 작업이 실패하면
+사용자가 배경화면 설정을 직접 복구해야 할 수 있습니다.
 
 transaction staging 폴더는 현재 사용자만 접근할 수 있습니다. 하지만 Native
 잠금이 활성화된 동안 macOS 시스템 서비스가 읽을 수 있도록 root 소유의
@@ -121,8 +121,8 @@ macOS 15 또는 macOS 26에서 별도 로컬 전용 버전을 확인하려면 `L
 `~/Library/Application Support/LuminaNative` 저장소를 사용합니다. 시스템
 소유 `Control-Command-Q` 잠금 경로를 그대로 지원하며 자동 업데이트는 사용하지
 않습니다. 일반 Lumina 타깃은 기존 선택형 event-tap 단축키 재정의를 유지합니다.
-Native Local은 별도 GitHub Actions에서 compile/test만 하며 release artifact로
-패키징하거나 업로드하지 않습니다.
+Native Local은 별도 GitHub Actions에서 compile/test만 하며, 별도 Hikari Release
+workflow가 `hikari-vX.Y.Z` tag에서 ad-hoc release artifact를 패키징·업로드합니다.
 
 Xcode를 열지 않고 로컬 ad-hoc 앱을 만들려면 다음 스크립트를 실행하세요.
 
@@ -133,8 +133,9 @@ scripts/build-native-local.sh
 스크립트는 ad-hoc 서명된 앱을 `/Applications/Hikari.app`에 설치하고 Launch
 Services와 Spotlight에 등록한 뒤 해당 경로를 출력합니다. Spotlight에서 `Hikari`를
 검색해 실행하고 영상을 가져온 뒤
-설정 → Native 잠금 → 선택한 영상 적용을 사용합니다. 적용과 복원 때마다 macOS
-관리자 승인이 필요합니다. system write는 검토된 macOS 15와 macOS 26의 별도 경로에서만
+설정 → Lock Screen → 선택한 영상 적용을 사용합니다. macOS 15에서는 적용과 복원 때마다
+관리자 승인이 필요하고, macOS 26 user Aerial transaction은 현재 사용자 권한으로 실행됩니다.
+system write는 검토된 macOS 15와 macOS 26의 별도 경로에서만
 허용하며, 다른 major 버전은 해당 형식을 다시 검토하기 전까지 read-only입니다. 새 Mac
 준비, 빌드, 검증과 복원까지의 전체 절차는
 [다른 Mac에서 Hikari Native Local 빌드하기](docs/LOCAL_NATIVE_BUILD.ko.md)를 확인하세요.
@@ -176,7 +177,7 @@ xcodebuild \
   콘텐츠는 지원하지 않음
 - 재생목록, 온라인 갤러리 및 디스플레이별 콘텐츠 미지원
 - Portable 배포판은 Apple 공증되지 않음
-- Native Local은 소스 전용이며 다운로드 가능한 바이너리 artifact를 제공하지 않음
+- Native Local은 별도 ad-hoc·비공증 바이너리 artifact로 게시할 수 있으며 앱 내 자동 업데이트는 없음
 - 장시간 성능 기준은 Instruments를 이용한 직접 테스트 필요
 
 ## 기여 및 라이선스
