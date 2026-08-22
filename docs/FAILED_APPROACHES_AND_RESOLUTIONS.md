@@ -19,14 +19,20 @@ macOS 26 user backend는 Lock Screen 전용 `Linked` choice만 Hikari asset으�
 materialize하지 않았고, `Desktop` 또는 `Idle`을 대체하면 Lock Screen 전용 적용이라는
 범위와 사용자의 기존 wallpaper/screen-saver 설정 보존 규칙을 위반한다.
 
+이는 macOS 26 전체가 Native Lock을 지원하지 않는다는 뜻은 아니다. 2026-08-16의
+다른 Mac active transaction에서는 Hikari asset을 가리키는 모든 `Linked` choice가
+실제로 유지됐으며, 이후 검은 화면은 mapping 실패가 아니라 renderer refresh 누락으로
+분리해 수정했다. 따라서 이 실패는 현재 Mac의 index topology 차이로 한정한다.
+
 ### 해결
 
 - `Desktop`과 `Idle`을 fallback으로 수정하거나 `Linked` choice를 추측해 만들지 않는다.
 - Hikari Lock Screen의 **Restore Previous Wallpaper**로 실패한 transaction manifest/media를
   먼저 복원한다. manifest hash가 바뀐 경우에도 다른 Hikari asset이 shared category를
   사용하면 해당 category는 보존한다.
-- Apple이 실제 `Linked` choice를 만드는 지원되는 설정·lifecycle이 확인되기 전에는 이
-  topology에서 macOS 26 Native Lock Apply를 안전하게 지원하지 않는다.
+- 성공한 Mac의 `Index.plist`와 transaction journal을 현재 Mac의 원본 index와 비교해,
+  Apple이 materialize한 `Linked` 구조와 전제 조건을 확인한다. 그 구조를 Hikari가
+  추측해 생성하지는 않는다.
 
 ## 화면 보호기에서 앱 샌드박스 경로를 강제 사용
 

@@ -53,8 +53,11 @@ Apple wallpaper index. It never creates a `Linked` choice or repurposes your
 `Desktop` or `Idle` choice, because those changes could overwrite your normal
 wallpaper or screen-saver selection. If Apply reports **No wallpaper choices
 were found to update**, use **Restore Previous Wallpaper** and stop there;
-the current wallpaper topology cannot safely use Native Lock until macOS
-itself materializes a Linked Lock Screen choice.
+that particular Mac's current wallpaper topology has no safe target. This does
+not make macOS 26 Native Lock unsupported: a separately verified macOS 26
+transaction retained all Apple-materialized `Linked` choices. Compare that
+Mac's original `Index.plist` and transaction journal before changing any
+settings or attempting another Apply.
 
 After rebuilding Hikari from source, always relaunch the app before applying
 or restoring a Native Lock transaction. The build script terminates any running

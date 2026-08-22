@@ -47,8 +47,11 @@ Hikari에는 현재 Apple wallpaper index 안에 이미 존재하는 Lock Screen
 필요합니다. Hikari는 이 choice를 추측해 만들거나 기존 `Desktop`/`Idle` choice를 대체하지
 않습니다. 그렇게 하면 일반 배경화면 또는 화면 보호기 선택을 덮어쓸 수 있기 때문입니다.
 Apply에서 **No wallpaper choices were found to update**가 나오면 **Restore Previous
-Wallpaper**로 실패한 transaction을 먼저 복원하고 중지하세요. macOS가 실제 Linked Lock
-Screen choice를 만들기 전에는 현재 topology에서 Native Lock을 안전하게 적용할 수 없습니다.
+Wallpaper**로 실패한 transaction을 먼저 복원하고 중지하세요. 이는 그 Mac의 현재 topology에
+안전한 대상이 없다는 뜻이며 macOS 26 Native Lock 전체가 미지원이라는 뜻은 아닙니다. 별도로
+검증한 macOS 26 transaction은 Apple이 만든 모든 `Linked` choice를 유지했습니다. 다른 설정을
+바꾸거나 다시 Apply하기 전에, 성공한 Mac의 원본 `Index.plist`와 transaction journal을 현재
+Mac의 원본과 비교하세요.
 
 ## 1. Mac 준비
 
