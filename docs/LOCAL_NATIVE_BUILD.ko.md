@@ -13,6 +13,12 @@ Native Lock은 관리자 승인을 받은 뒤 macOS가 관리하는 비공개 �
 - Native Lock 작업용 Hikari는 macOS 15 또는 macOS 26에서만 지원합니다. 두 버전은
   서로 다른 저장소 경로를 사용하며, 다른 major 버전은 형식을 검토하기 전까지 Native
   Lock 쓰기를 의도적으로 차단합니다.
+- **macOS 15**는 `/Library/Application Support/com.apple.idleassetsd/Customer/entries.json`의
+  관리자 권한 구형 system catalog를 사용합니다. Apply와 Restore마다 one-shot helper의
+  관리자 승인이 필요합니다.
+- **macOS 26**은 `~/Library/Application Support/com.apple.wallpaper/aerials/`의 현재 사용자
+  Aerial catalog를 사용합니다. 관리자 승인은 필요 없지만, 먼저 Apple Aerial wallpaper를
+  한 번 내려받아 catalog를 초기화해야 합니다.
 - 직접 빌드 스크립트에는 macOS 15 SDK 이상이 포함된 Swift toolchain이 필요합니다.
   Xcode 빌드와 테스트에는 전체 Xcode 설치본이 필요합니다.
 - Hikari는 소스 전용입니다. 일반 Lumina Portable 릴리스는 별도 앱이며 Native Lock을
@@ -23,6 +29,19 @@ Native Lock은 관리자 승인을 받은 뒤 macOS가 관리하는 비공개 �
 `entries.json`과 `Index.plist`는 빌드 입력이 아닙니다. macOS의 사용자 또는 system
 wallpaper 저장소가 소유하며, 실행 중인 Native Lock transaction이 시작된 뒤 검증하고
 snapshot합니다. 빌드 스크립트는 이 runtime 파일을 bundle 안에 만들거나 복사하지 않습니다.
+
+### macOS 26 Aerial catalog 초기화
+
+macOS 26에서 Aerial catalog는 Apple Aerial wallpaper를 한 번 선택하거나 내려받은 뒤에만
+생깁니다. Hikari가 **Initialize Apple Aerial wallpapers first**를 표시하면 다음 순서로
+초기화하세요.
+
+1. **시스템 설정 → 배경화면**을 엽니다.
+2. Apple **Aerial** wallpaper 하나를 선택하고 다운로드가 끝날 때까지 기다립니다.
+3. Hikari의 **Lock Screen**으로 돌아가 `Ready to apply locally` 상태인지 확인합니다.
+
+catalog를 직접 만들거나 편집하지 마세요. Hikari는 Apple이 초기화한 manifest만 transaction의
+기준으로 사용합니다.
 
 ## 1. Mac 준비
 
@@ -125,6 +144,8 @@ Native Lock transaction이 활성인 동안에는 Hikari를 실행해 둬야 사
 | 설치 단계에서 `/Applications` 쓰기 실패 | 위의 `LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications"` 방식을 사용합니다. |
 | Spotlight에 Hikari가 아직 안 보임 | `open /Applications/Hikari.app` 또는 `$HOME/Applications`의 해당 경로로 실행하고 색인이 끝날 때까지 기다립니다. |
 | Hikari가 Native Lock 쓰기를 사용할 수 없다고 표시 | macOS 15 또는 26인지 확인하세요. 운영체제 안전 차단을 우회하지 마세요. |
+| macOS 26에서 `Clear Failed Preparation`이 보임 | 구형 빌드가 system write 전에 거절된 기록입니다. 이 버튼은 적용 hash가 전혀 없는 정확한 실패 기록만 정리합니다. 누른 뒤 Lock Screen에서 선택 영상을 다시 Apply하세요. |
+| macOS 26에서 구형 transaction Restore가 실패함 | system 또는 user mapping이 적용된 기록이라면 macOS 15에서 Hikari를 실행해 Restore하세요. journal이나 wallpaper 파일을 직접 삭제하지 마세요. |
 | Apply 또는 잠금 화면 시험이 이상함 | 추가 시험을 멈추고 Restore를 실행한 뒤, 다른 변경을 하기 전에 transaction/error 정보를 보존합니다. |
 
 Apply 또는 Restore 진단은 다음 명령으로 확인할 수 있습니다.

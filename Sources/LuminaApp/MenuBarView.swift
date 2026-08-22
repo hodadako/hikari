@@ -234,6 +234,12 @@ struct ThumbnailView: View {
                 }
             }
         }
+        // The caller supplies the thumbnail's fixed size. Apply that proposed
+        // size before clipping: clipping the image at its intrinsic size first
+        // lets portrait thumbnails paint outside the enclosing settings row.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .accessibilityLabel("Current video thumbnail")
     }

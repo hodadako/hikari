@@ -2,6 +2,30 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.6 (7) — 2026-08-22
+
+### 이슈와 영향
+
+- 2개와 3개 디스플레이를 오갈 때 최종 topology 확인이 연결되지 않은 화면까지 포함해 모든 `AVPlayerLayer`를 재생성했다. 각 영상이 다시 준비되며 화면이 버벅였다.
+- 설정과 메뉴 막대의 영상 썸네일은 호출자가 크기를 제한한 뒤 내부 clip을 적용했다. 세로 비율 썸네일이 자신의 intrinsic bounds로 먼저 그려져 설정 창 밖으로 보일 수 있었다.
+- 이 Mac의 macOS 26.6.1에는 backend 정보가 없는 구형 Native Lock journal이 `recoveryRequired`로 남아 있었다. 기록된 오류는 macOS 26에서 구형 helper가 system write 전에 거절된 경우였지만, 이후 Native Lock Apply까지 막혔다.
+
+### 조치
+
+- display 전환의 최종 pass는 topology와 실제 playback 오류만 조정한다. wake와 Space 복구의 명시적 surface rebuild는 유지하되, display 추가/제거만으로 건강한 기존 session을 다시 만들지 않는다.
+- `ThumbnailView`가 제안된 고정 크기 안에서 먼저 frame·clip·compositing을 적용하도록 바꿨다.
+- macOS 26의 정확한 legacy-helper preflight 실패(backend 없음, user/system applied hash 없음, 알려진 거절 오류)만 `Clear Failed Preparation`으로 journal을 완료 처리할 수 있게 했다. 실제 mapping 또는 manifest가 적용됐을 가능성이 있는 transaction은 이 경로로 절대 해제하지 않고 Restore를 계속 요구한다.
+
+### 검증
+
+- Native Lock의 알려진 무변경 preflight failure는 해제되고 applied mapping hash가 있는 journal은 해제되지 않는 단위 테스트를 추가했다.
+- SwiftPM/XCTest는 활성 developer directory가 Command Line Tools를 가리켜 실행하지 못했다. 전체 Xcode 환경의 Native Local CI 또는 로컬 full Xcode에서 최종 빌드·테스트가 필요하다.
+
+### 남은 제약
+
+- 실제 디스플레이 연결·해제의 프레임 연속성과 세로 영상 썸네일 clipping은 이 Mac에서 수동 확인이 필요하다.
+- macOS 26의 실제 Native Lock Apply → lock → unlock → Restore는 Aerial store를 수정하므로 사용자가 Hikari에서 명시적으로 수행해야 한다. 구형 transaction에 user/system applied hash가 있으면 원래 macOS 15에서 Restore해야 한다.
+
 ## Unreleased — macOS 26 Native Lock 초기화 및 구형 헬퍼 실행 수정
 
 ### 이슈와 영향

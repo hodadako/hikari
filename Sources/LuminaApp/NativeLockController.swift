@@ -61,6 +61,25 @@ final class NativeLockController {
         try? store.activeOrPendingTransaction()
     }
 
+    /// Clears only the known macOS 26 legacy-helper preflight failure. The
+    /// helper rejected that route before any system or user wallpaper write,
+    /// so marking this journal restored does not perform a restore operation
+    /// or discard a real Native Lock transaction.
+    func discardKnownNoopLegacyPreflight() throws {
+        guard let record = try store.activeOrPendingTransaction(),
+              NativeLockRecovery.canDiscardKnownNoopLegacyPreflight(
+                record.journal,
+                operatingSystemMajorVersion: ProcessInfo.processInfo
+                    .operatingSystemVersion.majorVersion
+              ) else {
+            throw NativeLockTransactionError.transactionMismatch
+        }
+        try store.markRestored(transactionID: record.request.transactionID)
+        nativeLockLogger.notice(
+            "Discarded known no-op legacy preflight transaction \(record.request.transactionID.uuidString, privacy: .public)"
+        )
+    }
+
     /// Performs user-level maintenance only. It never invokes the privileged
     /// helper or rewrites the system manifest/media. A drifted user wallpaper
     /// mapping is reconciled transactionally; an explicit renderer refresh is

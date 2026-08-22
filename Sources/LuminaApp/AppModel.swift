@@ -117,9 +117,9 @@ final class AppModel: ObservableObject {
         }
         stateMonitor.onDisplaysSettled = { [weak self] in
             guard let self else { return }
-            // Recreate the presentation surface once, after the display
-            // topology has settled and WindowServer can back it reliably.
-            self.wallpaperController.rebuildWindowsIfContentAvailable(
+            // The final snapshot confirms the topology, but does not tear
+            // down healthy players on displays that were not changed.
+            self.wallpaperController.finishDisplayTopologyTransitionIfContentAvailable(
                 self.hasPlayableContent
             )
         }
@@ -282,6 +282,29 @@ final class AppModel: ObservableObject {
             presentedError = error.localizedDescription
         }
         isNativeLockWorking = false
+        objectWillChange.send()
+    }
+
+    var canDiscardKnownNoopNativeLockPreflight: Bool {
+        guard let nativeLockRecord else { return false }
+        return NativeLockRecovery.canDiscardKnownNoopLegacyPreflight(
+            nativeLockRecord.journal,
+            operatingSystemMajorVersion: ProcessInfo.processInfo
+                .operatingSystemVersion.majorVersion
+        )
+    }
+
+    func discardKnownNoopNativeLockPreflight() {
+        guard !isNativeLockWorking else { return }
+        isNativeLockWorking = true
+        defer { isNativeLockWorking = false }
+        do {
+            try nativeLockController.discardKnownNoopLegacyPreflight()
+            nativeLockRecord = nativeLockController.currentRecord()
+            didPresentNativeMaintenanceError = false
+        } catch {
+            presentedError = error.localizedDescription
+        }
         objectWillChange.send()
     }
     #endif

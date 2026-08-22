@@ -279,4 +279,39 @@ final class NativeLockSafetyTests: XCTestCase {
 
         XCTAssertEqual(report.state, .recoveryRequired)
     }
+
+    func testMacOS26LegacyHelperPreflightFailureCanBeDiscarded() {
+        let journal = NativeLockJournal(
+            transactionID: UUID(),
+            assetID: UUID(),
+            phase: .recoveryRequired,
+            originalWallpaperIndexSHA256: String(repeating: "a", count: 64),
+            lastError: NativeLockRecovery.macOS26LegacyHelperFailure
+        )
+
+        XCTAssertTrue(
+            NativeLockRecovery.canDiscardKnownNoopLegacyPreflight(
+                journal,
+                operatingSystemMajorVersion: 26
+            )
+        )
+    }
+
+    func testLegacyTransactionWithAppliedMappingCannotBeDiscarded() {
+        let journal = NativeLockJournal(
+            transactionID: UUID(),
+            assetID: UUID(),
+            phase: .recoveryRequired,
+            originalWallpaperIndexSHA256: String(repeating: "a", count: 64),
+            appliedWallpaperIndexSHA256: String(repeating: "b", count: 64),
+            lastError: NativeLockRecovery.macOS26LegacyHelperFailure
+        )
+
+        XCTAssertFalse(
+            NativeLockRecovery.canDiscardKnownNoopLegacyPreflight(
+                journal,
+                operatingSystemMajorVersion: 26
+            )
+        )
+    }
 }

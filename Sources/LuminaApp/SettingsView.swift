@@ -719,8 +719,13 @@ private struct NativeLockSettingsView: View {
                         report.state != .ready || model.isNativeLockWorking
                     )
 
-                    if model.nativeLockPhase != nil,
-                       model.nativeLockPhase != .restored {
+                    if model.canDiscardKnownNoopNativeLockPreflight {
+                        Button("Clear Failed Preparation") {
+                            model.discardKnownNoopNativeLockPreflight()
+                        }
+                        .disabled(model.isNativeLockWorking)
+                    } else if model.nativeLockPhase != nil,
+                              model.nativeLockPhase != .restored {
                         Button("Restore Previous Wallpaper") {
                             model.restoreNativeLock()
                         }

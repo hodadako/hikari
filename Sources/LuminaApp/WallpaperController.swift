@@ -74,6 +74,24 @@ final class WallpaperController {
         }
     }
 
+    /// Finalizes a display transition without discarding healthy players.
+    ///
+    /// Attaching or removing one monitor produces several intermediate
+    /// WindowServer snapshots. Those snapshots already create/remove the
+    /// affected session in `synchronizeDisplayTopology()`. Recreating every
+    /// remaining AVPlayer at the final snapshot makes an otherwise unrelated
+    /// display visibly pause, especially when moving between two and three
+    /// displays. Reserve a full surface rebuild for wake/Space recovery and
+    /// only reload a player here when AVFoundation has reported a real error.
+    func finishDisplayTopologyTransitionIfContentAvailable(_ isAvailable: Bool) {
+        guard isAvailable else {
+            closeWindows()
+            return
+        }
+        synchronizeDisplayTopology()
+        playback.recoverFailedSessions()
+    }
+
     func refreshWindowsForActiveSpaceIfContentAvailable(_ isAvailable: Bool) {
         guard isAvailable else {
             closeWindows()

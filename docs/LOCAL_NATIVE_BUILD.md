@@ -159,6 +159,8 @@ transaction files manually.
 | Hikari reports Native Lock writes are unavailable | Confirm the Mac is on macOS 15 or 26. Do not bypass the operating-system safety gate. |
 | Hikari reports "Initialize Apple Aerial wallpapers first" (macOS 26) | Open System Settings → Wallpaper, select an Apple Aerial wallpaper, wait for it to download, then return to Hikari. |
 | Hikari reports "Aerial wallpaper store is not recognized" (macOS 26) | The Aerial manifest exists but has an unexpected schema. Do not modify it manually; file a bug with the transaction details. |
+| macOS 26 shows `Clear Failed Preparation` | An older build was rejected before it wrote any system or user mapping. This button clears only that exact hash-free failure; then apply the selected video again from Lock Screen. |
+| A legacy transaction cannot be restored on macOS 26 | If it has an applied system or user mapping, run Hikari on macOS 15 to Restore it. Do not delete the journal or wallpaper files manually. |
 | After rebuilding, Hikari still behaves like the old version | The build script now terminates the old Hikari before installing. If the issue persists, quit Hikari manually and rerun the build script. |
 | An Apply or lock-screen test looks wrong | Stop testing, use Restore, and preserve the transaction/error details before trying another change. |
 

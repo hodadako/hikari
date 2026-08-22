@@ -18,6 +18,28 @@ public enum NativeLockTransactionBackend: String, Codable, Sendable {
     case userAerials
 }
 
+/// Identifies the one legacy failure that is known not to have modified any
+/// macOS-owned data. Older Hikari builds started the macOS 15 helper route on
+/// macOS 26, where the helper's own OS guard rejected it before a system
+/// manifest or wallpaper mapping could be written. Such a journal blocks all
+/// future Native Lock work even though there is nothing to restore.
+public enum NativeLockRecovery {
+    public static let macOS26LegacyHelperFailure =
+        "The Native Lock helper failed: Native Lock system writes are not enabled for macOS 26."
+
+    public static func canDiscardKnownNoopLegacyPreflight(
+        _ journal: NativeLockJournal,
+        operatingSystemMajorVersion: Int
+    ) -> Bool {
+        operatingSystemMajorVersion == 26
+            && journal.backend == nil
+            && journal.phase == .recoveryRequired
+            && journal.appliedWallpaperIndexSHA256 == nil
+            && journal.systemManifestAppliedSHA256 == nil
+            && journal.lastError == macOS26LegacyHelperFailure
+    }
+}
+
 public struct NativeLockRequest: Codable, Equatable, Sendable {
     public static let schemaVersion = 1
 
