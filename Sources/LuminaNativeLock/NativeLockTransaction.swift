@@ -84,6 +84,10 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
     public var phase: NativeLockTransactionPhase
     public var originalWallpaperIndexSHA256: String
     public var appliedWallpaperIndexSHA256: String?
+    /// When macOS 26 had not materialized a Linked topology, Hikari may
+    /// prepare one before adding its Aerial asset. Keeping this hash lets
+    /// Restore distinguish that preparatory write from later external edits.
+    public var materializedWallpaperIndexSHA256: String?
     /// Reconciliation may add display/Space choices that did not exist in the
     /// original byte-for-byte backup. In that case restore must merge choices
     /// into the current topology instead of replacing the entire index.
@@ -104,6 +108,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         phase: NativeLockTransactionPhase,
         originalWallpaperIndexSHA256: String,
         appliedWallpaperIndexSHA256: String? = nil,
+        materializedWallpaperIndexSHA256: String? = nil,
         requiresSelectiveWallpaperRestore: Bool? = nil,
         backend: NativeLockTransactionBackend? = nil,
         originalModernManifestSHA256: String? = nil,
@@ -118,6 +123,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         self.phase = phase
         self.originalWallpaperIndexSHA256 = originalWallpaperIndexSHA256
         self.appliedWallpaperIndexSHA256 = appliedWallpaperIndexSHA256
+        self.materializedWallpaperIndexSHA256 = materializedWallpaperIndexSHA256
         self.requiresSelectiveWallpaperRestore = requiresSelectiveWallpaperRestore
         self.backend = backend
         self.originalModernManifestSHA256 = originalModernManifestSHA256
@@ -138,6 +144,19 @@ public struct NativeLockTransactionRecord: Equatable, Sendable {
     }
 }
 
+/// The topology that macOS materializes when an Apple Aerial wallpaper is
+/// selected. Identifiers come from the current user's Space and display
+/// state; Hikari never invents stable identifiers for them.
+public struct NativeLockLinkedWallpaperTopology: Equatable, Sendable {
+    public let spaceIDs: [String]
+    public let displayIDs: [String]
+
+    public init(spaceIDs: [String], displayIDs: [String]) {
+        self.spaceIDs = spaceIDs
+        self.displayIDs = displayIDs
+    }
+}
+
 public enum NativeLockTransactionError: LocalizedError, Equatable {
     case unsupportedSchema
     case invalidIdentifier
@@ -155,6 +174,7 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
     case unsafeSystemPath(String)
     case unsupportedOperatingSystem(Int)
     case systemManifestChanged
+    case wallpaperIndexChanged
     case systemAssetChanged
     case helperMissing
     case helperFailed(String)
@@ -197,6 +217,8 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
             "Native Lock system writes are not enabled for macOS \(majorVersion)."
         case .systemManifestChanged:
             "The system aerial manifest changed during the transaction."
+        case .wallpaperIndexChanged:
+            "The macOS wallpaper index changed before Hikari could initialize it."
         case .systemAssetChanged:
             "A staged system asset changed after Hikari applied it."
         case .helperMissing:
@@ -461,6 +483,60 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         try applyWallpaperMapping(transactionID: transactionID, scope: .linked)
     }
 
+    /// Materializes the same user-level Linked topology that macOS creates
+    /// after an Apple Aerial selection. The original Index bytes were saved
+    /// by `prepare`; Desktop/Idle are never used as fallback values.
+    public func materializeLinkedWallpaperTopology(
+        transactionID: UUID,
+        assetID: String,
+        topology: NativeLockLinkedWallpaperTopology
+    ) throws -> NativeLockTransactionRecord {
+        let current = try record(for: transactionID)
+        guard current.journal.phase == .prepared,
+              current.journal.backend == nil || current.journal.backend == .userAerials,
+              !topology.spaceIDs.isEmpty,
+              !topology.displayIDs.isEmpty,
+              Set(topology.spaceIDs).count == topology.spaceIDs.count,
+              Set(topology.displayIDs).count == topology.displayIDs.count,
+              UUID(uuidString: assetID) != nil else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+
+        let currentData = try Data(contentsOf: wallpaperIndexURL)
+        guard NativeLockDigest.sha256(of: currentData)
+                == current.journal.originalWallpaperIndexSHA256 else {
+            throw NativeLockTransactionError.wallpaperIndexChanged
+        }
+        let currentDictionary = try Self.wallpaperDictionary(from: currentData)
+        guard !Self.containsLinkedWallpaperChoice(in: currentDictionary) else {
+            return current
+        }
+        let updatedDictionary = try Self.materializedLinkedWallpaperDictionary(
+            from: currentDictionary,
+            assetID: assetID,
+            topology: topology
+        )
+        let updatedData = try PropertyListSerialization.data(
+            fromPropertyList: updatedDictionary,
+            format: .binary,
+            options: 0
+        )
+        let updatedHash = NativeLockDigest.sha256(of: updatedData)
+
+        // Journal the expected hash before the shared write. If the process
+        // stops after this point, Restore can safely tell an untouched
+        // original from the materialized topology.
+        let prepared = try updateJournal(transactionID: transactionID) { journal in
+            journal.backend = .userAerials
+            journal.materializedWallpaperIndexSHA256 = updatedHash
+            journal.appliedWallpaperIndexSHA256 = updatedHash
+            journal.lastError = nil
+        }
+        try updatedData.write(to: wallpaperIndexURL, options: .atomic)
+        try synchronizeFileAndParent(wallpaperIndexURL)
+        return prepared
+    }
+
     /// Checks whether macOS has materialized a valid Lock Screen mapping that
     /// Hikari may replace. This is intentionally read-only: callers must do
     /// this before adding an asset to the user Aerial manifest so an index
@@ -482,7 +558,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         let current = try record(for: transactionID)
         let currentData = try Data(contentsOf: wallpaperIndexURL)
         let currentDictionary = try Self.wallpaperDictionary(from: currentData)
-        if current.journal.phase == .systemApplied {
+        if current.journal.phase == .systemApplied,
+           current.journal.materializedWallpaperIndexSHA256 == nil {
             let originalURL = transactionDirectoryURL(for: transactionID)
                 .appendingPathComponent(
                     NativeLockPaths.originalWallpaperIndexFilename
@@ -674,9 +751,20 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         let restoreOverlay = try restoreOverlayChoices(at: overlayURL)
 
         let restoredData: Data
+        let currentHash = NativeLockDigest.sha256(of: currentData)
         if record.journal.requiresSelectiveWallpaperRestore != true,
            let appliedHash = record.journal.appliedWallpaperIndexSHA256,
-           NativeLockDigest.sha256(of: currentData) == appliedHash {
+           currentHash == appliedHash {
+            restoredData = originalData
+        } else if record.journal.requiresSelectiveWallpaperRestore != true,
+                  let materializedHash = record.journal.materializedWallpaperIndexSHA256,
+                  currentHash == materializedHash {
+            restoredData = originalData
+        } else if record.journal.requiresSelectiveWallpaperRestore != true,
+                  currentHash == record.journal.originalWallpaperIndexSHA256 {
+            // The process may have journaled the expected materialized hash
+            // just before the shared write and then stopped. The original is
+            // already live, so preserve the exact bytes.
             restoredData = originalData
         } else {
             let merged = Self.restoringWallpaperChoices(
@@ -787,6 +875,99 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             throw NativeLockTransactionError.invalidWallpaperStore
         }
         return dictionary
+    }
+
+    private static func containsLinkedWallpaperChoice(in value: Any) -> Bool {
+        if let dictionary = value as? [String: Any] {
+            if dictionary["Provider"] is String,
+               dictionary["Configuration"] is Data {
+                return false
+            }
+            for (key, child) in dictionary {
+                if key == "Linked",
+                   containsWallpaperChoice(in: child) {
+                    return true
+                }
+                if containsLinkedWallpaperChoice(in: child) {
+                    return true
+                }
+            }
+        } else if let array = value as? [Any] {
+            return array.contains { containsLinkedWallpaperChoice(in: $0) }
+        }
+        return false
+    }
+
+    private static func containsWallpaperChoice(in value: Any) -> Bool {
+        if let dictionary = value as? [String: Any] {
+            if dictionary["Provider"] is String,
+               dictionary["Configuration"] is Data {
+                return true
+            }
+            return dictionary.values.contains { containsWallpaperChoice(in: $0) }
+        }
+        if let array = value as? [Any] {
+            return array.contains { containsWallpaperChoice(in: $0) }
+        }
+        return false
+    }
+
+    private static func materializedLinkedWallpaperDictionary(
+        from original: [String: Any],
+        assetID: String,
+        topology: NativeLockLinkedWallpaperTopology
+    ) throws -> [String: Any] {
+        let linked = linkedWallpaperChoice(assetID: assetID)
+        let linkedContainer: [String: Any] = [
+            "Linked": linked,
+            "Type": "linked"
+        ]
+        let displayContainers = Dictionary(
+            uniqueKeysWithValues: topology.displayIDs.map { ($0, linkedContainer) }
+        )
+        let spaceContainers = Dictionary(
+            uniqueKeysWithValues: topology.spaceIDs.map { spaceID in
+                let spaceDisplays = Dictionary(
+                    uniqueKeysWithValues: topology.displayIDs.map { ($0, linkedContainer) }
+                )
+                return (
+                    spaceID,
+                    [
+                        "Default": linkedContainer,
+                        "Displays": spaceDisplays,
+                        "Type": "linked"
+                    ] as [String: Any]
+                )
+            }
+        )
+        var updated = original
+        updated["AllSpacesAndDisplays"] = "$null"
+        updated["SystemDefault"] = linkedContainer
+        updated["Displays"] = displayContainers
+        updated["Spaces"] = spaceContainers
+        return updated
+    }
+
+    private static func linkedWallpaperChoice(assetID: String) -> [String: Any] {
+        let configuration = try! PropertyListSerialization.data(
+            fromPropertyList: ["assetID": assetID],
+            format: .binary,
+            options: 0
+        )
+        let now = Date()
+        return [
+            "Content": [
+                "Choices": [[
+                    "Configuration": configuration,
+                    "Files": [Any](),
+                    "Provider": "com.apple.wallpaper.choice.aerials"
+                ]],
+                "EncodedOptionValues": "$null",
+                "Shuffle": "$null"
+            ],
+            "LastSet": now,
+            "LastUse": now
+        ]
     }
 
     private func synchronizeFileAndParent(_ url: URL) throws {

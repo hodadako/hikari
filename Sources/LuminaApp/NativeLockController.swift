@@ -1,6 +1,7 @@
 #if LUMINA_NATIVE_LOCAL
 import AppKit
 import AVFoundation
+import CoreGraphics
 import Darwin
 import Foundation
 import ImageIO
@@ -8,6 +9,7 @@ import LuminaCore
 import LuminaNativeLock
 import OSLog
 import UniformTypeIdentifiers
+import VideoToolbox
 
 private let nativeLockLogger = Logger(
     subsystem: "com.hodadako.Lumina.NativeLocal",
@@ -96,6 +98,9 @@ final class NativeLockController {
         var record = current
         var restartedAgent = false
         let usesModernAerials = current.journal.backend == .userAerials
+        if usesModernAerials {
+            stopCompetingWallpaperRenderer()
+        }
         let mappingMatches = try usesModernAerials
             ? store.linkedWallpaperMappingMatches(
                 transactionID: current.request.transactionID
@@ -138,13 +143,18 @@ final class NativeLockController {
     func apply(content: LiveContent) async throws -> NativeLockTransactionRecord {
         let usesModernAerials = ProcessInfo.processInfo
             .operatingSystemVersion.majorVersion == 26
-        if usesModernAerials,
+        let modernManager = usesModernAerials
+            ? NativeLockModernTransactionManager(environment: .live)
+            : nil
+        let linkedInitialization: (assetID: String, topology: NativeLockLinkedWallpaperTopology)?
+        if let modernManager,
            try !store.hasLinkedWallpaperChoices() {
-            // The successful macOS 26 transaction targets only choices that
-            // Apple already materialized under `Linked`. Do not add a Hikari
-            // manifest asset and only then discover that this Mac has no safe
-            // Lock Screen target.
-            throw NativeLockTransactionError.noWallpaperChoices
+            linkedInitialization = (
+                try modernManager.firstUsableAppleAerialAssetID(),
+                try currentLinkedWallpaperTopology()
+            )
+        } else {
+            linkedInitialization = nil
         }
         let sourceURL = container.mediaURL(for: content)
         let workURL = container.rootURL.appendingPathComponent(
@@ -161,7 +171,11 @@ final class NativeLockController {
         let previewURL = workURL.appendingPathComponent(
             usesModernAerials ? "preview.png" : "preview.jpg"
         )
-        try await prepareMedia(from: sourceURL, to: mediaURL)
+        try await prepareMedia(
+            from: sourceURL,
+            to: mediaURL,
+            aerialCompatible: usesModernAerials
+        )
         try await generatePreview(from: mediaURL, to: previewURL)
 
         let prepared = try store.prepare(
@@ -175,21 +189,35 @@ final class NativeLockController {
         )
         do {
             if usesModernAerials {
-                let manager = NativeLockModernTransactionManager(environment: .live)
-                let result = try manager.apply(
-                    request: prepared.request,
-                    sourceTransactionURL: store.transactionDirectoryURL(
-                        for: prepared.request.transactionID
-                    )
-                )
-                _ = try store.markSystemApplied(
-                    transactionID: prepared.request.transactionID,
-                    manifestSHA256: result.manifestSHA256,
-                    backend: .userAerials,
-                    originalModernManifestSHA256: result.originalManifestSHA256
-                )
+                // Backdrop keeps a separate wallpaper renderer alive and can
+                // immediately write its previous Aerial choice back over the
+                // user store. Stop that renderer before Hikari's atomic
+                // manifest/index update; its catalog records remain intact.
+                stopCompetingWallpaperRenderer()
                 let active = try withWallpaperAgentSuspended {
-                    try store.applyLinkedWallpaperMapping(
+                    if let linkedInitialization {
+                        _ = try store.materializeLinkedWallpaperTopology(
+                            transactionID: prepared.request.transactionID,
+                            assetID: linkedInitialization.assetID,
+                            topology: linkedInitialization.topology
+                        )
+                    }
+                    guard let modernManager else {
+                        throw NativeLockTransactionError.invalidWallpaperStore
+                    }
+                    let result = try modernManager.apply(
+                        request: prepared.request,
+                        sourceTransactionURL: store.transactionDirectoryURL(
+                            for: prepared.request.transactionID
+                        )
+                    )
+                    _ = try store.markSystemApplied(
+                        transactionID: prepared.request.transactionID,
+                        manifestSHA256: result.manifestSHA256,
+                        backend: .userAerials,
+                        originalModernManifestSHA256: result.originalManifestSHA256
+                    )
+                    return try store.applyLinkedWallpaperMapping(
                         transactionID: prepared.request.transactionID
                     )
                 }
@@ -270,17 +298,16 @@ final class NativeLockController {
             )
             switch resolvedBackend {
             case .userAerials:
-                guard let originalManifestSHA256 = record.journal.originalModernManifestSHA256 else {
-                    throw NativeLockTransactionError.invalidHash
+                if let originalManifestSHA256 = record.journal.originalModernManifestSHA256 {
+                    try NativeLockModernTransactionManager(environment: .live).restore(
+                        request: record.request,
+                        sourceTransactionURL: store.transactionDirectoryURL(
+                            for: record.request.transactionID
+                        ),
+                        originalManifestSHA256: originalManifestSHA256,
+                        appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
+                    )
                 }
-                try NativeLockModernTransactionManager(environment: .live).restore(
-                    request: record.request,
-                    sourceTransactionURL: store.transactionDirectoryURL(
-                        for: record.request.transactionID
-                    ),
-                    originalManifestSHA256: originalManifestSHA256,
-                    appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
-                )
             case .legacySystemCatalog:
                 _ = try runPrivilegedTool(
                     operation: "restore",
@@ -313,7 +340,20 @@ final class NativeLockController {
         }
     }
 
-    private func prepareMedia(from sourceURL: URL, to destinationURL: URL) async throws {
+    private func prepareMedia(
+        from sourceURL: URL,
+        to destinationURL: URL,
+        aerialCompatible: Bool
+    ) async throws {
+        if aerialCompatible {
+            try await Task.detached(priority: .utility) {
+                try Self.transcodeForAerial(
+                    sourceURL: sourceURL,
+                    destinationURL: destinationURL
+                )
+            }.value
+            return
+        }
         let asset = AVURLAsset(url: sourceURL)
         guard try await asset.load(.isPlayable),
               !(try await asset.loadTracks(withMediaType: .video)).isEmpty else {
@@ -330,6 +370,105 @@ final class NativeLockController {
         // without scanning a high-bitrate 4K file from the end.
         export.shouldOptimizeForNetworkUse = true
         try await export.export(to: destinationURL, as: .mov)
+    }
+
+    /// macOS 26's Aerial renderer expects the same shape as Apple's local
+    /// assets: video-only 10-bit HEVC (Main10), frequent keyframes and no
+    /// frame reordering. A passthrough H.264/8-bit movie can be accepted by
+    /// the manifest but is later discarded by WallpaperAgent, which leaves
+    /// the Linked choice pointing at the previous asset.
+    private nonisolated static func transcodeForAerial(
+        sourceURL: URL,
+        destinationURL: URL
+    ) throws {
+        try? FileManager.default.removeItem(at: destinationURL)
+        let asset = AVURLAsset(url: sourceURL)
+        guard let track = asset.tracks(withMediaType: .video).first else {
+            throw LuminaError.unreadableVideo
+        }
+
+        let transform = track.preferredTransform
+        let displayedSize = track.naturalSize.applying(transform)
+        let sourceWidth = abs(displayedSize.width)
+        let sourceHeight = abs(displayedSize.height)
+        guard sourceWidth > 0, sourceHeight > 0 else {
+            throw LuminaError.unreadableVideo
+        }
+        let scale = min(1.0, 1920.0 / max(sourceWidth, sourceHeight))
+        let outputWidth = max(2, Int((sourceWidth * scale / 2).rounded()) * 2)
+        let outputHeight = max(2, Int((sourceHeight * scale / 2).rounded()) * 2)
+        let frameRate = track.nominalFrameRate > 0
+            ? max(1, Int(track.nominalFrameRate.rounded()))
+            : 30
+
+        let reader = try AVAssetReader(asset: asset)
+        let readerOutput = AVAssetReaderTrackOutput(
+            track: track,
+            outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String:
+                    kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
+            ]
+        )
+        readerOutput.alwaysCopiesSampleData = false
+        guard reader.canAdd(readerOutput) else {
+            throw LuminaError.unreadableVideo
+        }
+        reader.add(readerOutput)
+
+        let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mov)
+        let compression: [String: Any] = [
+            AVVideoAverageBitRateKey: 12_000_000,
+            AVVideoMaxKeyFrameIntervalKey: frameRate,
+            AVVideoMaxKeyFrameIntervalDurationKey: 1.0,
+            AVVideoAllowFrameReorderingKey: false,
+            AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main10_AutoLevel as String
+        ]
+        let writerInput = AVAssetWriterInput(
+            mediaType: .video,
+            outputSettings: [
+                AVVideoCodecKey: AVVideoCodecType.hevc,
+                AVVideoWidthKey: outputWidth,
+                AVVideoHeightKey: outputHeight,
+                AVVideoCompressionPropertiesKey: compression
+            ]
+        )
+        writerInput.expectsMediaDataInRealTime = false
+        writerInput.transform = transform
+        guard writer.canAdd(writerInput) else {
+            throw LuminaError.unreadableVideo
+        }
+        writer.add(writerInput)
+
+        guard reader.startReading(), writer.startWriting() else {
+            throw LuminaError.unreadableVideo
+        }
+        writer.startSession(atSourceTime: .zero)
+
+        let finished = DispatchSemaphore(value: 0)
+        let queue = DispatchQueue(label: "com.hodadako.Hikari.native-lock-transcode")
+        writerInput.requestMediaDataWhenReady(on: queue) {
+            while writerInput.isReadyForMoreMediaData {
+                if let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+                    guard writerInput.append(sampleBuffer) else {
+                        writerInput.markAsFinished()
+                        writer.cancelWriting()
+                        finished.signal()
+                        return
+                    }
+                } else {
+                    writerInput.markAsFinished()
+                    writer.finishWriting {
+                        finished.signal()
+                    }
+                    return
+                }
+            }
+        }
+        finished.wait()
+        guard writer.status == .completed else {
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw LuminaError.unreadableVideo
+        }
     }
 
     private func generatePreview(from mediaURL: URL, to destinationURL: URL) async throws {
@@ -368,6 +507,50 @@ final class NativeLockController {
         guard CGImageDestinationFinalize(destination) else {
             throw LuminaError.unreadableVideo
         }
+    }
+
+    private func currentLinkedWallpaperTopology() throws -> NativeLockLinkedWallpaperTopology {
+        let spacesURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/com.apple.spaces.plist")
+        let spacesData = try Data(contentsOf: spacesURL)
+        let spacesRoot = try PropertyListSerialization.propertyList(
+            from: spacesData,
+            options: [],
+            format: nil
+        )
+        let spaceIDs = Self.spaceIDs(from: spacesRoot)
+        let displayIDs = NSScreen.screens.compactMap { screen -> String? in
+            guard let number = screen.deviceDescription[
+                NSDeviceDescriptionKey("NSScreenNumber")
+            ] as? NSNumber,
+                  let uuid = CGDisplayCreateUUIDFromDisplayID(
+                      CGDirectDisplayID(number.uint32Value)
+                  )?.takeRetainedValue() else {
+                return nil
+            }
+            return (CFUUIDCreateString(nil, uuid) as String).uppercased()
+        }
+        let uniqueSpaceIDs = Array(NSOrderedSet(array: spaceIDs)) as? [String] ?? spaceIDs
+        let uniqueDisplayIDs = Array(NSOrderedSet(array: displayIDs)) as? [String] ?? displayIDs
+        guard !uniqueSpaceIDs.isEmpty, !uniqueDisplayIDs.isEmpty else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+        return NativeLockLinkedWallpaperTopology(
+            spaceIDs: uniqueSpaceIDs,
+            displayIDs: uniqueDisplayIDs
+        )
+    }
+
+    private static func spaceIDs(from value: Any) -> [String] {
+        guard let root = value as? [String: Any],
+              let configuration = root["SpacesDisplayConfiguration"] as? [String: Any],
+              let management = configuration["Management Data"] as? [String: Any],
+              let monitors = management["Monitors"] as? [[String: Any]] else {
+            return []
+        }
+        return monitors
+            .flatMap { $0["Spaces"] as? [[String: Any]] ?? [] }
+            .compactMap { $0["uuid"] as? String }
     }
 
     /// Resolves the effective backend for a transaction, handling old journals
@@ -461,6 +644,11 @@ final class NativeLockController {
                     _ = kill(processID, SIGCONT)
                 }
             }
+            // WallpaperAerialsExtension is an XPC extension and is not
+            // reliably returned by NSRunningApplication. Kill the exact
+            // process name after the shared files are complete so its cached
+            // manifest cannot rewrite the newly selected asset.
+            signalNamedWallpaperProcess("WallpaperAerialsExtension", "KILL")
         }
         for application in applications {
             let processID = application.processIdentifier
@@ -469,9 +657,8 @@ final class NativeLockController {
             }
             stoppedProcessIDs.append(processID)
         }
-        if !stoppedProcessIDs.isEmpty {
-            usleep(100_000)
-        }
+        signalNamedWallpaperProcess("WallpaperAerialsExtension", "STOP")
+        usleep(100_000)
         return try operation()
     }
 
@@ -484,6 +671,32 @@ final class NativeLockController {
             if kill(processID, SIGTERM) != 0, errno != ESRCH {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EPERM)
             }
+        }
+        signalNamedWallpaperProcess("WallpaperAerialsExtension", "TERM")
+    }
+
+    @discardableResult
+    private func signalNamedWallpaperProcess(
+        _ processName: String,
+        _ signalName: String
+    ) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+        task.arguments = ["-\(signalName)", processName]
+        guard (try? task.run()) != nil else { return false }
+        task.waitUntilExit()
+        return task.terminationStatus == 0
+    }
+
+    /// Backdrop's helper is a second writer for the same user wallpaper
+    /// index. It is safe to stop only the renderer process here: Backdrop's
+    /// manifest/media records are external and remain untouched, while
+    /// Hikari's transaction gains ownership of the active Linked choice.
+    private func stopCompetingWallpaperRenderer() {
+        if signalNamedWallpaperProcess("BackdropWallpaper", "TERM") {
+            nativeLockLogger.notice(
+                "Stopped the competing Backdrop wallpaper renderer before applying Native Lock"
+            )
         }
     }
 

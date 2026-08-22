@@ -135,6 +135,44 @@ final class NativeLockModernTransactionTests: XCTestCase {
         XCTAssertFalse(try store.hasLinkedWallpaperChoices())
     }
 
+    func testMaterializeLinkedTopologyRestoresOriginalDesktopAndIdleBytes() throws {
+        try makeIndex(includeLinkedChoices: false).write(to: wallpaperIndexURL)
+        let originalIndex = try Data(contentsOf: wallpaperIndexURL)
+        let mediaURL = rootURL.appendingPathComponent("source.mov")
+        let previewURL = rootURL.appendingPathComponent("source.png")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+
+        let store = NativeLockUserTransactionStore(
+            supportRootURL: supportURL,
+            wallpaperIndexURL: wallpaperIndexURL,
+            userID: UInt32(getuid())
+        )
+        let prepared = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Test Movie",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+        let materialized = try store.materializeLinkedWallpaperTopology(
+            transactionID: prepared.request.transactionID,
+            assetID: "3B2922AA-19BD-4D54-B43E-B45EE5DFA56E",
+            topology: NativeLockLinkedWallpaperTopology(
+                spaceIDs: ["SPACE-1", "SPACE-2"],
+                displayIDs: ["DISPLAY-1"]
+            )
+        )
+
+        XCTAssertEqual(materialized.journal.backend, .userAerials)
+        XCTAssertNotNil(materialized.journal.materializedWallpaperIndexSHA256)
+        XCTAssertTrue(try store.hasLinkedWallpaperChoices())
+
+        _ = try store.beginRestore(transactionID: prepared.request.transactionID)
+        try store.restoreWallpaperMapping(transactionID: prepared.request.transactionID)
+
+        XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), originalIndex)
+    }
+
     func testApplyThrowsAerialCatalogMissingWhenManifestAbsent() throws {
         // Remove the manifest to simulate an uninitialized Aerial catalog.
         try FileManager.default.removeItem(at: manifestURL)

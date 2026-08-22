@@ -6,7 +6,9 @@ Hikari Native Local은 소스에서 직접 빌드하는 실험용 버전입니�
 
 Native Lock은 관리자 승인을 받은 뒤 macOS가 관리하는 비공개 영상 선택 데이터를
 바꿉니다. 먼저 Mac을 백업하고 Restore 동작을 사용할 수 있게 두세요. 같은 macOS
-영상 선택 저장소를 수정하는 다른 프로그램과 동시에 실행해서는 안 됩니다.
+영상 선택 저장소를 수정하는 다른 프로그램과 동시에 실행해서는 안 됩니다. 알려진
+Backdrop wallpaper renderer가 실행 중이면 Hikari가 적용 직전에 해당 renderer만 종료하며,
+Backdrop manifest와 media record는 삭제하지 않습니다.
 
 ## 지원 환경
 
@@ -43,18 +45,16 @@ macOS 26에서 Aerial catalog는 Apple Aerial wallpaper를 한 번 선택하거�
 catalog를 직접 만들거나 편집하지 마세요. Hikari는 Apple이 초기화한 manifest만 transaction의
 기준으로 사용합니다.
 
-Hikari에는 현재 Apple wallpaper index 안에 이미 존재하는 Lock Screen `Linked` choice도
-필요합니다. Hikari는 이 choice를 추측해 만들거나 기존 `Desktop`/`Idle` choice를 대체하지
-않습니다. 그렇게 하면 일반 배경화면 또는 화면 보호기 선택을 덮어쓸 수 있기 때문입니다.
-Apply에서 **No wallpaper choices were found to update**가 나오면 **Restore Previous
-Wallpaper**로 실패한 transaction을 먼저 복원하고 중지하세요. 이는 그 Mac의 현재 topology에
-안전한 대상이 없다는 뜻이며 macOS 26 Native Lock 전체가 미지원이라는 뜻은 아닙니다. 별도로
-검증한 macOS 26 transaction은 Apple이 만든 모든 `Linked` choice를 유지했습니다. 다른 설정을
-바꾸거나 다시 Apply하기 전에, 성공한 Mac의 원본 `Index.plist`와 transaction journal을 현재
-Mac의 원본과 비교하세요. 현재처럼 `Desktop`·`Idle`만 있다면, 먼저 **시스템 설정 → 배경화면**에서
-Apple Aerial을 선택하고 다운로드를 끝내세요. 이것이 성공한 topology에서 확인된 전제입니다.
-그 뒤 Hikari는 transaction 생성이나 Aerial manifest 쓰기 전에 read-only `Linked` preflight를
-실행합니다.
+Hikari는 Apple이 materialize한 Lock Screen `Linked`만 대상으로 하며 기존 `Desktop`/`Idle`을
+fallback으로 사용하지 않습니다. 선택 영상이 있는 첫 실행에서는 이미 로컬에 내려받은 Apple
+Aerial asset과 현재 Space/display 식별자를 이용해 같은 `Linked` topology를 transaction 안에서
+자동으로 준비하고, 원본 `Index.plist`를 보관한 뒤 선택 영상을 한 번에 적용합니다. Apple
+manifest에 사용할 수 있는 로컬 Aerial asset이 없거나 Space/display topology를 읽지 못하면
+manifest 쓰기 전에 중단하고 원인을 안내합니다. 전체 transaction에는 Restore가 남아 있습니다.
+
+이전에 Backdrop을 사용했다면 `BackdropWallpaper` helper가 남아 이전 Aerial 선택을 Hikari의
+기록 직후 다시 쓸 수 있습니다. Hikari는 적용 전에 이 helper만 종료하고 Backdrop의 catalog
+entry나 영상을 지우지 않습니다. 다른 wallpaper 도구는 transaction 중 계속 실행하지 마세요.
 
 ## 1. Mac 준비
 

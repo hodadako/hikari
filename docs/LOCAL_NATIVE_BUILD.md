@@ -7,7 +7,9 @@ will run; do not copy an already-built app from another machine.
 Native Lock modifies undocumented macOS-managed video-selection data after an
 explicit administrator authorization. Back up the Mac first, keep the Restore
 action available, and do not run another program that edits the same macOS
-video-selection store.
+video-selection store at the same time. If the known Backdrop wallpaper
+renderer is running, Hikari stops that renderer during Native Lock apply; its
+manifest and media records are preserved.
 
 ## Supported systems
 
@@ -48,20 +50,20 @@ To initialize the catalog:
 Do not attempt to create or edit the Aerial catalog manually. Hikari requires
 Apple's existing initialized manifest as the baseline for its transaction.
 
-Hikari also requires an existing Lock Screen `Linked` choice in the current
-Apple wallpaper index. It never creates a `Linked` choice or repurposes your
-`Desktop` or `Idle` choice, because those changes could overwrite your normal
-wallpaper or screen-saver selection. If Apply reports **No wallpaper choices
-were found to update**, use **Restore Previous Wallpaper** and stop there;
-that particular Mac's current wallpaper topology has no safe target. This does
-not make macOS 26 Native Lock unsupported: a separately verified macOS 26
-transaction retained all Apple-materialized `Linked` choices. Compare that
-Mac's original `Index.plist` and transaction journal before changing any
-settings or attempting another Apply. On a Mac with only `Desktop` and `Idle`,
-select and finish downloading an Apple Aerial in **System Settings → Wallpaper**
-first; this is the verified successful topology's prerequisite. Hikari then
-performs a read-only `Linked` preflight before it creates a transaction or
-writes the Aerial manifest.
+Hikari targets only an Apple-materialized Lock Screen `Linked` choice and never
+uses your `Desktop` or `Idle` value as a fallback. On first launch with a
+selected video, Hikari can automatically initialize the same `Linked` topology
+using an already-downloaded local Apple Aerial asset, snapshot the original
+`Index.plist`, and apply the selected Hikari video in one transaction. If the
+Apple manifest has no usable local Aerial asset or the current Space/display
+topology cannot be read, Hikari stops before writing the manifest and explains
+the missing prerequisite. Restore remains available for the whole transaction.
+
+If Backdrop was used previously, its `BackdropWallpaper` helper may still be
+running and can write the old Aerial choice back immediately after Hikari's
+write. Hikari terminates only that helper before applying; it does not remove
+Backdrop's catalog entries or media. Other wallpaper tools must still be
+closed while the transaction runs.
 
 After rebuilding Hikari from source, always relaunch the app before applying
 or restoring a Native Lock transaction. The build script terminates any running

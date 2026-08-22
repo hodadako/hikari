@@ -2,6 +2,53 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.10 (11) — 2026-08-23
+
+### 이슈와 영향
+
+- macOS 26의 새 사용자 index가 `Desktop`·`Idle`만 가진 Mac에서는 Hikari가 Lock Screen
+  적용 전에 사용자가 별도 Apple Aerial 선택을 해야 했다.
+- 사용자가 확인한 외부 앱은 실행 직후 기존 Apple Aerial asset을 선택해 `Linked` topology를
+  materialize한 뒤 적용을 진행했다.
+- 이전 Backdrop의 `BackdropWallpaper` renderer가 실행 중이면 Hikari가 쓴 `Linked` choice를
+  즉시 이전 asset으로 되돌려 자동 Apply가 `wallpaperMappingRejected`가 됐다.
+
+### 조치
+
+- Native Local Hikari는 macOS 26 첫 실행 시 선택 영상이 있고 active/recovery transaction이
+  없으면 자동 Apply를 시작한다.
+- `Linked`가 없으면 기존 user Aerial manifest에서 media와 preview가 실제로 존재하는 Apple
+  asset을 읽고, 현재 `com.apple.spaces`와 NSScreen display ID로 `SystemDefault`·Space·display
+  linked topology를 transaction 안에서 준비한다. Desktop/Idle 값은 fallback으로 사용하지 않는다.
+- 원본 `Index.plist`를 먼저 transaction backup하고 materialized index hash를 journal에 남긴다.
+  Apply 또는 Restore 중간에 중단돼도 원본 hash와 materialized hash를 비교해 외부 변경을 보존한다.
+- Hikari 영상은 macOS 26 Aerial renderer가 요구하는 video-only 10-bit HEVC Main10 형식으로
+  준비한다. 자동 초기화와 Hikari manifest/media/index 변경은 `WallpaperAgent`와
+  `WallpaperAerialsExtension`을 정지한 구간에서 수행한다.
+- Apply와 active 유지보수 직전에 실행 중인 `BackdropWallpaper` helper만 종료한다. Backdrop의
+  manifest/media record는 보존한다.
+
+### 검증
+
+- 성공 외부 앱의 실제 결과와 비교해 `Linked` path, `Type: linked`, nested `Configuration`
+  `{assetID: ...}` 구조를 확인했다.
+- 격리된 transaction 단위 테스트에서 `Desktop`·`Idle`만 있는 index를 materialize한 뒤
+  Restore하면 원본 bytes가 그대로 돌아오는지 검증했다.
+- Native Local 직접 빌드·ad-hoc 서명 검증 통과. Command Line Tools 환경의 XCTest 실행은
+  `XCTest` 모듈 부재로 여전히 실행할 수 없으며 전체 Xcode CI에서 최종 확인한다.
+- Backdrop renderer를 종료한 상태에서 최신 Hikari 자동 Apply transaction
+  `1B512569-A657-461F-BD42-2BADEB04A388`가 `active`가 되고 30초 mapping 안정화 검증을
+  통과했으며, Backdrop category/asset은 manifest에 그대로 남았다.
+
+### 남은 제약
+
+- 자동 Apply는 선택 영상이 이미 있고 macOS 26 user Aerial manifest에 로컬 Apple asset이
+  하나 이상 있어야 한다. Apple manifest나 Space/display ID를 추측 생성하지 않는다.
+- Native Local은 source-only이며 앱 실행 시 실제 user wallpaper를 변경하므로, 적용 중 같은
+  wallpaper store를 수정하는 외부 앱을 동시에 실행하지 않는다.
+- Hikari가 자동으로 종료하는 것은 알려진 `BackdropWallpaper` renderer process뿐이다. 다른
+  wallpaper 도구가 같은 store를 쓰면 먼저 종료해야 하며, Hikari는 이를 임의로 제거하지 않는다.
+
 ## Hikari v0.1.9 (10) — 2026-08-22
 
 ### 이슈와 영향

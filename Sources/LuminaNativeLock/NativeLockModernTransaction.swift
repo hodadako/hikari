@@ -82,6 +82,47 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         self.fileManager = fileManager
     }
 
+    /// Selects an existing downloaded Apple Aerial asset for the one-time
+    /// topology initialization. The manifest is read-only here; no Apple
+    /// record is fabricated or added.
+    public func firstUsableAppleAerialAssetID() throws -> String {
+        guard fileManager.fileExists(atPath: environment.manifestURL.path) else {
+            throw NativeLockTransactionError.aerialCatalogMissing
+        }
+        let data = try Data(contentsOf: environment.manifestURL)
+        let manifest = try manifestDictionary(from: data)
+        guard manifest["version"] as? Int == 1,
+              let assets = manifest["assets"] as? [[String: Any]] else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+
+        let candidates = assets.enumerated().compactMap { offset, asset -> (Int, String)? in
+            guard let id = asset["id"] as? String,
+                  UUID(uuidString: id) != nil,
+                  let categories = asset["categories"] as? [String],
+                  !categories.contains(Self.categoryID),
+                  let mediaString = asset["url-4K-SDR-240FPS"] as? String,
+                  let previewString = asset["previewImage"] as? String,
+                  let mediaURL = URL(string: mediaString),
+                  let previewURL = URL(string: previewString),
+                  mediaURL.isFileURL,
+                  previewURL.isFileURL,
+                  fileManager.fileExists(atPath: mediaURL.path),
+                  fileManager.fileExists(atPath: previewURL.path) else {
+                return nil
+            }
+            return (offset, id)
+        }
+        guard let candidate = candidates.sorted(by: { lhs, rhs in
+            let left = assets[lhs.0]["preferredOrder"] as? Int ?? Int.max
+            let right = assets[rhs.0]["preferredOrder"] as? Int ?? Int.max
+            return left == right ? lhs.0 < rhs.0 : left < right
+        }).first else {
+            throw NativeLockTransactionError.noWallpaperChoices
+        }
+        return candidate.1
+    }
+
     public func apply(
         request: NativeLockRequest,
         sourceTransactionURL: URL

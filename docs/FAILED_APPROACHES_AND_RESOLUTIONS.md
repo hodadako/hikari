@@ -26,20 +26,56 @@ materialize하지 않았고, `Desktop` 또는 `Idle`을 대체하면 Lock Screen
 
 ### 해결
 
-- `Desktop`과 `Idle`을 fallback으로 수정하거나 `Linked` choice를 추측해 만들지 않는다.
-- Hikari Lock Screen의 **Restore Previous Wallpaper**로 실패한 transaction manifest/media를
-  먼저 복원한다. manifest hash가 바뀐 경우에도 다른 Hikari asset이 shared category를
-  사용하면 해당 category는 보존한다.
-- 성공한 Mac의 `Index.plist`와 transaction journal을 현재 Mac의 원본 index와 비교해,
-  Apple이 materialize한 `Linked` 구조와 전제 조건을 확인한다. 그 구조를 Hikari가
-  추측해 생성하지는 않는다.
+- `Desktop`과 `Idle`을 fallback 값으로 재사용하는 방식은 시도하지 않는다.
+- 성공 Mac에서 새 앱이 실행 직후 만든 결과를 읽기 전용으로 관찰했다. 기존 manifest의
+  실제 Apple Aerial asset을 선택하고, `Index.plist`를 `SystemDefault`·현재 Space·display
+  아래의 `Type: linked`/`Linked` 구조로 materialize했으며, manifest에 새 Hikari record는
+  추가하지 않았다.
+- Hikari는 이 관찰된 lifecycle을 transaction 안에서 재현한다. 원본 `Index.plist`를 먼저
+  `prepare` 백업하고, manifest에 이미 존재하며 media/preview 파일이 실제로 있는 Apple
+  Aerial asset과 현재 `com.apple.spaces`·NSScreen 식별자를 사용해 Linked topology를 만든
+  다음 Hikari asset/category와 Linked choice를 적용한다.
+- Hikari Lock Screen의 **Restore Previous Wallpaper**는 materialization과 Hikari 적용을
+  모두 원본 bytes로 되돌린다. manifest hash가 바뀐 경우에도 다른 Hikari asset이 shared
+  category를 사용하면 해당 category는 보존한다.
 - 성공 Mac은 Apple Aerial을 선택한 뒤 `SystemDefault`·display·Space 아래에 `Linked`
-  choice가 materialize된 반면, 현재 Mac은 `AllSpacesAndDisplays`와 `SystemDefault` 아래에
-  `Desktop`·`Idle`만 있었다. 현재 Mac에서는 **시스템 설정 → 배경화면에서 Apple Aerial을
-  선택·다운로드한 뒤** Hikari로 돌아와 preflight를 다시 확인한다.
-- Hikari는 macOS 26에서 media/manifest preparation 전에 read-only `Linked` preflight를
-  실행한다. choice가 없으면 transaction·Aerial manifest·media를 쓰지 않고 위 안내를
-  반환한다.
+  choice가 materialize됐고, 현재 Mac은 당시 `Desktop`·`Idle`만 있었다. 이제 Hikari는
+  선택 영상이 있는 첫 실행에서 이 초기화를 자동 수행한다.
+
+## 이전 Backdrop renderer가 Hikari의 Native Lock mapping을 되돌림
+
+### 관찰
+
+2026-08-22 macOS 26.6.1에서 Hikari 자동 Apply가 Aerial manifest와 `Linked` choice를
+원자적으로 기록했지만 곧 `wallpaperMappingRejected`로 끝났다. H.264/8-bit 영상을
+10-bit HEVC Main10으로 변환하고 `WallpaperAgent`·`WallpaperAerialsExtension`을
+재시작한 뒤에도 같은 현상이 남았다. 당시 process 목록에는 다음 외부 writer가 있었다.
+
+- `/Applications/Backdrop.app/.../BackdropWallpaper`
+- Backdrop category `BD000000-0000-4000-8000-000000000001`
+- 기존 asset `3B2922AA-19BD-4D54-B43E-B45EE5DFA56E`
+
+Backdrop process를 종료한 뒤 같은 Hikari asset을 전역 `Linked` 형식으로 기록하자 Index가
+수 초 뒤에도 유지됐다. 이어 Backdrop process가 없는 상태에서 Hikari 자동 Apply를 다시
+실행하자 transaction `2AEC5A06-6A95-4D7B-8E8E-092762F6474B`가 `active`가 되고 30초
+검증을 통과했다.
+
+### 원인
+
+Backdrop의 renderer가 공유 user wallpaper Index를 감시하면서 이전 Aerial choice를 다시
+기록했다. Backdrop의 manifest/media가 남아 있는 것 자체가 문제라기보다, 실행 중인 두
+writer가 같은 `Index.plist`를 서로 덮어쓴 것이 원인이었다. H.264 코덱만의 문제로 단정해
+서는 안 되지만, macOS 26 Aerial 호환성을 위해 Hikari 영상은 video-only 10-bit HEVC
+Main10으로 준비한다.
+
+### 해결
+
+- macOS 26 Apply 및 active transaction 유지보수 직전에 실행 중인 `BackdropWallpaper`
+  helper만 `TERM`으로 종료한다. Backdrop의 category, asset, video, thumbnail은 수정·삭제하지
+  않는다.
+- Apple `WallpaperAgent`와 `WallpaperAerialsExtension`도 공유 파일 교체 구간에서 정지하고
+  작업 후 재시작한다.
+- 다른 wallpaper 도구는 transaction 중 동시에 실행하지 않는다는 운영 제약을 유지한다.
 
 ## 화면 보호기에서 앱 샌드박스 경로를 강제 사용
 

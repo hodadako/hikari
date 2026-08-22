@@ -54,6 +54,7 @@ final class AppModel: ObservableObject {
     #if LUMINA_NATIVE_LOCAL
     private lazy var nativeLockController = NativeLockController(container: container)
     private var nativeLockMaintenanceTask: Task<Void, Never>?
+    private var nativeLockAutoApplyTask: Task<Void, Never>?
     private var nativeRendererRefreshTask: Task<Void, Never>?
     private var nativeLockMaintenanceInProgress = false
     private var nativeRendererRefreshRequested = false
@@ -152,6 +153,7 @@ final class AppModel: ObservableObject {
         nativeLockRecord = nativeLockController.currentRecord()
         wasScreenLocked = stateMonitor.isScreenLocked
         startNativeLockMaintenance()
+        scheduleNativeLockAutoApply()
         #endif
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
@@ -876,6 +878,8 @@ final class AppModel: ObservableObject {
         #if LUMINA_NATIVE_LOCAL
         nativeLockMaintenanceTask?.cancel()
         nativeLockMaintenanceTask = nil
+        nativeLockAutoApplyTask?.cancel()
+        nativeLockAutoApplyTask = nil
         nativeRendererRefreshTask?.cancel()
         nativeRendererRefreshTask = nil
         #endif
@@ -916,6 +920,28 @@ final class AppModel: ObservableObject {
     }
 
     #if LUMINA_NATIVE_LOCAL
+    private func scheduleNativeLockAutoApply() {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+              nativeLockRecord?.journal.phase != .active,
+              nativeLockRecord?.journal.phase != .recoveryRequired,
+              selectedContent != nil,
+              nativeLockAutoApplyTask == nil else {
+            return
+        }
+        nativeLockAutoApplyTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self else { return }
+            guard !self.stateMonitor.isScreenLocked,
+                  !self.stateMonitor.isSleeping,
+                  self.nativeLockRecord?.journal.phase != .active,
+                  self.nativeLockRecord?.journal.phase != .recoveryRequired,
+                  self.selectedContent != nil else {
+                return
+            }
+            self.applySelectedVideoToNativeLock()
+        }
+    }
+
     private func startNativeLockMaintenance() {
         guard nativeLockMaintenanceTask == nil else { return }
         nativeRendererRefreshRequested = nativeLockRecord?.journal.phase == .active
