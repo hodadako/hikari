@@ -43,6 +43,13 @@ macOS 26에서 Aerial catalog는 Apple Aerial wallpaper를 한 번 선택하거�
 catalog를 직접 만들거나 편집하지 마세요. Hikari는 Apple이 초기화한 manifest만 transaction의
 기준으로 사용합니다.
 
+Hikari에는 현재 Apple wallpaper index 안에 이미 존재하는 Lock Screen `Linked` choice도
+필요합니다. Hikari는 이 choice를 추측해 만들거나 기존 `Desktop`/`Idle` choice를 대체하지
+않습니다. 그렇게 하면 일반 배경화면 또는 화면 보호기 선택을 덮어쓸 수 있기 때문입니다.
+Apply에서 **No wallpaper choices were found to update**가 나오면 **Restore Previous
+Wallpaper**로 실패한 transaction을 먼저 복원하고 중지하세요. macOS가 실제 Linked Lock
+Screen choice를 만들기 전에는 현재 topology에서 Native Lock을 안전하게 적용할 수 없습니다.
+
 ## 1. Mac 준비
 
 Xcode 16 이상 전체 설치본을 설치하고 한 번 실행한 다음 라이선스를 승인하세요.

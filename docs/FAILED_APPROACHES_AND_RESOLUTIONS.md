@@ -2,6 +2,31 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## macOS 26에서 `Linked` choice가 없는 Aerial catalog에 Native Lock Apply
+
+### 관찰
+
+2026-08-22 macOS 26.6.1의 Hikari `0.1.7 (8)`에서 user Aerial manifest에
+Hikari asset/category를 transaction으로 추가하는 단계는 성공했지만, user
+`Index.plist`에는 `Desktop`과 `Idle` choice만 있고 `Linked` container가 하나도
+없었다. Apply는 `No wallpaper choices were found to update.`로
+`recoveryRequired`가 됐으며 active marker는 만들어지지 않았다.
+
+### 원인
+
+macOS 26 user backend는 Lock Screen 전용 `Linked` choice만 Hikari asset으로
+바꾸도록 설계돼 있다. 이 Mac의 현재 wallpaper topology는 해당 choice를
+materialize하지 않았고, `Desktop` 또는 `Idle`을 대체하면 Lock Screen 전용 적용이라는
+범위와 사용자의 기존 wallpaper/screen-saver 설정 보존 규칙을 위반한다.
+
+### 해결
+
+- `Desktop`과 `Idle`을 fallback으로 수정하거나 `Linked` choice를 추측해 만들지 않는다.
+- Hikari Lock Screen의 **Restore Previous Wallpaper**로 실패한 transaction manifest/media를
+  먼저 복원한다.
+- Apple이 실제 `Linked` choice를 만드는 지원되는 설정·lifecycle이 확인되기 전에는 이
+  topology에서 macOS 26 Native Lock Apply를 안전하게 지원하지 않는다.
+
 ## 화면 보호기에서 앱 샌드박스 경로를 강제 사용
 
 ### 시도

@@ -48,6 +48,14 @@ To initialize the catalog:
 Do not attempt to create or edit the Aerial catalog manually. Hikari requires
 Apple's existing initialized manifest as the baseline for its transaction.
 
+Hikari also requires an existing Lock Screen `Linked` choice in the current
+Apple wallpaper index. It never creates a `Linked` choice or repurposes your
+`Desktop` or `Idle` choice, because those changes could overwrite your normal
+wallpaper or screen-saver selection. If Apply reports **No wallpaper choices
+were found to update**, use **Restore Previous Wallpaper** and stop there;
+the current wallpaper topology cannot safely use Native Lock until macOS
+itself materializes a Linked Lock Screen choice.
+
 After rebuilding Hikari from source, always relaunch the app before applying
 or restoring a Native Lock transaction. The build script terminates any running
 Hikari process before installing the new bundle so the old executable cannot
