@@ -33,6 +33,13 @@ materialize하지 않았고, `Desktop` 또는 `Idle`을 대체하면 Lock Screen
 - 성공한 Mac의 `Index.plist`와 transaction journal을 현재 Mac의 원본 index와 비교해,
   Apple이 materialize한 `Linked` 구조와 전제 조건을 확인한다. 그 구조를 Hikari가
   추측해 생성하지는 않는다.
+- 성공 Mac은 Apple Aerial을 선택한 뒤 `SystemDefault`·display·Space 아래에 `Linked`
+  choice가 materialize된 반면, 현재 Mac은 `AllSpacesAndDisplays`와 `SystemDefault` 아래에
+  `Desktop`·`Idle`만 있었다. 현재 Mac에서는 **시스템 설정 → 배경화면에서 Apple Aerial을
+  선택·다운로드한 뒤** Hikari로 돌아와 preflight를 다시 확인한다.
+- Hikari는 macOS 26에서 media/manifest preparation 전에 read-only `Linked` preflight를
+  실행한다. choice가 없으면 transaction·Aerial manifest·media를 쓰지 않고 위 안내를
+  반환한다.
 
 ## 화면 보호기에서 앱 샌드박스 경로를 강제 사용
 

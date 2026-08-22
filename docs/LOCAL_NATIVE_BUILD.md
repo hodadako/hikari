@@ -57,7 +57,11 @@ that particular Mac's current wallpaper topology has no safe target. This does
 not make macOS 26 Native Lock unsupported: a separately verified macOS 26
 transaction retained all Apple-materialized `Linked` choices. Compare that
 Mac's original `Index.plist` and transaction journal before changing any
-settings or attempting another Apply.
+settings or attempting another Apply. On a Mac with only `Desktop` and `Idle`,
+select and finish downloading an Apple Aerial in **System Settings → Wallpaper**
+first; this is the verified successful topology's prerequisite. Hikari then
+performs a read-only `Linked` preflight before it creates a transaction or
+writes the Aerial manifest.
 
 After rebuilding Hikari from source, always relaunch the app before applying
 or restoring a Native Lock transaction. The build script terminates any running

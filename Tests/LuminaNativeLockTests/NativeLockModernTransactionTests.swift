@@ -121,6 +121,20 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
     }
 
+    func testLinkedWallpaperChoicePreflightRequiresAppleMaterializedChoice() throws {
+        let store = NativeLockUserTransactionStore(
+            supportRootURL: supportURL,
+            wallpaperIndexURL: wallpaperIndexURL,
+            userID: UInt32(getuid())
+        )
+
+        XCTAssertTrue(try store.hasLinkedWallpaperChoices())
+
+        try makeIndex(includeLinkedChoices: false).write(to: wallpaperIndexURL)
+
+        XCTAssertFalse(try store.hasLinkedWallpaperChoices())
+    }
+
     func testApplyThrowsAerialCatalogMissingWhenManifestAbsent() throws {
         // Remove the manifest to simulate an uninitialized Aerial catalog.
         try FileManager.default.removeItem(at: manifestURL)
@@ -246,17 +260,25 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
     }
 
-    private func makeIndex() throws -> Data {
+    private func makeIndex(includeLinkedChoices: Bool = true) throws -> Data {
+        var systemDefault: [String: Any] = [
+            "Desktop": try choiceContainer(assetID: "DESKTOP"),
+            "Idle": try choiceContainer(assetID: "IDLE")
+        ]
+        var display: [String: Any] = [
+            "Desktop": try choiceContainer(assetID: "DESKTOP"),
+            "Idle": try choiceContainer(assetID: "IDLE")
+        ]
+        if includeLinkedChoices {
+            systemDefault["Linked"] = try choiceContainer(assetID: "ORIGINAL")
+            display["Linked"] = try choiceContainer(assetID: "ORIGINAL")
+        }
         try PropertyListSerialization.data(
             fromPropertyList: [
                 "AllSpacesAndDisplays": "$null",
-                "SystemDefault": ["Linked": try choiceContainer(assetID: "ORIGINAL")],
+                "SystemDefault": systemDefault,
                 "Displays": [
-                    "DISPLAY": [
-                        "Linked": try choiceContainer(assetID: "ORIGINAL"),
-                        "Desktop": try choiceContainer(assetID: "DESKTOP"),
-                        "Idle": try choiceContainer(assetID: "IDLE")
-                    ]
+                    "DISPLAY": display
                 ],
                 "Spaces": [String: Any]()
             ],

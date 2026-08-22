@@ -174,7 +174,7 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
         case .invalidWallpaperStore:
             "The macOS wallpaper store could not be validated."
         case .noWallpaperChoices:
-            "No wallpaper choices were found to update."
+            "No Apple-created Lock Screen Linked choices were found. Select an Apple Aerial wallpaper in System Settings, then try again."
         case .wallpaperMappingRejected:
             "macOS did not retain the Native Lock wallpaper mapping."
         case .activeTransactionExists:
@@ -459,6 +459,20 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         transactionID: UUID
     ) throws -> NativeLockTransactionRecord {
         try applyWallpaperMapping(transactionID: transactionID, scope: .linked)
+    }
+
+    /// Checks whether macOS has materialized a valid Lock Screen mapping that
+    /// Hikari may replace. This is intentionally read-only: callers must do
+    /// this before adding an asset to the user Aerial manifest so an index
+    /// without a `Linked` choice cannot leave a recovery-only transaction.
+    public func hasLinkedWallpaperChoices() throws -> Bool {
+        let data = try Data(contentsOf: wallpaperIndexURL)
+        let dictionary = try Self.wallpaperDictionary(from: data)
+        return Self.wallpaperChoiceCounts(
+            in: dictionary,
+            matching: "",
+            scope: .linked
+        ).total > 0
     }
 
     private func applyWallpaperMapping(

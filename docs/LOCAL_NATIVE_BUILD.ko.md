@@ -51,7 +51,10 @@ Wallpaper**로 실패한 transaction을 먼저 복원하고 중지하세요. 이
 안전한 대상이 없다는 뜻이며 macOS 26 Native Lock 전체가 미지원이라는 뜻은 아닙니다. 별도로
 검증한 macOS 26 transaction은 Apple이 만든 모든 `Linked` choice를 유지했습니다. 다른 설정을
 바꾸거나 다시 Apply하기 전에, 성공한 Mac의 원본 `Index.plist`와 transaction journal을 현재
-Mac의 원본과 비교하세요.
+Mac의 원본과 비교하세요. 현재처럼 `Desktop`·`Idle`만 있다면, 먼저 **시스템 설정 → 배경화면**에서
+Apple Aerial을 선택하고 다운로드를 끝내세요. 이것이 성공한 topology에서 확인된 전제입니다.
+그 뒤 Hikari는 transaction 생성이나 Aerial manifest 쓰기 전에 read-only `Linked` preflight를
+실행합니다.
 
 ## 1. Mac 준비
 

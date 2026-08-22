@@ -136,6 +136,16 @@ final class NativeLockController {
     }
 
     func apply(content: LiveContent) async throws -> NativeLockTransactionRecord {
+        let usesModernAerials = ProcessInfo.processInfo
+            .operatingSystemVersion.majorVersion == 26
+        if usesModernAerials,
+           try !store.hasLinkedWallpaperChoices() {
+            // The successful macOS 26 transaction targets only choices that
+            // Apple already materialized under `Linked`. Do not add a Hikari
+            // manifest asset and only then discover that this Mac has no safe
+            // Lock Screen target.
+            throw NativeLockTransactionError.noWallpaperChoices
+        }
         let sourceURL = container.mediaURL(for: content)
         let workURL = container.rootURL.appendingPathComponent(
             ".NativeLockPreparation-\(UUID().uuidString)",
@@ -148,8 +158,6 @@ final class NativeLockController {
         )
         defer { try? FileManager.default.removeItem(at: workURL) }
         let mediaURL = workURL.appendingPathComponent("media.mov")
-        let usesModernAerials = ProcessInfo.processInfo
-            .operatingSystemVersion.majorVersion == 26
         let previewURL = workURL.appendingPathComponent(
             usesModernAerials ? "preview.png" : "preview.jpg"
         )

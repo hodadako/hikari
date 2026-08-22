@@ -2,6 +2,35 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.9 (10) — 2026-08-22
+
+### 이슈와 영향
+
+- 현재 Mac의 macOS 26 `Index.plist`가 `Desktop`·`Idle`만 가진 topology에서는
+  Native Lock Apply가 Aerial manifest/media를 먼저 준비한 뒤 `Linked` choice가 없음을
+  발견했다. 이 경우 적용할 Lock Screen target은 없지만 recovery-only journal이 남을 수 있었다.
+
+### 조치
+
+- macOS 26 Apply는 media 준비·transaction 생성·Aerial manifest 쓰기 전에 read-only로
+  Apple-materialized `Linked` choice를 검사한다. 없으면 어떠한 Native Lock 파일도 쓰지 않고,
+  System Settings에서 Apple Aerial을 선택·다운로드하라는 오류를 반환한다.
+- 비교한 성공 Mac의 active `userAerials` transaction은 원본에 8개 `Linked` choice가 있었고,
+  topology 정리 뒤에도 2개가 active Hikari asset을 가리켰다. `Desktop`과 `Idle`은 계속
+  변경 대상이 아니다.
+
+### 검증
+
+- 격리된 index에서 Apple-materialized `Linked` choice가 있으면 preflight가 통과하고,
+  `Desktop`·`Idle`만 있으면 거부하는 단위 테스트를 추가했다.
+- 현재 Mac과 성공 Mac의 journal/index를 읽기 전용 비교해, 성공 기록의 provider와 nested
+  configuration 구조가 동일한 Aerial `Linked` choice임을 확인했다.
+
+### 남은 제약
+
+- Apple이 `Linked` choice를 materialize하는 lifecycle은 macOS가 소유한다. Hikari는 그
+  구조를 만들거나 Desktop/Idle choice를 대체하지 않는다.
+
 ## Hikari v0.1.8 (9) — 2026-08-22
 
 ### 이슈와 영향
