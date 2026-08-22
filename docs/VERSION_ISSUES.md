@@ -2,6 +2,24 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.1.8 (9) — 2026-08-22
+
+### 이슈와 영향
+
+- macOS 26 Native Lock transaction의 applied manifest hash가 외부 변경으로 달라진 상태에서 Restore하면, 현재 transaction 외의 Hikari asset이 공유하는 Hikari category까지 제거해 외부 asset을 orphan할 수 있었다.
+
+### 조치
+
+- 선택적 Restore는 현재 transaction asset만 제거한다. 남아 있는 Hikari asset이 shared category/subcategory를 참조하면 category record를 보존한다.
+
+### 검증
+
+- 외부 Hikari asset을 manifest에 추가한 뒤 현재 transaction을 Restore해, 현재 asset만 사라지고 외부 asset과 Hikari category가 남는 단위 테스트를 추가했다.
+
+### 남은 제약
+
+- `Linked` Lock Screen choice가 없는 현재 Mac에서는 Native Lock Apply를 계속 차단한다. Restore는 failed transaction의 manifest/media 정리에만 사용한다.
+
 ## Hikari v0.1.7 (8) — 2026-08-22
 
 ### 이슈와 영향

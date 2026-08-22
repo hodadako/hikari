@@ -23,7 +23,8 @@ materialize하지 않았고, `Desktop` 또는 `Idle`을 대체하면 Lock Screen
 
 - `Desktop`과 `Idle`을 fallback으로 수정하거나 `Linked` choice를 추측해 만들지 않는다.
 - Hikari Lock Screen의 **Restore Previous Wallpaper**로 실패한 transaction manifest/media를
-  먼저 복원한다.
+  먼저 복원한다. manifest hash가 바뀐 경우에도 다른 Hikari asset이 shared category를
+  사용하면 해당 category는 보존한다.
 - Apple이 실제 `Linked` choice를 만드는 지원되는 설정·lifecycle이 확인되기 전에는 이
   topology에서 macOS 26 Native Lock Apply를 안전하게 지원하지 않는다.
 

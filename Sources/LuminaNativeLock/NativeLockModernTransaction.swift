@@ -199,9 +199,23 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
                 throw NativeLockTransactionError.invalidWallpaperStore
             }
             assets.removeAll { $0["id"] as? String == request.assetID.uuidString }
-            categories.removeAll { category in
-                let identifier = category["id"] as? String
-                return identifier == Self.categoryID || identifier == Self.subcategoryID
+            // A manifest that no longer matches our applied hash was changed
+            // by another process. Remove only this transaction's asset, and
+            // retain the shared Hikari category while another Hikari asset
+            // still references it. Removing the category in that case would
+            // orphan an independently managed video.
+            let hasOtherHikariAsset = assets.contains { asset in
+                let categories = asset["categories"] as? [String] ?? []
+                let subcategories = asset["subcategories"] as? [String] ?? []
+                return categories.contains(Self.categoryID)
+                    || subcategories.contains(Self.subcategoryID)
+            }
+            if !hasOtherHikariAsset {
+                categories.removeAll { category in
+                    let identifier = category["id"] as? String
+                    return identifier == Self.categoryID
+                        || identifier == Self.subcategoryID
+                }
             }
             manifest["assets"] = assets
             manifest["categories"] = categories
