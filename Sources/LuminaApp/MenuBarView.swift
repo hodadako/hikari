@@ -221,17 +221,20 @@ struct ThumbnailView: View {
     let url: URL?
 
     var body: some View {
-        Group {
+        ZStack {
+            Color.black
             if let url, let image = NSImage(contentsOf: url) {
                 Image(nsImage: image)
                     .resizable()
-                    .scaledToFill()
+                    // Library thumbnails must show the whole video frame.
+                    // A portrait frame therefore uses the full thumbnail
+                    // height with letterboxing at the sides instead of
+                    // escaping its row or cropping its top and bottom.
+                    .scaledToFit()
             } else {
-                ZStack {
-                    Color.secondary.opacity(0.12)
-                    Image(systemName: "film")
-                        .foregroundStyle(.secondary)
-                }
+                Color.secondary.opacity(0.12)
+                Image(systemName: "film")
+                    .foregroundStyle(.secondary)
             }
         }
         // The caller supplies the thumbnail's fixed size. Apply that proposed
