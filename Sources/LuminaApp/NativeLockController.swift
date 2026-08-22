@@ -420,24 +420,45 @@ final class NativeLockController {
             ? max(1, Int(track.nominalFrameRate.rounded()))
             : 30
 
-        let reader = try AVAssetReader(asset: asset)
-        let composition = AVMutableVideoComposition()
-        composition.renderSize = CGSize(
+        // Give the compositor a neutral composition track.  Passing the
+        // original AVAssetTrack directly makes AVAssetReaderVideoComposition-
+        // Output apply the track's source-space origin while it evaluates
+        // layer transforms.  That origin is harmless for landscape clips but
+        // shifts a fitted portrait clip away from the canvas center.  A
+        // composition track with an identity preferred transform makes the
+        // transform below the sole owner of orientation, scale, and position.
+        let sourceComposition = AVMutableComposition()
+        guard let sourceTrack = sourceComposition.addMutableTrack(
+            withMediaType: .video,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+        ) else {
+            throw LuminaError.unreadableVideo
+        }
+        try sourceTrack.insertTimeRange(
+            CMTimeRange(start: .zero, duration: asset.duration),
+            of: track,
+            at: .zero
+        )
+        sourceTrack.preferredTransform = .identity
+
+        let reader = try AVAssetReader(asset: sourceComposition)
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = CGSize(
             width: outputWidth,
             height: outputHeight
         )
-        composition.frameDuration = CMTime(
+        videoComposition.frameDuration = CMTime(
             value: 1,
             timescale: CMTimeScale(frameRate)
         )
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(
             start: .zero,
-            duration: asset.duration
+            duration: sourceComposition.duration
         )
         instruction.backgroundColor = CGColor(gray: 0, alpha: 1)
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(
-            assetTrack: track
+            assetTrack: sourceTrack
         )
         // Build the affine matrix explicitly. Using chained
         // `concatenating` calls here scales the centering translation on some
@@ -456,17 +477,17 @@ final class NativeLockController {
         )
         layerInstruction.setTransform(fitTransform, at: .zero)
         instruction.layerInstructions = [layerInstruction]
-        composition.instructions = [instruction]
+        videoComposition.instructions = [instruction]
 
         let readerOutput = AVAssetReaderVideoCompositionOutput(
-            videoTracks: [track],
+            videoTracks: [sourceTrack],
             videoSettings: [
                 kCVPixelBufferPixelFormatTypeKey as String:
                     kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
             ]
         )
         readerOutput.alwaysCopiesSampleData = false
-        readerOutput.videoComposition = composition
+        readerOutput.videoComposition = videoComposition
         guard reader.canAdd(readerOutput) else {
             throw LuminaError.unreadableVideo
         }

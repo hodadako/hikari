@@ -52,6 +52,30 @@ video-only 10-bit HEVC Main10으로 기록해 기존 Aerial codec 요구 조건�
 geometry를 바꾼다. 따라서 재적용 후 Lock Screen에서 portrait 내용이 늘어나지 않는지 수동
 확인한다.
 
+## 원본 `AVAssetTrack`을 직접 합성해 portrait 위치가 왼쪽으로 밀린 접근
+
+### 관찰
+
+16:9 canvas에 aspect-fit을 적용한 첫 구현은 비율과 letterbox는 보존했지만, 실제 생성된
+`1280×720` preview의 비검정 영역이 `x=242…663`으로 측정돼 canvas 중심보다 왼쪽에 있었다.
+`fitTransform`의 수학적 bounds는 중앙을 가리켰으므로, 단순히 translation에 상수를 더하는
+방식은 회전·가로 영상에서 다시 틀어질 수 있다.
+
+### 원인과 해결
+
+`AVAssetReaderVideoCompositionOutput`에 원본 `AVAssetTrack`을 직접 전달할 때 compositor가
+track의 source-space origin을 layer transform 평가에 다시 반영했다. 원본을
+`AVMutableComposition`의 video track으로 먼저 삽입하고 그 track의 preferred transform을
+identity로 설정한 뒤, 원본 transform·aspect-fit·center translation을 Hikari의 단일
+layer transform으로 적용하도록 바꿨다. 이 경로는 magic pixel offset이나 crop을 사용하지
+않는다.
+
+### 검증
+
+수정 후 transaction `61F4266D-F52F-42D4-8404-F5B69098A742`의 preview와 user Aerial
+thumbnail 모두 `x=434…844`(중심 `639`)로 측정됐고, `1920×1080` 10-bit HEVC media와
+active mapping이 30초 동안 유지됐다.
+
 ## macOS 26에서 `Linked` choice가 없는 Aerial catalog에 Native Lock Apply
 
 ### 관찰

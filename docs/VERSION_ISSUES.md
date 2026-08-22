@@ -54,6 +54,10 @@
   영상이 사용하는 16:9 가로 캔버스(1920×1080)를 기준으로 다시 수정했다. 세로 원본은 이
   캔버스 중앙에 비율을 유지해 letterbox로 합성하고 10-bit HEVC로 인코딩한다. 소스 transform은
   합성 transform에 한 번만 반영하며, 회전 영상도 같은 fit geometry를 사용한다.
+- 16:9 합성 후에도 원본 `AVAssetTrack`을 `AVAssetReaderVideoCompositionOutput`에 직접
+  넘기면 portrait 프레임의 source-space origin이 다시 적용돼 왼쪽으로 밀렸다. 입력을
+  identity preferred transform의 `AVMutableCompositionTrack`으로 중립화한 뒤 Hikari의
+  합성 transform만 적용하도록 수정했다. 임의의 pixel 보정값은 추가하지 않았다.
 
 ### 남은 제약
 
@@ -69,6 +73,11 @@
 - 새 가로 캔버스 변환본으로 다시 Apply한 뒤 잠금·해제하는 수동 검증이 남아 있다. 16:9
   캔버스와 다른 display 비율에서는 검은 letterbox가 보일 수 있지만 원본 영상은 비율을
   유지해야 한다.
+- 중앙 정렬 수정본을 Native Local로 다시 Apply한 transaction
+  `61F4266D-F52F-42D4-8404-F5B69098A742`가 `active` 상태이고, 생성된 Aerial thumbnail
+  `1280×720`의 비검정 영역이 `x=434…844`(중심 `639`, canvas 중심 `640`)로 측정됐다.
+  30초 후에도 같은 geometry와 active mapping을 유지했다. 최종 Lock Screen surface의
+  display별 crop 여부는 잠금·해제 수동 확인이 필요하다.
 
 ## Hikari v0.1.9 (10) — 2026-08-22
 
