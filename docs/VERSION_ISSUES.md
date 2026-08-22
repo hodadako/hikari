@@ -12,6 +12,9 @@
   materialize한 뒤 적용을 진행했다.
 - 이전 Backdrop의 `BackdropWallpaper` renderer가 실행 중이면 Hikari가 쓴 `Linked` choice를
   즉시 이전 asset으로 되돌려 자동 Apply가 `wallpaperMappingRejected`가 됐다.
+- 세로 영상의 원본과 Aerial용 변환본은 모두 1080×1920 및 정상 transform인데도 Lock Screen에서
+  영상이 위아래로 늘어져 보였다. 기존 `Linked` choice의 `EncodedOptionValues`가 문자열
+  `$null`인 상태였다.
 
 ### 조치
 
@@ -27,6 +30,10 @@
   `WallpaperAerialsExtension`을 정지한 구간에서 수행한다.
 - Apply와 active 유지보수 직전에 실행 중인 `BackdropWallpaper` helper만 종료한다. Backdrop의
   manifest/media record는 보존한다.
+- macOS 26 `Linked` choice를 갱신할 때 기존 바이너리 `EncodedOptionValues`를 보존하고, 값이
+  없으면 바이너리 plist의 `values.placement.picker._0.id = FillScreen`을 기록한다. 새로
+  materialize하는 Linked topology에도 같은 옵션을 넣어 Aerial renderer의 레거시 stretch
+  fallback을 피한다. macOS 15의 전체 choice 경로에는 이 modern placement 값을 쓰지 않는다.
 
 ### 검증
 
@@ -39,6 +46,10 @@
 - Backdrop renderer를 종료한 상태에서 최신 Hikari 자동 Apply transaction
   `1B512569-A657-461F-BD42-2BADEB04A388`가 `active`가 되고 30초 mapping 안정화 검증을
   통과했으며, Backdrop category/asset은 manifest에 그대로 남았다.
+- 최신 옵션 수정본을 빌드·설치한 뒤 transaction `4F264DEE-DEA1-427F-BBBB-3B033D1F2918`가
+  `active`가 됐고, 실제 user `Index.plist`의 Linked option을 바이너리 plist로 읽어
+  `FillScreen` 값을 확인했다. Native Local 빌드는 통과했으며, Command Line Tools 환경에서는
+  `XCTest` 모듈 부재 제약이 계속되어 회귀 테스트는 full Xcode CI에서 실행해야 한다.
 
 ### 남은 제약
 
@@ -48,6 +59,9 @@
   wallpaper store를 수정하는 외부 앱을 동시에 실행하지 않는다.
 - Hikari가 자동으로 종료하는 것은 알려진 `BackdropWallpaper` renderer process뿐이다. 다른
   wallpaper 도구가 같은 store를 쓰면 먼저 종료해야 하며, Hikari는 이를 임의로 제거하지 않는다.
+- 실제 Lock Screen에서 세로 영상이 늘어나지 않는지와 FillScreen의 가장자리 crop 여부는 이
+  Mac에서 잠금·해제 수동 확인이 필요하다. 옵션 타입/값과 영상 metadata만으로 최종 화면
+  렌더링을 보증할 수는 없다.
 
 ## Hikari v0.1.9 (10) — 2026-08-22
 

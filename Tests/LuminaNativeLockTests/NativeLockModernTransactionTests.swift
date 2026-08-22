@@ -75,6 +75,19 @@ final class NativeLockModernTransactionTests: XCTestCase {
                 transactionID: record.request.transactionID
             )
         )
+        let encodedOptions = try XCTUnwrap(
+            encodedOptionValues(path: ["SystemDefault", "Linked"])
+        )
+        let decodedOptions = try PropertyListSerialization.propertyList(
+            from: encodedOptions,
+            options: [],
+            format: nil
+        ) as! [String: Any]
+        let placement = decodedOptions["values"] as! [String: Any]
+        let picker = placement["placement"] as! [String: Any]
+        let pickerValues = picker["picker"] as! [String: Any]
+        let selectedPlacement = pickerValues["_0"] as! [String: Any]
+        XCTAssertEqual(selectedPlacement["id"] as? String, "FillScreen")
         XCTAssertEqual(
             try choiceAssetID(path: ["SystemDefault", "Linked"]),
             record.request.assetID.uuidString
@@ -363,6 +376,19 @@ final class NativeLockModernTransactionTests: XCTestCase {
             format: nil
         ) as! [String: Any]
         return decoded["assetID"] as? String
+    }
+
+    private func encodedOptionValues(path: [String]) throws -> Data? {
+        var value = try PropertyListSerialization.propertyList(
+            from: Data(contentsOf: wallpaperIndexURL),
+            options: [],
+            format: nil
+        ) as! [String: Any]
+        for key in path {
+            value = value[key] as! [String: Any]
+        }
+        let content = value["Content"] as! [String: Any]
+        return content["EncodedOptionValues"] as? Data
     }
 
     private func manifestContainsAsset(_ assetID: String) throws -> Bool {

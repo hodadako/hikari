@@ -2,6 +2,36 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## macOS 26 Lock Screen에서 portrait 영상이 세로로 늘어짐
+
+### 관찰
+
+2026-08-23 Hikari 선택 영상의 source와 Aerial용 output을 읽기 전용으로 검사한 결과 둘 다
+1080×1920, identity preferred transform이었다. H.264 source를 10-bit HEVC Main10으로
+변환한 뒤에도 Lock Screen 화면에서는 세로 방향으로 과도하게 늘어져 보였다. 따라서 이번
+현상은 영상 pixel dimension이나 rotation metadata만의 문제로 단정할 수 없었다.
+
+### 실패한 접근
+
+`Linked` choice의 `Content.EncodedOptionValues`를 문자열 `$null`로 둔 채 코덱과 WallpaperAgent
+재시작만 반복했다. 파일은 정상적으로 저장되고 mapping도 `active`가 됐지만 Aerial renderer가
+배치 옵션을 자체 fallback으로 해석할 여지가 남아 있었다.
+
+### 해결
+
+- 기존 `Linked` choice에서 바이너리 `EncodedOptionValues`를 찾아 그대로 재사용한다.
+- 값이 없는 새 choice에는 바이너리 plist
+  `values → placement → picker → _0 → id = FillScreen`을 기록한다.
+- 이 옵션을 macOS 26 Linked mapping에만 갱신하고, macOS 15 전체 choice 경로의 기존 동작은
+  건드리지 않는다.
+- `NativeLockModernTransactionTests`는 적용 후 option이 Data이고 선택 ID가 `FillScreen`인지
+  확인한다.
+
+최신 설치본의 실제 `Index.plist`에서 해당 Data를 decode해 `FillScreen`을 확인했고 transaction은
+`4F264DEE-DEA1-427F-BBBB-3B033D1F2918`로 `active` 상태다. 최종 Lock Screen의 aspect-fit/crop
+품질은 사용자가 잠금·해제해 수동 확인해야 하며, 여전히 늘어지면 renderer가 지원하는 다른
+placement 값이나 letterbox 전용 사전 렌더링을 별도로 검증한다.
+
 ## macOS 26에서 `Linked` choice가 없는 Aerial catalog에 Native Lock Apply
 
 ### 관찰

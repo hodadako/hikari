@@ -582,9 +582,12 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             format: .binary,
             options: 0
         )
+        let encodedOptionValues = Self.firstLinkedEncodedOptionValues(in: currentDictionary)
+            ?? Self.minimalEncodedOptionValues()
         let (updatedValue, replacements) = Self.replacingWallpaperChoices(
             in: currentDictionary,
             configuration: configuration,
+            encodedOptionValues: encodedOptionValues,
             scope: scope
         )
         guard replacements > 0,
@@ -700,9 +703,12 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             format: .binary,
             options: 0
         )
+        let encodedOptionValues = Self.firstLinkedEncodedOptionValues(in: currentDictionary)
+            ?? Self.minimalEncodedOptionValues()
         let (updatedValue, replacements) = Self.replacingWallpaperChoices(
             in: currentDictionary,
             configuration: configuration,
+            encodedOptionValues: encodedOptionValues,
             scope: scope
         )
         guard replacements == counts.total,
@@ -917,7 +923,10 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         assetID: String,
         topology: NativeLockLinkedWallpaperTopology
     ) throws -> [String: Any] {
-        let linked = linkedWallpaperChoice(assetID: assetID)
+        let linked = linkedWallpaperChoice(
+            assetID: assetID,
+            encodedOptionValues: minimalEncodedOptionValues()
+        )
         let linkedContainer: [String: Any] = [
             "Linked": linked,
             "Type": "linked"
@@ -948,7 +957,10 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         return updated
     }
 
-    private static func linkedWallpaperChoice(assetID: String) -> [String: Any] {
+    private static func linkedWallpaperChoice(
+        assetID: String,
+        encodedOptionValues: Data
+    ) -> [String: Any] {
         let configuration = try! PropertyListSerialization.data(
             fromPropertyList: ["assetID": assetID],
             format: .binary,
@@ -962,12 +974,65 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     "Files": [Any](),
                     "Provider": "com.apple.wallpaper.choice.aerials"
                 ]],
-                "EncodedOptionValues": "$null",
+                "EncodedOptionValues": encodedOptionValues,
                 "Shuffle": "$null"
             ],
             "LastSet": now,
             "LastUse": now
         ]
+    }
+
+    /// Apple stores placement choices as a nested binary plist. A missing or
+    /// string `$null` value leaves the Aerial renderer free to use its legacy
+    /// stretch behavior, so new Hikari choices always provide the same
+    /// FillScreen picker shape used by native Aerial registrars.
+    private static func minimalEncodedOptionValues() -> Data {
+        (try? PropertyListSerialization.data(
+            fromPropertyList: [
+                "values": [
+                    "placement": [
+                        "picker": ["_0": ["id": "FillScreen"]]
+                    ]
+                ]
+            ],
+            format: .binary,
+            options: 0
+        )) ?? Data()
+    }
+
+    private static func firstLinkedEncodedOptionValues(in value: Any) -> Data? {
+        firstLinkedEncodedOptionValues(in: value, isWithinLinkedContainer: false)
+    }
+
+    private static func firstLinkedEncodedOptionValues(
+        in value: Any,
+        isWithinLinkedContainer: Bool
+    ) -> Data? {
+        if let dictionary = value as? [String: Any] {
+            if isWithinLinkedContainer,
+               let content = dictionary["Content"] as? [String: Any],
+               let data = content["EncodedOptionValues"] as? Data {
+                return data
+            }
+            for (key, child) in dictionary {
+                if let data = firstLinkedEncodedOptionValues(
+                    in: child,
+                    isWithinLinkedContainer: isWithinLinkedContainer || key == "Linked"
+                ) {
+                    return data
+                }
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                if let data = firstLinkedEncodedOptionValues(
+                    in: child,
+                    isWithinLinkedContainer: isWithinLinkedContainer
+                ) {
+                    return data
+                }
+            }
+        }
+        return nil
     }
 
     private func synchronizeFileAndParent(_ url: URL) throws {
@@ -1000,6 +1065,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
     private static func replacingWallpaperChoices(
         in value: Any,
         configuration: Data,
+        encodedOptionValues: Data,
         scope: WallpaperChoiceScope,
         isWithinLinkedContainer: Bool = false
     ) -> (Any, Int) {
@@ -1017,15 +1083,19 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 let (updated, count) = replacingWallpaperChoices(
                     in: dictionary[key] as Any,
                     configuration: configuration,
+                    encodedOptionValues: encodedOptionValues,
                     scope: scope,
                     isWithinLinkedContainer: isWithinLinkedContainer || key == "Linked"
                 )
                 dictionary[key] = updated
                 replacements += count
             }
-            if replacements > 0,
-               dictionary["Content"] is [String: Any],
+            if scope == .linked,
+               replacements > 0,
+               var content = dictionary["Content"] as? [String: Any],
                dictionary["LastSet"] is Date {
+                content["EncodedOptionValues"] = encodedOptionValues
+                dictionary["Content"] = content
                 dictionary["LastSet"] = Date()
                 dictionary["LastUse"] = Date()
             }
@@ -1037,6 +1107,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 let (replacement, count) = replacingWallpaperChoices(
                     in: item,
                     configuration: configuration,
+                    encodedOptionValues: encodedOptionValues,
                     scope: scope,
                     isWithinLinkedContainer: isWithinLinkedContainer
                 )
