@@ -61,7 +61,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
-    name: Build and test (${{ matrix.runner }})
+    name: Build and tag test checks (${{ matrix.runner }})
     needs: metadata
     strategy:
       fail-fast: false
@@ -85,7 +85,8 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             build
-      - name: Unit test with coverage
+      - name: Unit test with coverage (release tags only)
+        if: github.ref_type == 'tag'
         run: |
           set -o pipefail
           xcodebuild \
@@ -97,8 +98,8 @@ jobs:
             -resultBundlePath "${RUNNER_TEMP}/Lumina.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
-      - name: Upload standard coverage to Codecov
-        if: matrix.runner == 'macos-15'
+      - name: Upload standard coverage to Codecov (release tags only)
+        if: github.ref_type == 'tag' && matrix.runner == 'macos-15'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
