@@ -23,6 +23,7 @@ jobs:
     outputs:
       is_tag: ${{ steps.version.outputs.is_tag }}
       tag_version: ${{ steps.version.outputs.tag_version }}
+      build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
       - uses: actions/checkout@v4
       - id: version
@@ -32,6 +33,11 @@ jobs:
           set -euo pipefail
           is_tag=false
           tag_version=""
+          build_matrix='{"runner":["macos-15","macos-15-intel","macos-26","macos-26-intel"]}'
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            build_matrix='{"runner":["macos-15"]}'
+          fi
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             is_tag=true
@@ -50,6 +56,7 @@ jobs:
           {
             echo "is_tag=${is_tag}"
             echo "tag_version=${tag_version}"
+            echo "build_matrix=${build_matrix}"
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
@@ -57,8 +64,7 @@ jobs:
     needs: metadata
     strategy:
       fail-fast: false
-      matrix:
-        runner: [macos-15, macos-15-intel, macos-26, macos-26-intel]
+      matrix: ${{ fromJSON(needs.metadata.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -88,6 +94,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Release build and bundle checks
+        if: github.event_name != 'pull_request'
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
         run: |

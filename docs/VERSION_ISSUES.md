@@ -25,6 +25,9 @@
   우선하도록 했다.
 - 정상 CI의 build/test, macOS 15·26 ARM64/Intel Codecov, package, release 경로를 Hikari
   scheme와 `Hikari-macOS-portable.zip`으로 전환하고 별도 `hikari-v*` channel을 제거했다.
+- PR 비용을 줄이기 위해 PR에서는 대표 macOS 15 runner의 Debug build/test만 실행하고,
+  `main` push와 정상 `vX.Y.Z` tag에서만 macOS 15·26 ARM64/Intel 전체 build/test와 Release
+  bundle 검사를 수행하도록 CI matrix를 분기했다.
 - 사용자·기여자 표면과 번들 asset/helper 이름을 Hikari 기준으로 정리하고, 구형 PRD와 IDE
   모듈 파일은 legacy archive 또는 Hikari 이름으로 이동했다. canonical 경로·bundle ID·내부
   Codable/module 식별자는 기존 설치·데이터 호환성을 위해 유지한다.
