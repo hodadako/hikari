@@ -13,7 +13,7 @@ Low resource use is a product requirement, not a later optimization.
 - Notification-driven state handling avoids polling timers; a low-frequency
   five-second drift check only seeks sessions that exceed the configured
   tolerance.
-- Screen saver playback exists only for the screen saver lifecycle.
+- Native Lock playback is owned by the macOS Lock Screen transaction lifecycle.
 - Display changes are diffed by CGDirectDisplayID. Unchanged windows and
   players are reused; removed displays release their window, player item, and
   looper immediately.
@@ -25,23 +25,23 @@ Run this checklist on a 14-inch MacBook Pro with two QHD 27-inch monitors in
 extended mode (three displays total). Record the macOS version, video codec,
 resolution, and the existing wallpaper/screen-saver settings before starting.
 
-1. Record each display's existing wallpaper and screen saver settings.
-2. Launch Lumina and confirm the same MP4 is visible and moving on all three
+1. Record each display's existing wallpaper settings.
+2. Launch Hikari and confirm the same MP4 is visible and moving on all three
    displays.
 3. Leave it playing for at least 10 minutes and check for visible drift.
 4. Disconnect one external display, then reconnect it; verify exactly one
-   Lumina surface returns for the display.
+   Hikari surface returns for the display.
 5. Change the main display from the built-in panel to an external display.
 6. Move through Spaces on each display and verify the wallpaper remains at the
    desktop level without covering the menu bar, Dock, icons, or app windows.
-7. Start the macOS screen saver, put the Mac to sleep, wake it, and unlock it.
-   Confirm all three players recover only after WindowServer is ready.
+7. Put the Mac to sleep, wake it, lock it, and unlock it. Confirm all three
+   players recover only after WindowServer is ready.
 8. Confirm a user pause remains paused after wake/unlock, while system pause
    reasons clear only when their corresponding state clears.
 9. Confirm the menu bar is rendered by macOS and has normal length/scale on
    each external display.
-10. Quit Lumina from the menu bar or Settings window and verify that every
-    wallpaper and screen saver setting is unchanged.
+10. Quit Hikari from the menu bar or Settings window and verify that the
+    wallpaper state is unchanged.
 11. Watch Activity Monitor or Instruments during the run; player/window count
     must never exceed display count and RSS/CPU must not grow continuously.
 
@@ -53,7 +53,8 @@ Before tagging 0.1, record results for:
 2. 4K playback for 1 hour, target RSS ≤ 250 MB.
 3. Ten content replacements without sustained memory growth.
 4. Twenty sleep/wake and lock/unlock cycles.
-5. Twenty screen saver start/stop cycles.
+5. Twenty Native Lock apply/restore cycles where the supported macOS version
+   permits the manual test.
 6. Ten external-display attach/detach cycles.
 7. A missing or corrupt selected media file.
 
@@ -61,10 +62,9 @@ Use Instruments Allocations, Leaks, Time Profiler, Energy Log, Core Animation,
 and Activity Monitor. Record macOS version, hardware, codec, resolution, display
 count, baseline RSS, final RSS, average CPU, and Energy Impact.
 
-Changes to `VideoRenderer`, `WallpaperController`, or screen saver playback should
-include before/after measurements in their pull request. The screen saver bundle
-is installed or its preferences changed only by an explicit user action; normal
-Lumina launch, playback, sleep/wake, and quit do not call desktop wallpaper APIs.
+Changes to `VideoRenderer`, `WallpaperController`, or Native Lock playback should
+include before/after measurements in their pull request. Normal Hikari launch,
+playback, sleep/wake, and quit do not write Native Lock system state.
 Legacy `DesktopPosters` files from older Lumina versions, if present, remain
 ordinary files inside Lumina's Application Support directory and are not read,
 deleted, or passed to WindowServer.

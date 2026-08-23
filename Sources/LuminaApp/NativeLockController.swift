@@ -1,4 +1,3 @@
-#if LUMINA_NATIVE_LOCAL
 import AppKit
 import AVFoundation
 import CoreGraphics
@@ -12,7 +11,7 @@ import UniformTypeIdentifiers
 import VideoToolbox
 
 private let nativeLockLogger = Logger(
-    subsystem: "com.hodadako.Lumina.NativeLocal",
+    subsystem: "com.hodadako.Hikari",
     category: "NativeLock"
 )
 
@@ -827,4 +826,3 @@ final class NativeLockController {
         return "\"\(escaped)\""
     }
 }
-#endif

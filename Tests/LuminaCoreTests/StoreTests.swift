@@ -177,49 +177,4 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(SettingsStore(container: container).load(), LuminaSettings())
     }
 
-    func testScreenSaverContentSynchronizationCopiesSelectedMediaAndSettings() async throws {
-        let source = try SharedContainer(
-            rootURL: temporaryURL.appendingPathComponent("source")
-        )
-        let destination = try SharedContainer(
-            rootURL: temporaryURL.appendingPathComponent("destination")
-        )
-        let content = LiveContent(
-            title: "Ocean",
-            relativePath: "Media/ocean.mp4",
-            fileSize: 5,
-            duration: 12,
-            width: 3840,
-            height: 2160,
-            codec: "avc1",
-            thumbnailRelativePath: "Thumbnails/ocean.jpg"
-        )
-        try Data("video".utf8).write(to: source.mediaURL(for: content))
-        if let thumbnailURL = source.thumbnailURL(for: content) {
-            try Data("image".utf8).write(to: thumbnailURL)
-        }
-        let settings = LuminaSettings(
-            selectedContentID: content.id,
-            scalingMode: .fit
-        )
-        let synchronizer = ScreenSaverContentSynchronizer(
-            sourceContainer: source,
-            destinationContainer: destination
-        )
-
-        try await synchronizer.synchronize(
-            content: content,
-            settings: settings
-        )
-
-        XCTAssertEqual(
-            try Data(contentsOf: destination.mediaURL(for: content)),
-            Data("video".utf8)
-        )
-        let synchronizedContents = ContentStore(container: destination).load()
-        XCTAssertEqual(synchronizedContents.count, 1)
-        XCTAssertEqual(synchronizedContents.first?.id, content.id)
-        XCTAssertEqual(synchronizedContents.first?.relativePath, content.relativePath)
-        XCTAssertEqual(SettingsStore(container: destination).load(), settings)
-    }
 }

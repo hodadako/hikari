@@ -58,7 +58,7 @@ final class SettingsWindowPresenter: NSObject {
 
 extension SettingsWindowPresenter: NSWindowDelegate {
     /// The close button on a menu-bar app means "hide settings", not "quit
-    /// Lumina".  Retaining the controller also makes a subsequent Open
+    /// Hikari". Retaining the controller also makes a subsequent Open
     /// Settings action reliably reuse the same window and its state.
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !isTerminating else { return true }

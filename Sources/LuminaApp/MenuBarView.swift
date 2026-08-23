@@ -51,71 +51,17 @@ struct MenuBarView: View {
             Button {
                 showSettings()
             } label: {
-                Label(
-                    model.isNativeLocalBuild ? "Lock Screen Settings…" : "Settings…",
-                    systemImage: model.isNativeLocalBuild ? "lock.display" : "gearshape"
-                )
+                Label("Settings…", systemImage: "gearshape")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            if model.isNativeLocalBuild {
-                HStack {
-                    Label("Lock Screen Shortcut", systemImage: "lock.fill")
-                    Spacer()
-                    ShortcutKeyCapsView(compact: true)
-                }
-                .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
-            } else {
-                Button {
-                    if model.isScreenSaverInstalled {
-                        model.openScreenSaverSettings()
-                    } else {
-                        model.installScreenSaver()
-                    }
-                } label: {
-                    Label(
-                        localized(
-                            model.isScreenSaverInstalled
-                                ? "Finish Screen Saver Setup"
-                                : "Set Up Screen Saver"
-                        ),
-                        systemImage: "rectangle.inset.filled.and.person.filled"
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Button {
-                    model.previewScreenSaver()
-                } label: {
-                    Label(
-                        "Preview Lumina Screen Saver",
-                        systemImage: "play.rectangle.on.rectangle"
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .disabled(
-                    !model.isScreenSaverInstalled
-                        || !model.isScreenSaverSelected
-                        || model.selectedContent == nil
-                )
-
-                Button {
-                    model.lockWithLumina()
-                } label: {
-                    HStack {
-                        Label("Lock with Lumina", systemImage: "lock.fill")
-                        Spacer()
-                        ShortcutKeyCapsView(compact: true)
-                    }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .disabled(
-                    !model.isScreenSaverInstalled
-                        || !model.isScreenSaverSelected
-                        || model.selectedContent == nil
-                )
+            HStack {
+                Label("Native Lock", systemImage: "lock.fill")
+                Spacer()
+                ShortcutKeyCapsView(compact: true)
             }
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
 
             Divider()
             Button {
@@ -197,11 +143,7 @@ struct MenuBarView: View {
         panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.message = localized(
-            model.isNativeLocalBuild
-                ? "Choose a video for your Hikari wallpaper."
-                : "Choose a video for your Lumina wallpaper."
-        )
+        panel.message = localized("Choose a video for your Hikari wallpaper.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             await model.importVideo(from: url)

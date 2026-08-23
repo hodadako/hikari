@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// Lumina is an agent app: closing its only settings window must leave the
+    /// Hikari is an agent app: closing its only settings window must leave the
     /// status item and live wallpaper process running.  This also protects the
     /// app from AppKit's normal "last window closed" termination path.
     func applicationShouldTerminateAfterLastWindowClosed(

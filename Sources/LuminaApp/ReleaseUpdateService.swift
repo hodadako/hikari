@@ -35,11 +35,11 @@ struct LatestRelease: Codable, Equatable, Sendable {
     }
 
     var archiveAsset: ReleaseAsset? {
-        assets.first { $0.name == "Lumina-macOS-portable.zip" }
+        assets.first { $0.name == "Hikari-macOS-portable.zip" }
     }
 
     var checksumAsset: ReleaseAsset? {
-        assets.first { $0.name == "Lumina-macOS-portable.zip.sha256" }
+        assets.first { $0.name == "Hikari-macOS-portable.zip.sha256" }
     }
 }
 
@@ -57,37 +57,37 @@ enum ReleaseUpdateError: LocalizedError {
         switch self {
         case .invalidResponse, .unavailable:
             return NSLocalizedString(
-                "Lumina could not check for updates right now.",
+                "Hikari could not check for updates right now.",
                 comment: "Release update check error"
             )
         case .invalidReleaseVersion:
             return NSLocalizedString(
-                "The latest Lumina release has an invalid version.",
+                "The latest Hikari release has an invalid version.",
                 comment: "Invalid release version error"
             )
         case .releaseArchiveMissing:
             return NSLocalizedString(
-                "The latest Lumina release does not contain an installable app.",
+                "The latest Hikari release does not contain an installable app.",
                 comment: "Missing release archive error"
             )
         case .checksumMissing:
             return NSLocalizedString(
-                "The latest Lumina release is missing its checksum.",
+                "The latest Hikari release is missing its checksum.",
                 comment: "Missing release checksum error"
             )
         case .checksumMismatch:
             return NSLocalizedString(
-                "The downloaded Lumina update failed its checksum check.",
+                "The downloaded Hikari update failed its checksum check.",
                 comment: "Release checksum error"
             )
         case .extractionFailed:
             return NSLocalizedString(
-                "The Lumina update could not be unpacked.",
+                "The Hikari update could not be unpacked.",
                 comment: "Release extraction error"
             )
         case .replacementNotWritable:
             return NSLocalizedString(
-                "Lumina cannot update itself in its current folder. Move it to a writable Applications folder and try again.",
+                "Hikari cannot update itself in its current folder. Move it to a writable Applications folder and try again.",
                 comment: "Release replacement permission error"
             )
         }
@@ -131,7 +131,7 @@ struct ReleaseUpdateService {
         )
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue(
-            "Lumina",
+            "Hikari",
             forHTTPHeaderField: "User-Agent"
         )
         let (data, response) = try await session.data(for: request)
@@ -162,7 +162,7 @@ struct ReleaseUpdateService {
             "application/octet-stream",
             forHTTPHeaderField: "Accept"
         )
-        request.setValue("Lumina", forHTTPHeaderField: "User-Agent")
+        request.setValue("Hikari", forHTTPHeaderField: "User-Agent")
         let (url, response) = try await session.download(for: request)
         guard let response = response as? HTTPURLResponse,
               (200..<300).contains(response.statusCode) else {

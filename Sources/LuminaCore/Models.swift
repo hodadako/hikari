@@ -86,9 +86,9 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
     public var menuBarIconStyle: MenuBarIconStyle
     public var customMenuBarIconRelativePath: String?
     public var overrideSystemLockShortcut: Bool
-    /// True only when Lumina explicitly enabled Lock Screen playback.
+    /// Legacy compatibility field; Hikari uses Native Lock directly.
     public var lockScreenPlaybackEnabled: Bool
-    /// The user's screen saver delay captured before Lumina changed it.
+    /// Legacy screen saver compatibility field retained for old settings.
     public var screenSaverPreviousIdleTime: Int?
 
     public init(
@@ -229,7 +229,7 @@ public enum LuminaError: LocalizedError, Equatable {
             )
         case .duplicateContent:
             return NSLocalizedString(
-                "This video is already in your Lumina library.",
+                "This video is already in your Hikari library.",
                 comment: ""
             )
         case let .fileCopyFailed(reason):
@@ -247,7 +247,7 @@ public enum LuminaError: LocalizedError, Equatable {
             )
         case .screenSaverBundleMissing:
             return NSLocalizedString(
-                "The Lumina screen saver is missing from this app build.",
+                "The legacy screen saver is missing from this app build.",
                 comment: ""
             )
         }

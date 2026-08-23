@@ -4,11 +4,11 @@ import LuminaNativeLock
 import OSLog
 
 private let toolLogger = Logger(
-    subsystem: "com.hodadako.Lumina.NativeLocal",
+    subsystem: "com.hodadako.Hikari",
     category: "NativeLockTool"
 )
 
-/// One-shot entry point embedded only in the source-built Native Local app.
+/// One-shot entry point embedded in Hikari's ad-hoc release bundle.
 @main
 struct LuminaNativeTool {
     static func main() {
@@ -20,7 +20,7 @@ struct LuminaNativeTool {
             let userHome = try homeDirectory(for: arguments.userID)
             let supportRoot = userHome
                 .appendingPathComponent("Library/Application Support", isDirectory: true)
-                .appendingPathComponent("LuminaNative", isDirectory: true)
+                .appendingPathComponent("Lumina", isDirectory: true)
             let wallpaperIndex = userHome
                 .appendingPathComponent(
                     "Library/Application Support/com.apple.wallpaper/Store",
@@ -177,7 +177,7 @@ private enum ToolError: LocalizedError {
         case .rootRequired:
             "This helper must run with administrator authorization."
         case .invalidArguments:
-            "Usage: lumina-native-tool <apply|restore> --uid <uid> --transaction <uuid>"
+            "Usage: hikari-native-tool <apply|restore> --uid <uid> --transaction <uuid>"
         case .userNotFound:
             "The requesting local user could not be resolved."
         case .invalidHomeDirectory:
