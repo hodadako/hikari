@@ -182,7 +182,7 @@ jobs:
       contents: write
     steps:
       - name: Download Hikari release artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
           path: dist
