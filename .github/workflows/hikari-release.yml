@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - "hikari-v*"
+  pull_request:
+    paths:
+      - ".github/workflows/hikari-release.yml"
+      - "project.yml"
+      - "Package.swift"
+      - "Sources/**"
+      - "Tests/**"
+      - "Resources/**"
+      - "scripts/build-native-local.sh"
+  workflow_dispatch:
 
 # Hikari is packaged separately from the normal Lumina portable release. The
 # package is deliberately ad-hoc signed, verified, and clearly labeled as an
@@ -18,6 +28,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       build: ${{ steps.version.outputs.build }}
+      is_release: ${{ steps.version.outputs.is_release }}
     steps:
       - uses: actions/checkout@v4
       - id: version
@@ -27,16 +38,21 @@ jobs:
           set -euo pipefail
           version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
           build="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
-          expected_tag="hikari-v${version}"
-          if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match Hikari version ${version}" >&2
-            exit 1
-          fi
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ "${build}" =~ ^[0-9]+$ ]]
+          is_release=false
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            expected_tag="hikari-v${version}"
+            if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match Hikari version ${version}" >&2
+              exit 1
+            fi
+            is_release=true
+          fi
           {
             echo "version=${version}"
             echo "build=${build}"
+            echo "is_release=${is_release}"
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
@@ -158,7 +174,9 @@ jobs:
   release:
     name: Publish Hikari tagged release
     needs: [metadata, package]
-    if: needs.package.result == 'success'
+    if: >-
+      needs.metadata.outputs.is_release == 'true' &&
+      needs.package.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -29,10 +29,12 @@
   확인하고 수정했다.
 - Hikari package workflow는 ad-hoc signing, `codesign --verify --deep --strict`, ZIP
   checksum 검증 및 Hikari bundle version/isolation 검사를 포함한다.
-- 실제 tag release 실행, GitHub asset 다운로드 후 checksum, Gatekeeper 경고, macOS 15
-  관리자 승인 동작의 수동 검증은 첫 Hikari release tag에서 수행해야 한다. Hikari는
-  Lumina의 선택적 전역 event-tap 단축키를 사용하지 않으므로 Accessibility/Input Monitoring
-  권한 재승인은 이 release 경로의 검증 항목이 아니다.
+- PR과 `workflow_dispatch`에서는 macOS 15·26 build/test, ad-hoc package, signature 및
+  checksum 검증을 수행하며 GitHub Release 생성은 하지 않는다. 실제 release tag 실행,
+  GitHub asset 다운로드 후 checksum, Gatekeeper 경고, macOS 15 관리자 승인 동작의 수동
+  검증은 첫 Hikari release tag에서 수행해야 한다. Hikari는 Lumina의 선택적 전역 event-tap
+  단축키를 사용하지 않으므로 Accessibility/Input Monitoring 권한 재승인은 이 release
+  경로의 검증 항목이 아니다.
 
 ### 남은 제약
 
