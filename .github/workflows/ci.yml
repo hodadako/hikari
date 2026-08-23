@@ -85,7 +85,7 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             build
-      - name: Unit test with coverage
+      - name: Unit test
         run: |
           set -o pipefail
           xcodebuild \
@@ -93,8 +93,6 @@ jobs:
             -scheme Lumina \
             -configuration Debug \
             -destination 'platform=macOS' \
-            -enableCodeCoverage YES \
-            -resultBundlePath "${RUNNER_TEMP}/Lumina.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Release build and bundle checks
