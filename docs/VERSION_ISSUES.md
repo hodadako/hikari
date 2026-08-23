@@ -372,7 +372,7 @@
   surface를 한 번 재생성한다. 재생 중인 영상의 위치와 재생 의도도 보존한다.
 - Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
   확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
-- 일반 push/PR에서는 coverage를 생성·검증만 하고 Codecov에 업로드하지 않는다. 버전과
+- 일반 push/PR에서는 unit test를 실행·검증만 하고 Codecov에 업로드하지 않는다. 버전과
   일치하는 `vX.Y.Z` 태그에서만 별도 `release-coverage` job을 실행해 `LuminaNative`
   scheme의 `LuminaCoreTests`와 `LuminaNativeLockTests` 전체를 macOS 15·26에서 실행하며,
   대표 macOS 15 결과만 Codecov에 업로드한다. macOS 26 결과는 호환성 검증으로만 사용한다.
