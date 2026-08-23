@@ -39,6 +39,10 @@
   identity, `hikari-native-tool` embedded one-shot tool, Hikari asset 이름,
   `Hikari-macOS-portable.zip` 생성과 SHA-256/`codesign --verify --deep --strict` 검증을
   통과했다. 설치본 실행·종료 smoke test도 통과했다.
+- GitHub Actions `workflow_dispatch` run `32651433373`에서 metadata gate와 macOS 15
+  ARM64/Intel, macOS 26 ARM64/Intel Hikari build/test/release bundle checks가 모두
+  성공했다. non-tag 실행에서 release coverage, package, publish job이 의도대로 skipped
+  된 것도 확인했다.
 
 ### 남은 제약
 
