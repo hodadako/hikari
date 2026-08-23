@@ -162,7 +162,7 @@ jobs:
             shasum -a 256 -c "${artifact_base}.zip.sha256"
           )
       - name: Upload Hikari release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
           path: |

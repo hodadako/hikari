@@ -222,7 +222,7 @@ jobs:
           test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
           test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
       - name: Upload compatibility evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compatibility-${{ matrix.runner }}
           path: |
@@ -279,7 +279,7 @@ jobs:
             shasum -a 256 -c "Lumina-macOS-portable.zip.sha256"
           )
       - name: Upload portable app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Lumina-macOS-portable
           path: |
