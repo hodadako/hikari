@@ -321,7 +321,7 @@
 
 - 로컬 Hikari 빌드의 `CFBundleShortVersionString`이 `0.1.0`,
   `CFBundleVersion`이 `1`인지 확인한다.
-- Native Local CI의 macOS 15·26 Xcode 빌드가 같은 bundle plist 값을
+- Native Local CI의 macOS 15·26 ARM64·Intel Xcode 빌드가 같은 bundle plist 값을
   검사한다.
 
 ### 남은 제약
@@ -374,8 +374,10 @@
   확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
 - 일반 push/PR에서는 unit test를 실행·검증만 하고 Codecov에 업로드하지 않는다. 버전과
   일치하는 `vX.Y.Z` 태그에서만 별도 `release-coverage` job을 실행해 `LuminaNative`
-  scheme의 `LuminaCoreTests`와 `LuminaNativeLockTests` 전체를 macOS 15·26에서 실행하며,
-  대표 macOS 15 결과만 Codecov에 업로드한다. macOS 26 결과는 호환성 검증으로만 사용한다.
+  scheme의 `LuminaCoreTests`와 `LuminaNativeLockTests` 전체를 macOS 15·26의 ARM64·Intel
+  runner에서 실행하고, 각 결과를 `macos-15-arm64`·`macos-15-intel`·`macos-26-arm64`·
+  `macos-26-intel` Codecov flag로 업로드한다. OS와 architecture 결과를 Codecov에서
+  분리해 비교할 수 있고, 프로젝트 전체 coverage에도 반영된다.
 - Native Local 직접 빌드는 compiler 도구, 소스·resource 입력, plist와 Hikari 버전의
   읽기 전용 preflight를 먼저 수행한다. macOS가 관리하는 `entries.json`과
   `Index.plist`는 bundle 입력으로 취급하지 않는다.
@@ -398,8 +400,8 @@
 
 ### 검증
 
-- workflow YAML과 matrix 구성을 로컬에서 검증하고, push 뒤 macOS 15/26 표준 및
-  Native Local GitHub Actions 결과를 확인한다.
+- workflow YAML과 matrix 구성을 로컬에서 검증하고, push 뒤 macOS 15/26 ARM64·Intel 표준
+  및 Native Local GitHub Actions 결과를 확인한다.
 - `Hikari.app`의 앱 이름, 실행 파일, bundle ID, 설치 경로, ad-hoc 서명 및 Spotlight
   등록을 로컬 빌드와 Native Local CI 번들 검사에서 확인한다. macOS 26.6.1 로컬
   실행에서 일반·모양·Native 잠금·정보 탭의 제품명 표기가 `Hikari`이며, 같은 소스의

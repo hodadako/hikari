@@ -66,7 +66,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, macos-26]
+        runner: [macos-15, macos-15-intel, macos-26, macos-26-intel]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -121,7 +121,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, macos-26]
+        include:
+          - runner: macos-15
+            codecov_flag: macos-15-arm64
+          - runner: macos-15-intel
+            codecov_flag: macos-15-intel
+          - runner: macos-26
+            codecov_flag: macos-26-arm64
+          - runner: macos-26-intel
+            codecov_flag: macos-26-intel
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -143,13 +151,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Upload all test coverage to Codecov
-        if: matrix.runner == 'macos-15'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: hodadako/lumina
           plugins: xcode
           swift_project: Lumina
+          flags: ${{ matrix.codecov_flag }}
+          name: lumina-native-${{ matrix.codecov_flag }}
           fail_ci_if_error: true
 
   major_compatibility:
