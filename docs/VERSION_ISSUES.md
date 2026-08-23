@@ -372,9 +372,10 @@
   surface를 한 번 재생성한다. 재생 중인 영상의 위치와 재생 의도도 보존한다.
 - Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
   확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
-- 표준 CI의 대표 macOS 15 job에서 `Lumina` XCTest coverage를 Codecov에 보고하되,
-  macOS 26 compatibility job과 Native Local compile/test-only workflow는 중복
-  upload나 artifact를 만들지 않는다.
+- 일반 push/PR에서는 coverage를 생성·검증만 하고 Codecov에 업로드하지 않는다. 버전과
+  일치하는 `vX.Y.Z` 태그에서만 별도 `release-coverage` job을 실행해 `LuminaNative`
+  scheme의 `LuminaCoreTests`와 `LuminaNativeLockTests` 전체를 macOS 15·26에서 실행하며,
+  대표 macOS 15 결과만 Codecov에 업로드한다. macOS 26 결과는 호환성 검증으로만 사용한다.
 - Native Local 직접 빌드는 compiler 도구, 소스·resource 입력, plist와 Hikari 버전의
   읽기 전용 preflight를 먼저 수행한다. macOS가 관리하는 `entries.json`과
   `Index.plist`는 bundle 입력으로 취급하지 않는다.
@@ -412,8 +413,8 @@
 - Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
   Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
 - 디스플레이 복구 정책과 모든 session의 playback position 복원 단위 테스트를 추가하고,
-  전체 Xcode 환경의 SwiftPM 57개 테스트와 `LuminaNative` 57개 XCTest를 실패 없이
-  실행했다. 표준 `Lumina` coverage XCTest도 35개가 모두 통과했다.
+  전체 Xcode 환경의 `LuminaNative` 72개 XCTest를 실패 없이 실행했다. 이 구성은
+  `LuminaCoreTests` 35개와 `LuminaNativeLockTests` 37개를 포함한다.
 - Native Local build script의 `zsh -n`, plist lint, Swift build 및 workflow YAML
   구문 검사를 통과했다. 실제 `/Applications` 설치와 privileged Native Apply는
   system-write guardrail에 따라 실행하지 않았다.
