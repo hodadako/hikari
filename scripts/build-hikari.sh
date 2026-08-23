@@ -47,9 +47,9 @@ required_paths=(
   "${repository_root}/Resources/Hikari-Info.plist"
   "${repository_root}/Resources/en.lproj"
   "${repository_root}/Resources/ko.lproj"
-  "${repository_root}/Resources/Assets.xcassets/LuminaIconDefault.imageset/lumina_new_icon.png"
-  "${repository_root}/Resources/Assets.xcassets/MenuBarIconLumina.imageset/lumina_menu_bar_icon.png"
-  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/lumina_menu_bar_icon_heartbeat.png"
+  "${repository_root}/Resources/Assets.xcassets/HikariIconDefault.imageset/hikari_new_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHikari.imageset/hikari_menu_bar_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/hikari_menu_bar_icon_heartbeat.png"
   "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16.png"
   "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16@2x.png"
   "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32.png"
@@ -145,7 +145,7 @@ swiftc \
   -L "${library_directory}" \
   -lLuminaNativeLock \
   Sources/LuminaNativeTool/*.swift \
-  -o "${app_path}/Contents/MacOS/lumina-native-tool"
+  -o "${app_path}/Contents/MacOS/hikari-native-tool"
 
 swiftc \
   -parse-as-library \
@@ -170,11 +170,11 @@ plutil -insert CFBundleIconFile -string AppIcon "${app_path}/Contents/Info.plist
 
 ditto Resources/en.lproj "${resource_path}/en.lproj"
 ditto Resources/ko.lproj "${resource_path}/ko.lproj"
-ditto Resources/Assets.xcassets/LuminaIconDefault.imageset/lumina_new_icon.png \
-  "${resource_path}/LuminaIconDefault.png"
-ditto Resources/Assets.xcassets/MenuBarIconLumina.imageset/lumina_menu_bar_icon.png \
-  "${resource_path}/MenuBarIconLumina.png"
-ditto Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/lumina_menu_bar_icon_heartbeat.png \
+ditto Resources/Assets.xcassets/HikariIconDefault.imageset/hikari_new_icon.png \
+  "${resource_path}/HikariIconDefault.png"
+ditto Resources/Assets.xcassets/MenuBarIconHikari.imageset/hikari_menu_bar_icon.png \
+  "${resource_path}/MenuBarIconHikari.png"
+ditto Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/hikari_menu_bar_icon_heartbeat.png \
   "${resource_path}/MenuBarIconHeartbeat.png"
 
 for icon_file in \

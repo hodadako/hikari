@@ -25,6 +25,9 @@
   우선하도록 했다.
 - 정상 CI의 build/test, macOS 15·26 ARM64/Intel Codecov, package, release 경로를 Hikari
   scheme와 `Hikari-macOS-portable.zip`으로 전환하고 별도 `hikari-v*` channel을 제거했다.
+- 사용자·기여자 표면과 번들 asset/helper 이름을 Hikari 기준으로 정리하고, 구형 PRD와 IDE
+  모듈 파일은 legacy archive 또는 Hikari 이름으로 이동했다. canonical 경로·bundle ID·내부
+  Codable/module 식별자는 기존 설치·데이터 호환성을 위해 유지한다.
 - Updater가 Hikari bundle, executable, bundle ID, version, ZIP checksum, ad-hoc signature를
   확인하도록 했다. README와 architecture/guardrail 문서를 Hikari 단일 제품 기준으로 갱신했다.
 
@@ -33,8 +36,9 @@
 - `swift test --parallel` 통과(71개).
 - `xcodegen generate`, Hikari Debug/Release build, Hikari Xcode 전체 test 통과(71개).
 - 임시 설치 경로에서 `scripts/build-hikari.sh`를 실행해 ad-hoc 서명, Hikari bundle
-  identity, embedded one-shot tool, `Hikari-macOS-portable.zip` 생성과 SHA-256/
-  `codesign --verify --deep --strict` 검증을 통과했다.
+  identity, `hikari-native-tool` embedded one-shot tool, Hikari asset 이름,
+  `Hikari-macOS-portable.zip` 생성과 SHA-256/`codesign --verify --deep --strict` 검증을
+  통과했다. 설치본 실행·종료 smoke test도 통과했다.
 
 ### 남은 제약
 

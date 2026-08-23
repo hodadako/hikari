@@ -24,7 +24,7 @@ manifest and media records are preserved.
 - **macOS 15** uses the privileged legacy system catalog at
   `/Library/Application Support/com.apple.idleassetsd/Customer/entries.json`.
   Each Apply and Restore requires administrator authorization via a one-shot
-  helper tool (`lumina-native-tool`).
+  helper tool (`hikari-native-tool`).
 - **macOS 26** uses the current user's Aerial catalog at
   `~/Library/Application Support/com.apple.wallpaper/aerials/`. No
   administrator authorization is required, but Apple's Aerial catalog must

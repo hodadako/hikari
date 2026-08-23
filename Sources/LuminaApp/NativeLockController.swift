@@ -669,7 +669,7 @@ final class NativeLockController {
             throw NativeLockTransactionError.unsupportedOperatingSystem(currentMajorVersion)
         }
         guard let helperURL = Bundle.main.url(
-            forAuxiliaryExecutable: "lumina-native-tool"
+            forAuxiliaryExecutable: "hikari-native-tool"
         ) else {
             throw NativeLockTransactionError.helperMissing
         }

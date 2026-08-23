@@ -293,13 +293,13 @@ final class AppModel: ObservableObject {
 
     var appIconImage: NSImage {
         appIconImage(for: settings.appIconStyle)
-            ?? NSImage(named: "LuminaIconDefault")
+            ?? NSImage(named: "HikariIconDefault")
             ?? NSApplication.shared.applicationIconImage
     }
 
     var menuBarIconImage: NSImage {
         menuBarIconImage(for: settings.menuBarIconStyle)
-            ?? NSImage(named: "MenuBarIconLumina")
+            ?? NSImage(named: "MenuBarIconHikari")
             ?? NSImage(
                 systemSymbolName: "sparkles.tv",
                 accessibilityDescription: variant.displayName
@@ -312,7 +312,7 @@ final class AppModel: ObservableObject {
         if let normalizedMenuBarHeartbeatCache {
             return normalizedMenuBarHeartbeatCache
         }
-        guard let baseImage = NSImage(named: "MenuBarIconLumina"),
+        guard let baseImage = NSImage(named: "MenuBarIconHikari"),
               let heartbeatImage = NSImage(named: "MenuBarIconHeartbeat") else {
             return nil
         }

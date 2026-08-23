@@ -60,7 +60,7 @@ private struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            LuminaIconPreview(image: model.appIconImage, size: 82)
+            HikariIconPreview(image: model.appIconImage, size: 82)
             VStack(spacing: 8) {
                 Text("Welcome to \(model.appDisplayName)")
                     .font(.largeTitle.bold())
@@ -203,7 +203,7 @@ private struct GeneralSettingsView: View {
                             }
                         } label: {
                             VStack(spacing: 8) {
-                                LuminaIconPreview(
+                                HikariIconPreview(
                                     image: model.appIconImage(for: style),
                                     size: 64
                                 )
@@ -450,7 +450,7 @@ private struct AboutView: View {
     var body: some View {
         VStack(spacing: 14) {
             Spacer()
-            LuminaIconPreview(image: model.appIconImage, size: 78)
+            HikariIconPreview(image: model.appIconImage, size: 78)
             Text(model.appDisplayName).font(.title.bold())
             Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)

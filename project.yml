@@ -47,7 +47,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.NativeTool
-        PRODUCT_NAME: lumina-native-tool
+        PRODUCT_NAME: hikari-native-tool
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         SKIP_INSTALL: YES
   Hikari:
@@ -88,8 +88,8 @@ targets:
           set -euo pipefail
           destination="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/MacOS"
           mkdir -p "${destination}"
-          ditto "${BUILT_PRODUCTS_DIR}/lumina-native-tool" \
-            "${destination}/lumina-native-tool"
+          ditto "${BUILT_PRODUCTS_DIR}/hikari-native-tool" \
+            "${destination}/hikari-native-tool"
         basedOnDependencyAnalysis: false
     settings:
       base:

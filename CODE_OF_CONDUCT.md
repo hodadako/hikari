@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Lumina contributors are expected to make participation respectful, welcoming,
+Hikari contributors are expected to make participation respectful, welcoming,
 and free of harassment.
 
 Be considerate, discuss ideas rather than people, accept constructive feedback,

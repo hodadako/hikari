@@ -103,7 +103,7 @@ jobs:
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
           test -x "${app_path}/Contents/MacOS/Hikari"
-          test -x "${app_path}/Contents/MacOS/lumina-native-tool"
+          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
           test ! -d "${app_path}/Contents/PlugIns"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${app_path}/Contents/Info.plist")" = "Hikari"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
@@ -189,7 +189,7 @@ jobs:
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
           test -x "${app_path}/Contents/MacOS/Hikari"
-          test -x "${app_path}/Contents/MacOS/lumina-native-tool"
+          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
           codesign --force --deep --sign - "${app_path}"
           codesign --verify --deep --strict "${app_path}"
           mkdir -p dist

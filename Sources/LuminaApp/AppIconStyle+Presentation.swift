@@ -5,7 +5,7 @@ import SwiftUI
 extension AppIconStyle {
     var assetName: String? {
         switch self {
-        case .lumina: "LuminaIconDefault"
+        case .lumina: "HikariIconDefault"
         case .custom: nil
         }
     }
@@ -21,7 +21,7 @@ extension AppIconStyle {
 extension MenuBarIconStyle {
     var assetName: String? {
         switch self {
-        case .lumina: "MenuBarIconLumina"
+        case .lumina: "MenuBarIconHikari"
         case .custom: nil
         }
     }
@@ -38,7 +38,7 @@ extension MenuBarIconStyle {
     }
 }
 
-struct LuminaIconPreview: View {
+struct HikariIconPreview: View {
     let image: NSImage?
     let size: CGFloat
 
