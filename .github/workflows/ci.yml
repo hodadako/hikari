@@ -97,15 +97,6 @@ jobs:
             -resultBundlePath "${RUNNER_TEMP}/Lumina.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
-      - name: Upload standard coverage to Codecov
-        if: matrix.runner == 'macos-15'
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: hodadako/lumina
-          plugins: xcode
-          swift_project: Lumina
-          fail_ci_if_error: false
       - name: Release build and bundle checks
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
@@ -124,6 +115,44 @@ jobs:
           test -d "${app_path}/Contents/PlugIns/Lumina.saver"
           test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
           test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
+
+  release-coverage:
+    name: Release coverage (${{ matrix.runner }})
+    needs: metadata
+    if: needs.metadata.outputs.is_tag == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Run all test targets with coverage
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Lumina.xcodeproj \
+            -scheme LuminaNative \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -enableCodeCoverage YES \
+            -resultBundlePath "${RUNNER_TEMP}/LuminaNative.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Upload all test coverage to Codecov
+        if: matrix.runner == 'macos-15'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: hodadako/lumina
+          plugins: xcode
+          swift_project: Lumina
+          fail_ci_if_error: true
 
   major_compatibility:
     name: Major compatibility (${{ matrix.runner }})
@@ -196,11 +225,12 @@ jobs:
 
   package:
     name: Package release artifact
-    needs: [metadata, build-and-test, major_compatibility]
+    needs: [metadata, build-and-test, release-coverage, major_compatibility]
     if: >-
       always() &&
       needs.metadata.outputs.is_tag == 'true' &&
       needs.build-and-test.result == 'success' &&
+      needs.release-coverage.result == 'success' &&
       (needs.metadata.outputs.is_major != 'true' || needs.major_compatibility.result == 'success')
     runs-on: macos-15
     permissions:

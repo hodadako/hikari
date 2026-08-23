@@ -324,7 +324,7 @@ final class NativeLockModernTransactionTests: XCTestCase {
             systemDefault["Linked"] = try choiceContainer(assetID: "ORIGINAL")
             display["Linked"] = try choiceContainer(assetID: "ORIGINAL")
         }
-        try PropertyListSerialization.data(
+        return try PropertyListSerialization.data(
             fromPropertyList: [
                 "AllSpacesAndDisplays": "$null",
                 "SystemDefault": systemDefault,
