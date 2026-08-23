@@ -2,6 +2,8 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![CI](https://github.com/hodadako/lumina/actions/workflows/ci.yml/badge.svg)](https://github.com/hodadako/lumina/actions/workflows/ci.yml)
+[![Release](https://github.com/hodadako/lumina/actions/workflows/hikari-release.yml/badge.svg)](https://github.com/hodadako/lumina/actions/workflows/hikari-release.yml)
 [![Codecov](https://codecov.io/gh/hodadako/lumina/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/lumina)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hodadako/lumina)
 
