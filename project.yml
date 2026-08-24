@@ -1,21 +1,19 @@
-name: Lumina
+name: Hikari
 options:
   bundleIdPrefix: com.hodadako
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "15.0"
   groupSortPosition: top
   generateEmptyDirectories: true
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.3.1
-    HIKARI_MARKETING_VERSION: 0.1.10
-    HIKARI_BUILD_NUMBER: 11
+    CURRENT_PROJECT_VERSION: 12
+    MARKETING_VERSION: 0.3.2
 targets:
   LuminaCore:
     type: framework.static
@@ -49,112 +47,49 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.NativeTool
-        PRODUCT_NAME: lumina-native-tool
+        PRODUCT_NAME: hikari-native-tool
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         SKIP_INSTALL: YES
-  Lumina:
-    type: application
-    platform: macOS
-    sources:
-      - Sources/LuminaApp
-      - path: Resources/Assets.xcassets
-      - path: Resources/en.lproj
-        buildPhase: resources
-      - path: Resources/ko.lproj
-        buildPhase: resources
-    info:
-      path: Resources/Lumina-Info.plist
-      properties:
-        CFBundleDisplayName: Lumina
-        CFBundleName: Lumina
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSApplicationCategoryType: public.app-category.utilities
-        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        LSUIElement: true
-        NSHighResolutionCapable: true
-        NSHumanReadableCopyright: Copyright © 2026 Lumina contributors
-    dependencies:
-      - target: LuminaCore
-      - target: LuminaScreenSaver
-        embed: false
-    postBuildScripts:
-      - name: Embed Lumina Screen Saver
-        script: |
-          set -e
-          destination="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/PlugIns"
-          mkdir -p "${destination}"
-          ditto "${BUILT_PRODUCTS_DIR}/Lumina.saver" "${destination}/Lumina.saver"
-        basedOnDependencyAnalysis: false
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina
-        PRODUCT_NAME: Lumina
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
-  LuminaScreenSaver:
-    type: bundle
-    platform: macOS
-    sources:
-      - Sources/LuminaScreenSaver
-    info:
-      path: Resources/LuminaScreenSaver-Info.plist
-      properties:
-        CFBundleDisplayName: Lumina
-        CFBundleName: Lumina
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        NSPrincipalClass: LuminaScreenSaverView
-        NSHighResolutionCapable: true
-    dependencies:
-      - target: LuminaCore
-      - sdk: ScreenSaver.framework
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.ScreenSaver
-        PRODUCT_NAME: Lumina
-        PRODUCT_MODULE_NAME: LuminaScreenSaver
-        WRAPPER_EXTENSION: saver
-        MACH_O_TYPE: mh_bundle
-        SKIP_INSTALL: YES
-  LuminaNative:
+  Hikari:
     type: application
     platform: macOS
     productName: Hikari
     deploymentTarget: "15.0"
     sources:
-      - Sources/LuminaApp
+      - path: Sources/LuminaApp
+        excludes:
+          - LockShortcutController.swift
+          - ScreenSaverInstaller.swift
       - path: Resources/Assets.xcassets
       - path: Resources/en.lproj
         buildPhase: resources
       - path: Resources/ko.lproj
         buildPhase: resources
     info:
-      path: Resources/LuminaNative-Info.plist
+      path: Resources/Hikari-Info.plist
       properties:
         CFBundleDisplayName: Hikari
         CFBundleName: Hikari
-        CFBundleShortVersionString: $(HIKARI_MARKETING_VERSION)
-        CFBundleVersion: $(HIKARI_BUILD_NUMBER)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.utilities
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSUIElement: true
         NSHighResolutionCapable: true
-        NSHumanReadableCopyright: Copyright © 2026 Lumina contributors
+        NSHumanReadableCopyright: Copyright © 2026 Hikari contributors
     dependencies:
       - target: LuminaCore
       - target: LuminaNativeLock
       - target: LuminaNativeTool
         embed: false
     postBuildScripts:
-      - name: Embed Native Local Tool
+      - name: Embed Hikari Native Tool
         script: |
           set -euo pipefail
           destination="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/MacOS"
           mkdir -p "${destination}"
-          ditto "${BUILT_PRODUCTS_DIR}/lumina-native-tool" \
-            "${destination}/lumina-native-tool"
+          ditto "${BUILT_PRODUCTS_DIR}/hikari-native-tool" \
+            "${destination}/hikari-native-tool"
         basedOnDependencyAnalysis: false
     settings:
       base:
@@ -163,10 +98,10 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         MACOSX_DEPLOYMENT_TARGET: "15.0"
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) LUMINA_NATIVE_LOCAL
   LuminaCoreTests:
     type: bundle.unit-test
     platform: macOS
+    deploymentTarget: "15.0"
     sources:
       - Tests/LuminaCoreTests
     dependencies:
@@ -186,19 +121,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.LuminaNativeLockTests
 schemes:
-  Lumina:
+  Hikari:
     build:
       targets:
-        Lumina: all
-        LuminaCoreTests: [test]
-    test:
-      targets:
-        - LuminaCoreTests
-      gatherCoverageData: true
-  LuminaNative:
-    build:
-      targets:
-        LuminaNative: all
+        Hikari: all
         LuminaNativeTool: all
         LuminaCoreTests: [test]
         LuminaNativeLockTests: [test]

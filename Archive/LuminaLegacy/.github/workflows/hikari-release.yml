@@ -30,7 +30,7 @@ jobs:
       build: ${{ steps.version.outputs.build }}
       is_release: ${{ steps.version.outputs.is_release }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - id: version
         name: Validate Hikari tag and version
         shell: bash
@@ -65,7 +65,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
@@ -126,7 +126,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
@@ -162,7 +162,7 @@ jobs:
             shasum -a 256 -c "${artifact_base}.zip.sha256"
           )
       - name: Upload Hikari release artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
           path: |
@@ -182,7 +182,7 @@ jobs:
       contents: write
     steps:
       - name: Download Hikari release artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           name: Hikari-macOS-native-v${{ needs.metadata.outputs.version }}
           path: dist

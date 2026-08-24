@@ -1,0 +1,230 @@
+#!/bin/zsh
+set -euo pipefail
+
+script_directory="${0:A:h}"
+repository_root="${script_directory:h}"
+timestamp="$(date +%Y%m%d-%H%M%S)"
+build_architecture="$(uname -m)"
+deployment_target="${build_architecture}-apple-macosx15.0"
+output_root="${1:-${repository_root}/.personal/build/hikari-${timestamp}}"
+module_directory="${output_root}/Modules"
+library_directory="${output_root}/Libraries"
+app_name="Hikari"
+app_path="${output_root}/${app_name}.app"
+resource_path="${app_path}/Contents/Resources"
+iconset_path="${output_root}/HikariIcon.iconset"
+install_directory="${HIKARI_INSTALL_DIRECTORY:-${LUMINA_NATIVE_INSTALL_DIRECTORY:-/Applications}}"
+installed_app_path="${install_directory}/${app_name}.app"
+install_staging_path="${install_directory}/.${app_name}.app.installing.$$"
+
+required_commands=(
+  swiftc
+  date
+  uname
+  mkdir
+  rm
+  mv
+  touch
+  ditto
+  plutil
+  awk
+  iconutil
+  codesign
+)
+for command_name in "${required_commands[@]}"; do
+  if ! command -v "${command_name}" >/dev/null 2>&1; then
+    print -u2 "Missing required command: ${command_name}"
+    exit 1
+  fi
+done
+
+required_paths=(
+  "${repository_root}/project.yml"
+  "${repository_root}/Sources/LuminaCore"
+  "${repository_root}/Sources/LuminaNativeLock"
+  "${repository_root}/Sources/LuminaNativeTool"
+  "${repository_root}/Sources/LuminaApp"
+  "${repository_root}/Resources/Hikari-Info.plist"
+  "${repository_root}/Resources/en.lproj"
+  "${repository_root}/Resources/ko.lproj"
+  "${repository_root}/Resources/Assets.xcassets/HikariIconDefault.imageset/hikari_new_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHikari.imageset/hikari_menu_bar_icon.png"
+  "${repository_root}/Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/hikari_menu_bar_icon_heartbeat.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png"
+  "${repository_root}/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png"
+)
+for required_path in "${required_paths[@]}"; do
+  if [[ ! -e "${required_path}" ]]; then
+    print -u2 "Missing Native Local build input: ${required_path#${repository_root}/}"
+    exit 1
+  fi
+done
+
+if ! plutil -lint "${repository_root}/Resources/Hikari-Info.plist" \
+  >/dev/null; then
+  print -u2 "Invalid Resources/Hikari-Info.plist"
+  exit 1
+fi
+
+hikari_marketing_version="$(
+  awk '/MARKETING_VERSION:/ { print $2; exit }' \
+    "${repository_root}/project.yml"
+)"
+hikari_build_number="$(
+  awk '/CURRENT_PROJECT_VERSION:/ { print $2; exit }' \
+    "${repository_root}/project.yml"
+)"
+if [[ ! "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  print -u2 "Invalid MARKETING_VERSION in project.yml"
+  exit 1
+fi
+if [[ ! "${hikari_build_number}" =~ ^[0-9]+$ ]]; then
+  print -u2 "Invalid CURRENT_PROJECT_VERSION in project.yml"
+  exit 1
+fi
+
+# entries.json and Index.plist belong to macOS runtime stores. Native Lock
+# validates and snapshots them after launch; they are intentionally not build
+# inputs and must never be copied into this source-only app bundle.
+
+cleanup_install_staging() {
+  if [[ -n "${install_staging_path}" && -e "${install_staging_path}" ]]; then
+    rm -rf "${install_staging_path}"
+  fi
+}
+trap cleanup_install_staging EXIT
+
+if [[ -e "${app_path}" ]]; then
+  print -u2 "Refusing to overwrite existing app: ${app_path}"
+  exit 1
+fi
+
+mkdir -p \
+  "${module_directory}" \
+  "${library_directory}" \
+  "${app_path}/Contents/MacOS" \
+  "${resource_path}" \
+  "${iconset_path}"
+
+cd "${repository_root}"
+
+swiftc \
+  -parse-as-library \
+  -emit-module \
+  -emit-library \
+  -static \
+  -module-name LuminaCore \
+  -target "${deployment_target}" \
+  Sources/LuminaCore/*.swift \
+  -emit-module-path "${module_directory}/LuminaCore.swiftmodule" \
+  -o "${library_directory}/libLuminaCore.a"
+
+swiftc \
+  -parse-as-library \
+  -emit-module \
+  -emit-library \
+  -static \
+  -module-name LuminaNativeLock \
+  -target "${deployment_target}" \
+  Sources/LuminaNativeLock/*.swift \
+  -emit-module-path "${module_directory}/LuminaNativeLock.swiftmodule" \
+  -o "${library_directory}/libLuminaNativeLock.a"
+
+swiftc \
+  -parse-as-library \
+  -target "${deployment_target}" \
+  -I "${module_directory}" \
+  -L "${library_directory}" \
+  -lLuminaNativeLock \
+  Sources/LuminaNativeTool/*.swift \
+  -o "${app_path}/Contents/MacOS/hikari-native-tool"
+
+swiftc \
+  -parse-as-library \
+  -target "${deployment_target}" \
+  -I "${module_directory}" \
+  -L "${library_directory}" \
+  -lLuminaCore \
+  -lLuminaNativeLock \
+  Sources/LuminaApp/*.swift \
+  -o "${app_path}/Contents/MacOS/${app_name}"
+
+ditto Resources/Hikari-Info.plist "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleDevelopmentRegion -string en "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleExecutable -string "${app_name}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleDisplayName -string "${app_name}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleName -string "${app_name}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleIdentifier -string com.hodadako.Lumina.NativeLocal "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "${hikari_marketing_version}" "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "${hikari_build_number}" "${app_path}/Contents/Info.plist"
+plutil -replace LSMinimumSystemVersion -string 15.0 "${app_path}/Contents/Info.plist"
+plutil -insert CFBundleIconFile -string AppIcon "${app_path}/Contents/Info.plist"
+
+ditto Resources/en.lproj "${resource_path}/en.lproj"
+ditto Resources/ko.lproj "${resource_path}/ko.lproj"
+ditto Resources/Assets.xcassets/HikariIconDefault.imageset/hikari_new_icon.png \
+  "${resource_path}/HikariIconDefault.png"
+ditto Resources/Assets.xcassets/MenuBarIconHikari.imageset/hikari_menu_bar_icon.png \
+  "${resource_path}/MenuBarIconHikari.png"
+ditto Resources/Assets.xcassets/MenuBarIconHeartbeat.imageset/hikari_menu_bar_icon_heartbeat.png \
+  "${resource_path}/MenuBarIconHeartbeat.png"
+
+for icon_file in \
+  icon_16x16.png icon_16x16@2x.png \
+  icon_32x32.png icon_32x32@2x.png \
+  icon_128x128.png icon_128x128@2x.png \
+  icon_256x256.png icon_256x256@2x.png \
+  icon_512x512.png icon_512x512@2x.png
+do
+  ditto \
+    "Resources/Assets.xcassets/AppIcon.appiconset/${icon_file}" \
+    "${iconset_path}/${icon_file}"
+done
+iconutil --convert icns "${iconset_path}" --output "${resource_path}/AppIcon.icns"
+
+codesign --force --deep --sign - "${app_path}"
+codesign --verify --deep --strict "${app_path}"
+
+mkdir -p "${install_directory}"
+
+# Terminate the currently running Hikari process (bundle ID
+# com.hodako.Lumina.NativeLocal) before replacing the bundle so the old
+# executable cannot continue reading files from the newly installed bundle.
+# Only target Hikari; do not kill unrelated applications.
+if /usr/bin/pgrep -f "com.hodako.Lumina.NativeLocal" >/dev/null 2>&1 || \
+   /usr/bin/osascript -e 'id of app "Hikari"' >/dev/null 2>&1; then
+  /usr/bin/osascript -e \
+    'tell application id "com.hodadako.Lumina.NativeLocal" to quit' \
+    >/dev/null 2>&1 || true
+  # Give the app up to 3 seconds to quit gracefully before continuing.
+  for _i in 1 2 3; do
+    sleep 1
+    /usr/bin/pgrep -qf "com.hodadako.Lumina.NativeLocal" || break
+  done
+  # If still running, send SIGTERM to the specific bundle only.
+  /usr/bin/pkill -TERM -f "com.hodadako.Lumina.NativeLocal" >/dev/null 2>&1 || true
+fi
+
+rm -rf "${install_staging_path}"
+ditto "${app_path}" "${install_staging_path}"
+codesign --verify --deep --strict "${install_staging_path}"
+rm -rf "${installed_app_path}"
+mv "${install_staging_path}" "${installed_app_path}"
+install_staging_path=""
+touch "${installed_app_path}"
+
+launch_services_register="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [[ -x "${launch_services_register}" ]]; then
+  "${launch_services_register}" -f "${installed_app_path}"
+fi
+mdimport "${installed_app_path}" >/dev/null 2>&1 || true
+
+print "${installed_app_path}"

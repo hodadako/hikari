@@ -3,6 +3,19 @@ import Foundation
 public struct SharedContainer: Sendable {
     public static let applicationSupportDirectoryName = "Lumina"
 
+    public static func applicationSupportRootURL(
+        directoryName: String = Self.applicationSupportDirectoryName,
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        let support = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        return support.appendingPathComponent(directoryName, isDirectory: true)
+    }
+
     public let rootURL: URL
 
     public init(
@@ -12,15 +25,8 @@ public struct SharedContainer: Sendable {
         if let rootURL {
             self.rootURL = rootURL
         } else {
-            let support = try FileManager.default.url(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask,
-                appropriateFor: nil,
-                create: true
-            )
-            self.rootURL = support.appendingPathComponent(
-                applicationSupportDirectoryName,
-                isDirectory: true
+            self.rootURL = try Self.applicationSupportRootURL(
+                directoryName: applicationSupportDirectoryName
             )
         }
         try prepareDirectories()

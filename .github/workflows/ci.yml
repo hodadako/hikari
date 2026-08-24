@@ -13,8 +13,6 @@ on:
       - "**/*.md"
   workflow_dispatch:
 
-# Build/test jobs never need to write repository contents. The release job
-# below grants contents: write only after every required build gate succeeds.
 permissions:
   contents: read
 
@@ -24,18 +22,22 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       is_tag: ${{ steps.version.outputs.is_tag }}
-      is_major: ${{ steps.version.outputs.is_major }}
       tag_version: ${{ steps.version.outputs.tag_version }}
+      build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - id: version
-        name: Validate tag and marketing version
+        name: Validate Hikari tag and marketing version
         shell: bash
         run: |
           set -euo pipefail
           is_tag=false
-          is_major=false
           tag_version=""
+          build_matrix='{"runner":["macos-15","macos-15-intel","macos-26","macos-26-intel"]}'
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            build_matrix='{"runner":["macos-15"]}'
+          fi
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             is_tag=true
@@ -49,15 +51,12 @@ jobs:
               echo "Tag ${tag_version} does not match MARKETING_VERSION ${marketing_version}" >&2
               exit 1
             fi
-            if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.0\.0$ ]]; then
-              is_major=true
-            fi
           fi
 
           {
             echo "is_tag=${is_tag}"
-            echo "is_major=${is_major}"
             echo "tag_version=${tag_version}"
+            echo "build_matrix=${build_matrix}"
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
@@ -65,22 +64,21 @@ jobs:
     needs: metadata
     strategy:
       fail-fast: false
-      matrix:
-        runner: [macos-15, macos-15-intel, macos-26, macos-26-intel]
+      matrix: ${{ fromJSON(needs.metadata.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate Xcode project
+      - name: Generate Hikari Xcode project
         run: xcodegen generate
       - name: Debug build
         run: |
           set -o pipefail
           xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
@@ -89,33 +87,36 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Release build and bundle checks
+        if: github.event_name != 'pull_request'
         env:
-          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
+          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
         run: |
           set -o pipefail
           xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             CODE_SIGNING_ALLOWED=NO \
             build
-          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
-          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
-          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
-          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
+          test -x "${app_path}/Contents/MacOS/Hikari"
+          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
+          test ! -d "${app_path}/Contents/PlugIns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${app_path}/Contents/Info.plist")" = "Hikari"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
 
   release-coverage:
-    name: Release coverage (${{ matrix.runner }})
+    name: Hikari release coverage (${{ matrix.runner }})
     needs: metadata
     if: needs.metadata.outputs.is_tag == 'true'
     strategy:
@@ -133,172 +134,102 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate Xcode project
+      - name: Generate Hikari Xcode project
         run: xcodegen generate
-      - name: Run all test targets with coverage
+      - name: Run Hikari tests with coverage
         run: |
           set -o pipefail
           xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme LuminaNative \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS' \
             -enableCodeCoverage YES \
-            -resultBundlePath "${RUNNER_TEMP}/LuminaNative.xcresult" \
+            -resultBundlePath "${RUNNER_TEMP}/Hikari-${{ matrix.codecov_flag }}.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
-      - name: Upload all test coverage to Codecov
-        uses: codecov/codecov-action@v7
+      - name: Upload Hikari coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: hodadako/lumina
           plugins: xcode
-          swift_project: Lumina
+          swift_project: Hikari
           flags: ${{ matrix.codecov_flag }}
-          name: lumina-native-${{ matrix.codecov_flag }}
+          name: hikari-${{ matrix.codecov_flag }}
           fail_ci_if_error: true
 
-  major_compatibility:
-    name: Major compatibility (${{ matrix.runner }})
-    needs: metadata
-    if: needs.metadata.outputs.is_major == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        # GitHub-hosted labels available while this workflow is maintained.
-        # macOS 13 has no hosted image anymore; deployment-target and unit
-        # tests cover it, with physical-device QA documented in PERFORMANCE.md.
-        # The regular build-and-test matrix already covers macOS 15 and 26.
-        runner: [macos-14]
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate Xcode project
-        run: xcodegen generate
-      - name: Debug build
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
-            -configuration Debug \
-            -destination 'platform=macOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-      - name: Unit test
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
-            -configuration Debug \
-            -destination 'platform=macOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            test
-      - name: Release build and bundle checks
-        env:
-          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath "${DERIVED_DATA_PATH}" \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
-          test -d "${app_path}"
-          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
-          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
-          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
-      - name: Upload compatibility evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: compatibility-${{ matrix.runner }}
-          path: |
-            ${{ runner.temp }}/LuminaDerivedData/Build/Products/Release/Lumina.app
-          if-no-files-found: error
-          retention-days: 7
-
   package:
-    name: Package release artifact
-    needs: [metadata, build-and-test, release-coverage, major_compatibility]
+    name: Package Hikari release artifact
+    needs: [metadata, build-and-test, release-coverage]
     if: >-
       always() &&
       needs.metadata.outputs.is_tag == 'true' &&
       needs.build-and-test.result == 'success' &&
-      needs.release-coverage.result == 'success' &&
-      (needs.metadata.outputs.is_major != 'true' || needs.major_compatibility.result == 'success')
+      needs.release-coverage.result == 'success'
     runs-on: macos-15
     permissions:
       contents: read
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate Xcode project
+      - name: Generate Hikari Xcode project
         run: xcodegen generate
-      - name: Build portable app once on representative runner
+      - name: Build and sign Hikari for release
         env:
-          DERIVED_DATA_PATH: ${{ runner.temp }}/LuminaDerivedData
+          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
         run: |
           set -o pipefail
           xcodebuild \
-            -project Lumina.xcodeproj \
-            -scheme Lumina \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             CODE_SIGNING_ALLOWED=NO \
             build
-          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Lumina.app"
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
-          test -d "${app_path}/Contents/PlugIns/Lumina.saver"
-          test ! -e "${app_path}/Contents/Frameworks/LuminaNativeLock.framework"
-          test ! -e "${app_path}/Contents/MacOS/lumina-native-tool"
+          test -x "${app_path}/Contents/MacOS/Hikari"
+          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
           codesign --force --deep --sign - "${app_path}"
+          codesign --verify --deep --strict "${app_path}"
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \
             "${app_path}" \
-            "dist/Lumina-macOS-portable.zip"
+            "dist/Hikari-macOS-portable.zip"
           (
             cd dist
-            shasum -a 256 "Lumina-macOS-portable.zip" \
-              > "Lumina-macOS-portable.zip.sha256"
-            shasum -a 256 -c "Lumina-macOS-portable.zip.sha256"
+            shasum -a 256 "Hikari-macOS-portable.zip" \
+              > "Hikari-macOS-portable.zip.sha256"
+            shasum -a 256 -c "Hikari-macOS-portable.zip.sha256"
           )
-      - name: Upload portable app
-        uses: actions/upload-artifact@v7
+      - name: Upload Hikari artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Lumina-macOS-portable
+          name: Hikari-macOS-portable
           path: |
-            dist/Lumina-macOS-portable.zip
-            dist/Lumina-macOS-portable.zip.sha256
+            dist/Hikari-macOS-portable.zip
+            dist/Hikari-macOS-portable.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
   release:
-    name: Publish tagged release
+    name: Publish Hikari tagged release
     needs: [metadata, package]
     if: always() && needs.metadata.outputs.is_tag == 'true' && needs.package.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v4
         with:
-          name: Lumina-macOS-portable
+          name: Hikari-macOS-portable
           path: dist
       - name: Create or update GitHub Release
         env:
@@ -306,15 +237,15 @@ jobs:
         run: |
           if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" \
-              dist/Lumina-macOS-portable.zip \
-              dist/Lumina-macOS-portable.zip.sha256 \
+              dist/Hikari-macOS-portable.zip \
+              dist/Hikari-macOS-portable.zip.sha256 \
               --clobber \
               --repo "${GITHUB_REPOSITORY}"
           else
             gh release create "${GITHUB_REF_NAME}" \
-              dist/Lumina-macOS-portable.zip \
-              dist/Lumina-macOS-portable.zip.sha256 \
-              --title "Lumina ${GITHUB_REF_NAME}" \
+              dist/Hikari-macOS-portable.zip \
+              dist/Hikari-macOS-portable.zip.sha256 \
+              --title "Hikari ${GITHUB_REF_NAME}" \
               --repo "${GITHUB_REPOSITORY}" \
               --generate-notes
           fi

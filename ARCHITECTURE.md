@@ -1,133 +1,104 @@
 # Architecture
 
-Lumina is split into a shared core, two app variants, a screen saver, and an
-isolated Native Lock transaction module and one-shot privileged tool. Unit-test
-targets mirror the shared core and Native Lock module.
+Hikari is the only shipped app. The old Lumina screen-saver and event-tap
+implementation is preserved under `Archive/LuminaLegacy` and is not part of
+the Hikari Xcode target.
 
-## LuminaCore
+## Hikari app
 
-The static core framework owns data and playback primitives shared by the app
-and screen saver:
+The `Hikari` scheme builds the menu bar application, `LuminaCore`,
+`LuminaNativeLock`, and the one-shot Native Lock tool. The app runs on macOS
+15 or later and uses the existing Hikari bundle identity
+`com.hodadako.Lumina.NativeLocal` so installed Hikari builds can update in
+place.
 
-- `SharedContainer` resolves a caller-selected Application Support directory;
-  the standard default is `~/Library/Application Support/Lumina`.
-- `SettingsStore` and `ContentStore` write atomic, human-readable JSON.
-- `VideoImporter` accepts movie containers recognized by macOS, verifies actual
-  AVFoundation playback and a video track, calculates SHA-256 hashes to reject
-  duplicates, preserves the source container extension, extracts metadata, and
-  creates bounded thumbnails.
-- `VideoRenderer` owns one queue player and looper and releases them explicitly.
-- `PlaybackPolicy` combines independent pause reasons without losing user intent.
-- `InterprocessSignal` coordinates the app and screen saver.
+Hikari owns desktop wallpaper windows only. `WallpaperController` creates one
+borderless player per display and keeps those players synchronized across
+display, Space, sleep, and lock transitions. It never installs a screen saver
+or intercepts the system lock shortcut.
 
-The framework is linked statically so an installed `Lumina.saver` does not
-depend on a framework inside `Lumina.app`.
+## Shared core
 
-## Lumina app
+`LuminaCore` contains the video importer, content/settings stores, playback
+policy, display topology, renderer, and custom icon handling. Internal type
+names remain compatible with existing SwiftPM clients and stored data.
 
-`AppModel` is the main-actor composition root. It loads stores, owns the renderer,
-observes system state, and reconciles state changes through `PlaybackPolicy`.
-
-`WallpaperController` creates one non-interactive desktop-level window and one
-player session per `NSScreen`. Display changes first reconcile stable display IDs
-while WindowServer settles, then rebuild the whole window set once after the
-final topology snapshot while preserving playback state. Wake and Space recovery
-use the same surface rebuild to replace stale WindowServer surfaces.
-
-The menu bar and settings UI use SwiftUI system controls. The app has `LSUIElement`
-enabled and does not appear in the Dock.
-
-## Lumina Native Local app
-
-The `LuminaNative` scheme compiles the shared app UI with the
-`LUMINA_NATIVE_LOCAL` condition. It has a separate bundle ID
-(`com.hodadako.Lumina.NativeLocal`), product name, and
-`~/Library/Application Support/LuminaNative` storage. It does not embed the
-screen saver or perform automatic updates. It supports `Control-Command-Q` via
-the macOS-owned system lock path instead of installing a competing event tap;
-the standard target retains its optional event-tap shortcut override.
-
-`LuminaNativeLock` owns both sides of a native transaction. The user side stages
-hashed media and preview files, snapshots the complete wallpaper `Index.plist` (and the
-macOS 26 Aerial `entries.json`), writes a phase journal, updates only the
-reviewed wallpaper choices, and can selectively restore Lumina-owned mappings if
-an external change occurred. Before each user-store write, the app stops the
-current `WallpaperAgent`; after launchd restarts it, the app polls the persisted
-mapping before reporting success.
-
-On macOS 15, `LuminaNativeTool` is embedded only in the Native Local app. Each
-legacy catalog apply or restore is a one-shot
-`do shell script ... with administrator privileges` operation with fixed
-arguments, not an installed daemon. It accepts only a local user ID and
-transaction UUID, verifies ownership and hashes, pins writes to the reviewed
-macOS 15 manifest schema, and maintains a root-only backup and phase journal.
-On macOS 26, `NativeLockModernTransaction` performs the reviewed user Aerial
-manifest/media transaction without the root-owned legacy catalog or privileged
-tool. Both restore paths use the exact original data when unchanged, or remove
-only Lumina-owned entries when another process changed it meanwhile.
-
-## Lumina screen saver
-
-`LuminaScreenSaverView` is a separate ScreenSaver.framework bundle and process.
-It reads settings and content as a consumer, creates its own player only while
-animation is active, and releases the player, item, looper, and layer reference
-when animation stops.
-
-The saver posts distributed start/stop notifications. The app treats those as
-independent pause reasons and revalidates policy after wake, unlock, and display
-changes.
-
-## Storage
+The canonical user container is:
 
 ```text
 ~/Library/Application Support/Lumina/
-├── settings.json
+├── Media/
+├── Thumbnails/
 ├── contents.json
-├── Media/<uuid>.<source-movie-extension>
-└── Thumbnails/<uuid>.jpg
+├── settings.json
+├── CustomAppIcon.png
+└── CustomMenuBarIcon.png
 ```
 
-Native Local uses the same layout under a separate `LuminaNative/` root and adds:
+## First-launch storage migration
+
+`NativeStorageMigration` runs before Hikari loads its stores. It merges the
+former:
 
 ```text
 ~/Library/Application Support/LuminaNative/
-├── NativeLockTransactions/<transaction-uuid>/
-│   ├── Index.original.plist
-│   ├── request.json
-│   ├── journal.json
-│   ├── media.mov
-│   └── preview.jpg
-└── native-lock-active.json
-
-/Library/Application Support/com.hodadako.LuminaNative/
-├── active.json
-└── Transactions/<transaction-uuid>/
-    ├── entries.original.json
-    └── system-journal.json
 ```
 
-On macOS 26, `NativeLockModernTransaction` uses the current user's Aerial store
-instead of the root-owned legacy catalog:
+into the canonical root. Existing canonical content IDs and files win
+conflicts; missing legacy records and referenced media/thumbnails are copied.
+Conflicting files are copied under `MigratedLuminaNative/` and the merged
+metadata points to that copy. Settings and custom icons are copied only when
+the canonical file is absent.
+
+Native Lock transaction directories and the active marker are copied before
+the old root is moved to a recoverable `LuminaNative.archived` path. The
+migration is idempotent and writes `hikari-storage-migration.json`. An active,
+prepared, restoring, or recovery-required journal continues to be visible to
+Hikari, so the app can offer Restore and blocks app updates until the journal
+is `restored`.
+
+If migration fails, the old directory is not removed or overwritten. Hikari
+keeps updates blocked and shows the migration error so the user can recover
+the original data first.
+
+## Native Lock transaction
+
+`LuminaNativeLock` owns the user-side transaction journal and both supported
+backends:
+
+- macOS 15 uses a root-owned idleassets catalog through the embedded one-shot
+  `LuminaNativeTool`, after explicit administrator authorization.
+- macOS 26 uses the current user's Aerial manifest and media store without a
+  root catalog write.
+
+The user store stages media, preview, request, journal, and the original
+wallpaper index before system writes. The journal phases are:
 
 ```text
-~/Library/Application Support/com.apple.wallpaper/aerials/
-├── manifest/entries.json
-├── videos/<asset-uuid>.mov
-└── thumbnails/<asset-uuid>.png
+prepared → systemApplied → active → restoring → restored
+                         └──────────────→ recoveryRequired
 ```
 
-Imported media is copied into this directory so playback does not depend on
-security-scoped access to the original file. Deletion only affects Lumina's
-managed copy.
+Restore verifies hashes and selectively preserves external wallpaper changes.
+Hikari never runs a persistent privileged helper. Periodic maintenance is
+user-level only and does not repeat root operations.
 
-## State invariants
+## Updates and releases
 
-- User pause is never cleared by unlock or wake.
-- Missing content never starts playback.
-- Any active system pause reason stops playback.
-- Display rebuilds replace, rather than append to, wallpaper windows.
-- Stopping a renderer disables looping and removes all player items.
-- Native Local system mutation remains disabled outside the explicitly reviewed
-  macOS major-version and manifest-schema allowlist.
-- A Native Lock transaction is not active until the system journal, user
-  journal, and post-restart wallpaper mapping agree on one transaction/asset ID.
+`ReleaseUpdateService` reads the latest normal `vX.Y.Z` GitHub release and
+requires these exact assets:
+
+```text
+Hikari-macOS-portable.zip
+Hikari-macOS-portable.zip.sha256
+```
+
+`AppUpdateInstaller` verifies the checksum, extracts `Hikari.app`, checks its
+bundle identifier, display name, executable, version, and ad-hoc code
+signature, then stages the replacement. Updates are disabled while Native
+Lock or storage migration requires recovery.
+
+CI runs Hikari tests on macOS 15/26 ARM64 and Intel runners. Release coverage
+uploads each result to Codecov with a runner flag. Only normal `vX.Y.Z` tags
+run the package and GitHub release jobs; there is no separate Hikari tag
+channel.

@@ -1,10 +1,8 @@
 import AppKit
 import LuminaCore
+import LuminaNativeLock
 import SwiftUI
 import UniformTypeIdentifiers
-#if LUMINA_NATIVE_LOCAL
-import LuminaNativeLock
-#endif
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
@@ -27,25 +25,6 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
-        .alert(
-            "Shortcut Permission Repair Needed",
-            isPresented: Binding(
-                get: { model.isShortcutPermissionRecoveryPresented },
-                set: { if !$0 { model.dismissShortcutPermissionRecovery() } }
-            )
-        ) {
-            Button("Open Accessibility Settings") {
-                model.openAccessibilitySettings()
-            }
-            Button("Open Input Monitoring Settings") {
-                model.openInputMonitoringSettings()
-            }
-            Button("Later", role: .cancel) {
-                model.dismissShortcutPermissionRecovery()
-            }
-        } message: {
-            Text(model.shortcutPermissionRecoveryMessage)
-        }
     }
 
     @ViewBuilder
@@ -57,38 +36,20 @@ struct SettingsView: View {
                 GeneralSettingsView(model: model)
                     .tabItem { Label("General", systemImage: "gearshape") }
                     .tag(SettingsSection.general)
-                if model.isNativeLocalBuild {
-                    NativeLockSettingsView(model: model)
-                        .tabItem { Label("Lock Screen", systemImage: "lock.display") }
-                        .tag(SettingsSection.nativeLock)
-                } else {
-                    ScreenSaverSettingsView(model: model)
-                        .tabItem { Label("Screen Saver", systemImage: "display") }
-                        .tag(SettingsSection.screenSaver)
-                }
+                NativeLockSettingsView(model: model)
+                    .tabItem { Label("Lock Screen", systemImage: "lock.display") }
+                    .tag(SettingsSection.nativeLock)
                 AboutView(model: model)
                     .tabItem { Label("About", systemImage: "info.circle") }
                     .tag(SettingsSection.about)
             }
             .padding(20)
-            .alert(
-                model.attentionTitle,
-                isPresented: Binding(
-                    get: { model.presentedError != nil },
-                    set: { if !$0 { model.presentedError = nil } }
-                )
-            ) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(model.presentedError ?? "")
-            }
         }
     }
 }
 
 private enum SettingsSection: Hashable {
     case general
-    case screenSaver
     case nativeLock
     case about
 }
@@ -99,27 +60,21 @@ private struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 22) {
             Spacer()
-            LuminaIconPreview(
-                image: model.appIconImage,
-                size: 82
-            )
+            HikariIconPreview(image: model.appIconImage, size: 82)
             VStack(spacing: 8) {
                 Text("Welcome to \(model.appDisplayName)")
                     .font(.largeTitle.bold())
                 Text(
-                    localized(
-                        model.isNativeLocalBuild
-                            ? "Choose a video and Hikari will copy it into a managed library,\nthen play it quietly behind your desktop."
-                            : "Choose a video and Lumina will copy it into a managed library,\nthen play it quietly behind your desktop."
-                    )
+                    "Choose a video and Hikari will copy it into a managed library,\n"
+                        + "then play it quietly behind your desktop."
                 )
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
             }
             VStack(spacing: 6) {
                 Label("Choose a video from anywhere on your Mac", systemImage: "folder")
                     .font(.headline)
-                Text("You do not need to move it manually. \(model.appDisplayName) stores its copy in:")
+                Text("You do not need to move it manually. Hikari stores its copy in:")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Text(model.managedMediaDirectoryDisplayPath)
@@ -133,7 +88,7 @@ private struct WelcomeView: View {
                 chooseVideo()
             } label: {
                 Label(
-                    localized(model.isImporting ? "Importing…" : "Choose Video…"),
+                    model.isImporting ? "Importing…" : "Choose Video…",
                     systemImage: "plus"
                 )
                 .frame(minWidth: 150)
@@ -166,9 +121,7 @@ private struct WelcomeView: View {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task {
-            await model.importVideo(from: url)
-        }
+        Task { await model.importVideo(from: url) }
     }
 }
 
@@ -198,9 +151,7 @@ private struct GeneralSettingsView: View {
                                 .foregroundStyle(.tint)
                                 .accessibilityLabel("Selected")
                         } else {
-                            Button("Use") {
-                                model.select(content)
-                            }
+                            Button("Use") { model.select(content) }
                         }
                         Button(role: .destructive) {
                             pendingDeletion = content
@@ -212,28 +163,19 @@ private struct GeneralSettingsView: View {
                     }
                     .padding(.vertical, 3)
                 }
-                Button {
-                    chooseVideo()
-                } label: {
+                Button { chooseVideo() } label: {
                     Label("Import Video…", systemImage: "plus")
                 }
             }
 
             Section("Playback") {
                 Toggle(
+                    "Launch Hikari at login",
                     isOn: Binding(
                         get: { model.settings.launchAtLogin },
                         set: model.setLaunchAtLogin
                     )
-                ) {
-                    Text(
-                        localized(
-                            model.isNativeLocalBuild
-                                ? "Launch Hikari at login"
-                                : "Launch Lumina at login"
-                        )
-                    )
-                }
+                )
                 Toggle(
                     "Pause while on battery",
                     isOn: Binding(
@@ -261,7 +203,7 @@ private struct GeneralSettingsView: View {
                             }
                         } label: {
                             VStack(spacing: 8) {
-                                LuminaIconPreview(
+                                HikariIconPreview(
                                     image: model.appIconImage(for: style),
                                     size: 64
                                 )
@@ -286,15 +228,6 @@ private struct GeneralSettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(
-                            String(
-                                format: NSLocalizedString(
-                                    "%@ app icon",
-                                    comment: "App icon option accessibility label"
-                                ),
-                                appIconDisplayName(for: style)
-                            )
-                        )
                     }
                 }
             }
@@ -358,15 +291,10 @@ private struct GeneralSettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
-
         }
         .formStyle(.grouped)
         .confirmationDialog(
-            localized(
-                model.isNativeLocalBuild
-                    ? "Delete this video from Hikari?"
-                    : "Delete this video from Lumina?"
-            ),
+            "Delete this video from Hikari?",
             isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
@@ -374,14 +302,10 @@ private struct GeneralSettingsView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                if let content = pendingDeletion {
-                    model.delete(content)
-                }
+                if let content = pendingDeletion { model.delete(content) }
                 pendingDeletion = nil
             }
-            Button("Cancel", role: .cancel) {
-                pendingDeletion = nil
-            }
+            Button("Cancel", role: .cancel) { pendingDeletion = nil }
         } message: {
             Text("The original video will not be changed.")
         }
@@ -392,9 +316,7 @@ private struct GeneralSettingsView: View {
         panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task {
-            await model.importVideo(from: url)
-        }
+        Task { await model.importVideo(from: url) }
     }
 
     private func chooseCustomIcon() {
@@ -402,11 +324,7 @@ private struct GeneralSettingsView: View {
         panel.allowedContentTypes = [.image]
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = localized(
-            model.isNativeLocalBuild
-                ? "Choose an image for your custom Hikari icon."
-                : "Choose an image for your custom Lumina icon."
-        )
+        panel.message = "Choose an image for your custom Hikari icon."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         model.importCustomAppIcon(from: url)
     }
@@ -416,7 +334,7 @@ private struct GeneralSettingsView: View {
         panel.allowedContentTypes = [.image]
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = localized("Choose an image for your custom menu bar icon.")
+        panel.message = "Choose an image for your custom menu bar icon."
         guard panel.runModal() == .OK, let url = panel.url else { return }
         model.importCustomMenuBarIcon(from: url)
     }
@@ -427,227 +345,11 @@ private struct GeneralSettingsView: View {
     }
 
     private func appIconDisplayName(for style: AppIconStyle) -> String {
-        model.isNativeLocalBuild && style == .lumina
-            ? model.appDisplayName
-            : style.localizedName
+        style == .lumina ? model.appDisplayName : style.localizedName
     }
 
     private func menuBarIconDisplayName(for style: MenuBarIconStyle) -> String {
-        model.isNativeLocalBuild && style == .lumina
-            ? model.appDisplayName
-            : style.localizedName
-    }
-}
-
-private struct ScreenSaverSettingsView: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        Form {
-            Section {
-                LabeledContent("Installation") {
-                    Label(
-                        localized(model.isScreenSaverInstalled ? "Installed" : "Not installed"),
-                        systemImage: model.isScreenSaverInstalled
-                            ? "checkmark.circle.fill"
-                            : "exclamationmark.circle"
-                    )
-                    .foregroundStyle(model.isScreenSaverInstalled ? .green : .secondary)
-                }
-
-                LabeledContent("Selected Screen Saver") {
-                    Label(
-                        localized(
-                            model.isScreenSaverSelected
-                                ? "Lumina"
-                                : "Mac default"
-                        ),
-                        systemImage: model.isScreenSaverSelected
-                            ? "checkmark.circle.fill"
-                            : "exclamationmark.triangle.fill"
-                    )
-                    .foregroundStyle(model.isScreenSaverSelected ? .green : .orange)
-                }
-
-                LabeledContent("Automatic Start") {
-                    Label(
-                        startDelayText,
-                        systemImage: model.screenSaverStartDelay > 0
-                            ? "timer"
-                            : "timer.square"
-                    )
-                    .foregroundStyle(
-                        model.screenSaverStartDelay > 0
-                            ? Color.primary
-                            : Color.orange
-                    )
-                }
-
-                Toggle(
-                    "Play video on Lock Screen",
-                    isOn: Binding(
-                        get: { model.isLockScreenPlaybackEnabled },
-                        set: model.setLockScreenPlayback
-                    )
-                )
-                .disabled(
-                    !model.isScreenSaverInstalled
-                        || !model.isScreenSaverSelected
-                )
-
-                Toggle(
-                    isOn: Binding(
-                        get: { model.settings.overrideSystemLockShortcut },
-                        set: model.setLockShortcutOverride
-                    )
-                ) {
-                    HStack {
-                        Text("Use shortcut for Lumina Lock")
-                        Spacer()
-                        ShortcutKeyCapsView()
-                    }
-                }
-                .disabled(
-                    !model.isScreenSaverInstalled
-                        || !model.isScreenSaverSelected
-                        || model.selectedContent == nil
-                )
-
-                LabeledContent("Shortcut Status") {
-                    Label(
-                        localized(
-                            model.isLockShortcutOverrideActive
-                                ? "Active"
-                                : model.settings.overrideSystemLockShortcut
-                                    ? "Accessibility and Input Monitoring permission required"
-                                    : "Mac default"
-                        ),
-                        systemImage: model.isLockShortcutOverrideActive
-                            ? "checkmark.circle.fill"
-                            : "keyboard"
-                    )
-                    .foregroundStyle(
-                        model.isLockShortcutOverrideActive ? .green : .secondary
-                    )
-                }
-
-                if model.settings.overrideSystemLockShortcut {
-                    LabeledContent("Accessibility") {
-                        permissionLabel(
-                            granted: model.isAccessibilityPermissionGranted
-                        )
-                    }
-
-                    LabeledContent("Input Monitoring") {
-                        permissionLabel(
-                            granted: model.isInputMonitoringPermissionGranted
-                        )
-                    }
-
-                    if !model.isLockShortcutOverrideActive {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(model.shortcutPermissionRecoveryMessage)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            HStack {
-                                Button("Request Permissions") {
-                                    model.requestShortcutPermissions()
-                                }
-                                .buttonStyle(.borderedProminent)
-
-                                Button("Recheck Permissions") {
-                                    model.recheckShortcutPermissions()
-                                }
-                            }
-
-                            HStack {
-                                Button("Open Accessibility Settings") {
-                                    model.openAccessibilitySettings()
-                                }
-                                Button("Open Input Monitoring Settings") {
-                                    model.openInputMonitoringSettings()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if model.isScreenSaverInstalled {
-                    HStack {
-                        Button("Preview Lumina") {
-                            model.previewScreenSaver()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(
-                            !model.isScreenSaverSelected
-                                || model.selectedContent == nil
-                        )
-
-                        Button("Choose Screen Saver") {
-                            model.openScreenSaverSettings()
-                        }
-
-                        Button("Set Start Time") {
-                            model.openLockScreenSettings()
-                        }
-
-                        Button("Lock with Lumina") {
-                            model.lockWithLumina()
-                        }
-                    }
-                } else {
-                    Button("Install Screen Saver") {
-                        model.installScreenSaver()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-
-                if model.isScreenSaverInstalled {
-                    Button(
-                        model.isScreenSaverUpdateAvailable
-                            ? "Update Lumina Screen Saver"
-                            : "Reinstall Lumina Screen Saver"
-                    ) {
-                        model.installScreenSaver()
-                    }
-                }
-            } header: {
-                Text("Lumina Screen Saver")
-            } footer: {
-                Text(
-                    localized(
-                        "Lumina Lock starts the video screen saver immediately. For a secure "
-                            + "lock, set Require password after screen saver begins to Immediately. "
-                            + "The optional shortcut override needs Accessibility and Input Monitoring permissions."
-                    )
-                )
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    private var startDelayText: String {
-        guard model.screenSaverStartDelay > 0 else {
-            return localized("Never")
-        }
-        return String(
-            format: NSLocalizedString(
-                "After %d minutes",
-                comment: "Screen saver automatic start delay"
-            ),
-            max(1, model.screenSaverStartDelay / 60)
-        )
-    }
-
-    private func permissionLabel(granted: Bool) -> some View {
-        Label(
-            localized(granted ? "Granted" : "Required"),
-            systemImage: granted
-                ? "checkmark.circle.fill"
-                : "exclamationmark.triangle.fill"
-        )
-        .foregroundStyle(granted ? Color.green : Color.orange)
+        style == .lumina ? model.appDisplayName : style.localizedName
     }
 }
 
@@ -657,7 +359,6 @@ private struct NativeLockSettingsView: View {
     var body: some View {
         Form {
             Section {
-                #if LUMINA_NATIVE_LOCAL
                 let report = NativeLockSafetyInspector.evaluate(
                     hasSelectedMedia: model.selectedContent != nil,
                     transactionPhase: model.nativeLockPhase
@@ -678,9 +379,7 @@ private struct NativeLockSettingsView: View {
                     ) {
                     Label {
                         Text(
-                            localized(
-                                "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update."
-                            )
+                            "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update."
                         )
                         .fixedSize(horizontal: false, vertical: true)
                     } icon: {
@@ -698,8 +397,7 @@ private struct NativeLockSettingsView: View {
                 if let title = model.nativeLockAppliedContentTitle,
                    model.nativeLockPhase != .restored {
                     LabeledContent("Applied video") {
-                        Text(title)
-                            .lineLimit(1)
+                        Text(title).lineLimit(1)
                     }
                 }
 
@@ -708,16 +406,13 @@ private struct NativeLockSettingsView: View {
                         model.applySelectedVideoToNativeLock()
                     } label: {
                         if model.isNativeLockWorking {
-                            ProgressView()
-                                .controlSize(.small)
+                            ProgressView().controlSize(.small)
                         } else {
                             Text("Apply Selected Video")
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(
-                        report.state != .ready || model.isNativeLockWorking
-                    )
+                    .disabled(report.state != .ready || model.isNativeLockWorking)
 
                     if model.canDiscardKnownNoopNativeLockPreflight {
                         Button("Clear Failed Preparation") {
@@ -732,15 +427,13 @@ private struct NativeLockSettingsView: View {
                         .disabled(model.isNativeLockWorking)
                     }
                 }
-
-                #else
-                Text("Lock Screen controls are available in Hikari.")
-                    .foregroundStyle(.secondary)
-                #endif
             } header: {
                 Text("Lock Screen")
+            } footer: {
+                Text(
+                    "Hikari uses macOS's native Lock Screen path. Restore an unfinished transaction before updating the app or macOS."
+                )
             }
-
         }
         .formStyle(.grouped)
     }
@@ -757,15 +450,11 @@ private struct AboutView: View {
     var body: some View {
         VStack(spacing: 14) {
             Spacer()
-            LuminaIconPreview(
-                image: model.appIconImage,
-                size: 78
-            )
-            Text(model.appDisplayName)
-                .font(.title.bold())
+            HikariIconPreview(image: model.appIconImage, size: 78)
+            Text(model.appDisplayName).font(.title.bold())
             Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)
-            Text("Live wallpaper for macOS.")
+            Text("Native live wallpaper for macOS.")
                 .foregroundStyle(.secondary)
             Link(
                 "GitHub Repository",
@@ -774,84 +463,89 @@ private struct AboutView: View {
             Text("Released under the MIT License")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+            Text(
+                "Release builds are ad-hoc signed. macOS may show a first-launch security warning, and these builds are not notarized."
+            )
+            .font(.caption)
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.secondary)
             Divider()
-            if model.supportsAutomaticUpdates {
-                VStack(spacing: 8) {
-                switch model.updateCheckState {
-                case .checking:
-                    ProgressView("Checking for updates…")
-                case .updateAvailable:
-                    if let release = model.latestRelease {
-                        Text(
-                            String(
-                                format: NSLocalizedString(
-                                    "Version %@ is available.",
-                                    comment: "Available app update message"
-                                ),
-                                release.displayVersion
-                            )
-                        )
-                        .foregroundStyle(.tint)
-                        Button("Update and Relaunch") {
-                            showingUpdateConfirmation = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isApplyingUpdate)
-                    }
-                case .upToDate:
-                    Text("Lumina is up to date.")
-                        .foregroundStyle(.secondary)
-                case .failed:
-                    Text(model.updateErrorMessage ?? "Could not check for updates.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                case .idle:
-                    EmptyView()
-                }
 
-                Button(
-                    model.isApplyingUpdate
-                        ? "Preparing Update…"
-                        : "Check for Updates"
-                ) {
-                    model.checkForUpdates()
-                }
-                .disabled(
-                    model.isApplyingUpdate
-                        || model.updateCheckState == .checking
-                )
-                }
+            if let reason = model.updateBlockedReason {
+                Label(reason, systemImage: "lock.shield")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.orange)
             } else {
-                Label(
-                    "Local source build — automatic updates disabled",
-                    systemImage: "hammer"
-                )
-                .foregroundStyle(.secondary)
+                updateControls
             }
             Spacer()
         }
         .frame(maxWidth: .infinity)
         .confirmationDialog(
-            "Install Lumina update?",
+            "Install Hikari update?",
             isPresented: $showingUpdateConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Update and Relaunch") {
-                model.applyLatestUpdate()
-            }
+            Button("Update and Relaunch") { model.applyLatestUpdate() }
             Button("Cancel", role: .cancel) {}
         } message: {
             if let release = model.latestRelease {
                 Text(
                     String(
                         format: NSLocalizedString(
-                            "Lumina will download %@, replace the current app, and relaunch.",
+                            "Hikari will download %@, replace the current app, and relaunch.",
                             comment: "App update confirmation message"
                         ),
                         release.displayVersion
                     )
                 )
             }
+        }
+    }
+
+    @ViewBuilder
+    private var updateControls: some View {
+        VStack(spacing: 8) {
+            switch model.updateCheckState {
+            case .checking:
+                ProgressView("Checking for updates…")
+            case .updateAvailable:
+                if let release = model.latestRelease {
+                    Text(
+                        String(
+                            format: NSLocalizedString(
+                                "Version %@ is available.",
+                                comment: "Available app update message"
+                            ),
+                            release.displayVersion
+                        )
+                    )
+                    .foregroundStyle(.tint)
+                    Button("Update and Relaunch") {
+                        showingUpdateConfirmation = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.isApplyingUpdate)
+                }
+            case .upToDate:
+                Text("Hikari is up to date.").foregroundStyle(.secondary)
+            case .failed:
+                Text(model.updateErrorMessage ?? "Could not check for updates.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .idle:
+                EmptyView()
+            }
+
+            Button(
+                model.isApplyingUpdate ? "Preparing Update…" : "Check for Updates"
+            ) {
+                model.checkForUpdates()
+            }
+            .disabled(
+                model.isApplyingUpdate || model.updateCheckState == .checking
+            )
         }
     }
 }

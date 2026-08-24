@@ -1,9 +1,8 @@
 # Building Hikari Native Local on Another Mac
 
-Hikari Native Local is an experimental source build and can also be published as
-a separate ad-hoc release asset. It is not part of the Lumina portable download
-and it does not receive in-app updates. Until the first Hikari tag is released,
-build it on the Mac where it will run when possible; a copied ad-hoc build may
+Hikari is the only shipped app. It is published on the normal `vX.Y.Z` release
+channel as an ad-hoc asset and also supports checksum-verified in-app updates.
+Build it on the Mac where it will run when possible; a copied ad-hoc build may
 trigger Gatekeeper warnings. Hikari
 uses the macOS-owned lock shortcut and does not enable Lumina's optional global
 event-tap shortcut, so this Native Local path does not require Accessibility or
@@ -25,7 +24,7 @@ manifest and media records are preserved.
 - **macOS 15** uses the privileged legacy system catalog at
   `/Library/Application Support/com.apple.idleassetsd/Customer/entries.json`.
   Each Apply and Restore requires administrator authorization via a one-shot
-  helper tool (`lumina-native-tool`).
+  helper tool (`hikari-native-tool`).
 - **macOS 26** uses the current user's Aerial catalog at
   `~/Library/Application Support/com.apple.wallpaper/aerials/`. No
   administrator authorization is required, but Apple's Aerial catalog must
@@ -35,9 +34,9 @@ manifest and media records are preserved.
   rollback.
 - The direct build script needs a Swift toolchain with the macOS 15 SDK or
   newer. A full Xcode installation is required for Xcode builds and tests.
-- Hikari is built from source and can be published through separate ad-hoc
-  release assets. Until a Hikari tag is released, the normal Lumina portable
-  release is a separate app and does not include Native Lock.
+- Hikari is built from source and is the app included in the normal tagged
+  release. The old Lumina screen-saver/event-tap code is archived and is not
+  included in Hikari.
 
 ## Prerequisites for macOS 26 Native Lock
 
@@ -115,7 +114,7 @@ The direct script builds, ad-hoc signs, verifies, installs, and registers
 Hikari with Launch Services and Spotlight:
 
 ```sh
-scripts/build-native-local.sh
+scripts/build-hikari.sh
 codesign --verify --deep --strict /Applications/Hikari.app
 open -a Hikari
 ```
@@ -126,8 +125,8 @@ instead:
 
 ```sh
 mkdir -p "$HOME/Applications"
-LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications" \
-  scripts/build-native-local.sh
+HIKARI_INSTALL_DIRECTORY="$HOME/Applications" \
+  scripts/build-hikari.sh
 open "$HOME/Applications/Hikari.app"
 ```
 
@@ -135,15 +134,13 @@ The app is an agent app, so it appears in the menu bar rather than the Dock.
 After the script completes, Spotlight should find `Hikari`; the direct `open`
 command above also works while Spotlight finishes indexing.
 
-### Hikari ad-hoc release assets
+### Hikari tagged release assets
 
-Pushing a `hikari-vX.Y.Z` tag runs the Hikari Release workflow. After macOS 15
+Pushing a normal `vX.Y.Z` tag runs the Hikari release workflow. After macOS 15
 and macOS 26 compile/test gates pass, it publishes
-`Hikari-macOS-native-vX.Y.Z.zip` and its SHA-256 checksum in a separate GitHub
-Release. The asset keeps the current ad-hoc, unnotarized signing structure and
-is separate from the normal Lumina release. Verify the checksum and
-`codesign --verify --deep --strict` before opening it. Hikari has no in-app
-updater and does not include Lumina's optional global event-tap shortcut.
+`Hikari-macOS-portable.zip` and its SHA-256 checksum. The asset is ad-hoc and
+unnotarized. Verify the checksum and
+`codesign --verify --deep --strict` before opening it.
 
 ## 4. Optional Xcode build and test
 
@@ -153,16 +150,16 @@ and tests but does not activate Native Lock or modify macOS settings.
 ```sh
 xcodegen generate
 xcodebuild \
-  -project Lumina.xcodeproj \
-  -scheme LuminaNative \
+  -project Hikari.xcodeproj \
+  -scheme Hikari \
   -configuration Debug \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   build
 
 xcodebuild \
-  -project Lumina.xcodeproj \
-  -scheme LuminaNative \
+  -project Hikari.xcodeproj \
+  -scheme Hikari \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   test
@@ -190,7 +187,7 @@ transaction files manually.
 | --- | --- |
 | `xcodebuild` says the license is not accepted | Run `sudo xcodebuild -license` and complete the interactive prompt. |
 | Tools resolve to `/Library/Developer/CommandLineTools` | Select full Xcode with `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`. |
-| The install step cannot write to `/Applications` | Use `LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications"` as shown above. |
+| The install step cannot write to `/Applications` | Use `HIKARI_INSTALL_DIRECTORY="$HOME/Applications"` as shown above. |
 | Spotlight does not show Hikari yet | Run `open /Applications/Hikari.app`, or use the matching `$HOME/Applications` path, then allow indexing to finish. |
 | Hikari reports Native Lock writes are unavailable | Confirm the Mac is on macOS 15 or 26. Do not bypass the operating-system safety gate. |
 | Hikari reports "Initialize Apple Aerial wallpapers first" (macOS 26) | Open System Settings → Wallpaper, select an Apple Aerial wallpaper, wait for it to download, then return to Hikari. |
@@ -204,5 +201,5 @@ For diagnostics during Apply or Restore, use:
 
 ```sh
 log stream --level info \
-  --predicate 'subsystem == "com.hodadako.Lumina.NativeLocal"'
+  --predicate 'subsystem == "com.hodadako.Hikari"'
 ```

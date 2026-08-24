@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Owns Lumina's status item independently from SwiftUI's MenuBarExtra scene.
+/// Owns Hikari's status item independently from SwiftUI's MenuBarExtra scene.
 ///
 /// MenuBarExtra can drop a custom NSImage label while the application itself
 /// continues running. An explicit NSStatusItem keeps the icon and popover

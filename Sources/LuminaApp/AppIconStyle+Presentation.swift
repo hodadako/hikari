@@ -5,14 +5,14 @@ import SwiftUI
 extension AppIconStyle {
     var assetName: String? {
         switch self {
-        case .lumina: "LuminaIconDefault"
+        case .lumina: "HikariIconDefault"
         case .custom: nil
         }
     }
 
     var localizedName: String {
         switch self {
-        case .lumina: NSLocalizedString("Lumina", comment: "Default Lumina app icon")
+        case .lumina: NSLocalizedString("Hikari", comment: "Default Hikari app icon")
         case .custom: NSLocalizedString("Custom", comment: "Custom app icon")
         }
     }
@@ -21,7 +21,7 @@ extension AppIconStyle {
 extension MenuBarIconStyle {
     var assetName: String? {
         switch self {
-        case .lumina: "MenuBarIconLumina"
+        case .lumina: "MenuBarIconHikari"
         case .custom: nil
         }
     }
@@ -32,13 +32,13 @@ extension MenuBarIconStyle {
 
     var localizedName: String {
         switch self {
-        case .lumina: NSLocalizedString("Lumina", comment: "Default Lumina menu bar icon")
+        case .lumina: NSLocalizedString("Hikari", comment: "Default Hikari menu bar icon")
         case .custom: NSLocalizedString("Custom", comment: "Custom menu bar icon")
         }
     }
 }
 
-struct LuminaIconPreview: View {
+struct HikariIconPreview: View {
     let image: NSImage?
     let size: CGFloat
 

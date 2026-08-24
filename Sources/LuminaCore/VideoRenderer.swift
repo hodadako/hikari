@@ -4,7 +4,7 @@ import Foundation
 import OSLog
 
 private let playbackLogger = Logger(
-    subsystem: "com.hodadako.Lumina",
+    subsystem: "com.hodadako.Hikari",
     category: "Playback"
 )
 

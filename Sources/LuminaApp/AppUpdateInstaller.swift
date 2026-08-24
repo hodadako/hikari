@@ -5,6 +5,10 @@ import LuminaCore
 
 @MainActor
 final class AppUpdateInstaller {
+    private static let expectedAppName = "Hikari"
+    // Keep the existing Native Local bundle identity so Hikari installations
+    // can continue to receive in-place updates after the product transition.
+    private static let expectedBundleIdentifier = "com.hodadako.Lumina.NativeLocal"
     private let service: ReleaseUpdateService
     private let fileManager = FileManager.default
 
@@ -25,7 +29,7 @@ final class AppUpdateInstaller {
 
         let temporaryRoot = fileManager.temporaryDirectory
             .appendingPathComponent(
-                "LuminaUpdate-\(UUID().uuidString)",
+                "HikariUpdate-\(UUID().uuidString)",
                 isDirectory: true
             )
         try fileManager.createDirectory(
@@ -69,11 +73,20 @@ final class AppUpdateInstaller {
         )
 
         let replacementURL = extractionURL.appendingPathComponent(
-            "Lumina.app",
+            "\(Self.expectedAppName).app",
             isDirectory: true
         )
         guard fileManager.fileExists(atPath: replacementURL.path),
               let replacementBundle = Bundle(url: replacementURL),
+              replacementBundle.object(
+                  forInfoDictionaryKey: "CFBundleDisplayName"
+              ) as? String == Self.expectedAppName,
+              replacementBundle.object(
+                  forInfoDictionaryKey: "CFBundleIdentifier"
+              ) as? String == Self.expectedBundleIdentifier,
+              replacementBundle.object(
+                  forInfoDictionaryKey: "CFBundleExecutable"
+              ) as? String == Self.expectedAppName,
               let replacementVersionString = replacementBundle.object(
                   forInfoDictionaryKey: "CFBundleShortVersionString"
               ) as? String,
@@ -81,6 +94,10 @@ final class AppUpdateInstaller {
               replacementVersion == releaseVersion else {
             throw ReleaseUpdateError.extractionFailed
         }
+        try run(
+            executable: "/usr/bin/codesign",
+            arguments: ["--verify", "--deep", "--strict", replacementURL.path]
+        )
 
         let currentURL = Bundle.main.bundleURL.standardizedFileURL
         let parentURL = currentURL.deletingLastPathComponent()
@@ -155,8 +172,8 @@ final class AppUpdateInstaller {
         current_app="$2"
         replacement_app="$3"
         temporary_root="$4"
-        staged_app="${current_app}.lumina-update-staged"
-        backup_app="${current_app}.lumina-update-backup"
+        staged_app="${current_app}.hikari-update-staged"
+        backup_app="${current_app}.hikari-update-backup"
 
         while kill -0 "$pid" >/dev/null 2>&1; do
             sleep 0.2

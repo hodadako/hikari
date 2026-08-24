@@ -1,7 +1,6 @@
 # Security Policy
 
-Lumina 0.1 is pre-release software and currently receives fixes on the `main`
-branch.
+Hikari is pre-release software and currently receives fixes on the `main` branch.
 
 Please do not open a public issue for a vulnerability. Use GitHub's private
 vulnerability reporting for `hodadako/lumina` when available, or contact the

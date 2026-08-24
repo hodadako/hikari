@@ -2,7 +2,58 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — Hikari ad-hoc release channel
+## Unreleased — Hikari main migration
+
+### 이슈와 영향
+
+- 다음 normal Hikari release 기준은 기존 Lumina `v0.3.1` 다음 버전인 `v0.3.2`
+  (`CURRENT_PROJECT_VERSION=12`)로 정한다. 이전 Hikari 전용 `0.1.10 (11)` version line은
+  normal release channel로 재사용하지 않는다.
+- Hikari가 유일한 shipped app이 되며, 기존 Lumina 화면 보호기·event-tap 코드는
+  `Archive/LuminaLegacy`로 이동하고 정상 `vX.Y.Z` release의 제품 이름과 asset은
+  Hikari로 통일한다.
+- 기존 Lumina 사용자의 canonical 저장소는 그대로 `~/Library/Application Support/Lumina`를
+  사용한다. 이전 Hikari Native Local의 `LuminaNative` 저장소는 첫 실행에 병합한 뒤
+  삭제하지 않고 `.archived`로 보존한다.
+- 미완료 Native Lock transaction 또는 실패한 storage migration이 있으면 앱 업데이트를
+  차단하고 Restore 또는 migration 복구를 먼저 요구한다.
+
+### 조치
+
+- `NativeStorageMigration`을 추가해 콘텐츠 ID·미디어·썸네일·설정·아이콘·Native Lock
+  journal·macOS 15 `Index.plist`를 idempotently 병합하고, canonical 충돌은 기존 파일을
+  우선하도록 했다.
+- 정상 CI의 build/test, macOS 15·26 ARM64/Intel Codecov, package, release 경로를 Hikari
+  scheme와 `Hikari-macOS-portable.zip`으로 전환하고 별도 `hikari-v*` channel을 제거했다.
+- PR 비용을 줄이기 위해 PR에서는 대표 macOS 15 runner의 Debug build/test만 실행하고,
+  `main` push와 정상 `vX.Y.Z` tag에서만 macOS 15·26 ARM64/Intel 전체 build/test와 Release
+  bundle 검사를 수행하도록 CI matrix를 분기했다.
+- 사용자·기여자 표면과 번들 asset/helper 이름을 Hikari 기준으로 정리하고, 구형 PRD와 IDE
+  모듈 파일은 legacy archive 또는 Hikari 이름으로 이동했다. canonical 경로·bundle ID·내부
+  Codable/module 식별자는 기존 설치·데이터 호환성을 위해 유지한다.
+- Updater가 Hikari bundle, executable, bundle ID, version, ZIP checksum, ad-hoc signature를
+  확인하도록 했다. README와 architecture/guardrail 문서를 Hikari 단일 제품 기준으로 갱신했다.
+
+### 검증
+
+- `swift test --parallel` 통과(71개).
+- `xcodegen generate`, Hikari Debug/Release build, Hikari Xcode 전체 test 통과(71개).
+- 임시 설치 경로에서 `scripts/build-hikari.sh`를 실행해 ad-hoc 서명, Hikari bundle
+  identity, `hikari-native-tool` embedded one-shot tool, Hikari asset 이름,
+  `Hikari-macOS-portable.zip` 생성과 SHA-256/`codesign --verify --deep --strict` 검증을
+  통과했다. 설치본 실행·종료 smoke test도 통과했다.
+- GitHub Actions `workflow_dispatch` run `32651433373`에서 metadata gate와 macOS 15
+  ARM64/Intel, macOS 26 ARM64/Intel Hikari build/test/release bundle checks가 모두
+  성공했다. non-tag 실행에서 release coverage, package, publish job이 의도대로 skipped
+  된 것도 확인했다.
+
+### 남은 제약
+
+- 실제 macOS 15/26 장비에서 Native Lock Apply → lock/unlock → Restore와 첫 실행 migration을
+  수동 확인해야 한다.
+- 릴리스 전에는 `MARKETING_VERSION`과 normal `vX.Y.Z` tag를 새 버전으로 함께 올려야 한다.
+
+## Historical — Hikari ad-hoc release channel
 
 ### 이슈와 영향
 

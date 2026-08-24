@@ -1,10 +1,9 @@
 # 다른 Mac에서 Hikari Native Local 빌드하기
 
-Hikari Native Local은 소스에서 직접 빌드할 수 있는 실험용 버전이며, 별도 Hikari
-ad-hoc release asset으로 게시할 수 있습니다. 첫 Hikari tag가 release되기 전에는
-사용할 Mac에서 직접 빌드해야 합니다. Lumina Portable 다운로드나 앱 내 업데이트에는
-포함되지 않습니다. ad-hoc release를 다른 Mac에 설치하면 Gatekeeper 경고가 나타날 수
-있으므로, 가능하면 사용할 Mac에서 직접 빌드하세요. Hikari는 macOS가 소유한 잠금 단축키를
+Hikari는 유일하게 배포하는 앱입니다. 일반 `vX.Y.Z` release channel에서 ad-hoc
+asset으로 게시되며 checksum 검증 앱 업데이트도 지원합니다. ad-hoc 앱을 다른 Mac에
+설치하면 Gatekeeper 경고가 나타날 수 있으므로, 가능하면 사용할 Mac에서 직접 빌드하세요.
+Hikari는 macOS가 소유한 잠금 단축키를
 사용하고 Lumina의 선택적 전역 event-tap 단축키를 시작하지 않으므로, 이 Native Local 경로에는
 Accessibility와 Input Monitoring 권한이 필요하지 않습니다.
 
@@ -28,12 +27,11 @@ Backdrop manifest와 media record는 삭제하지 않습니다.
   한 번 내려받아 catalog를 초기화해야 합니다.
 - 직접 빌드 스크립트에는 macOS 15 SDK 이상이 포함된 Swift toolchain이 필요합니다.
   Xcode 빌드와 테스트에는 전체 Xcode 설치본이 필요합니다.
-- Hikari는 소스에서 빌드하며 별도 ad-hoc release asset으로 게시할 수 있습니다. 첫
-  Hikari release 전까지 일반 Lumina Portable 릴리스는 별도 앱이며 Native Lock을 포함하지
-  않습니다.
+- Hikari는 소스에서 빌드하며 일반 tagged release에 포함됩니다. 이전 Lumina 화면
+  보호기와 event-tap 코드는 archive에 보존하고 Hikari에는 포함하지 않습니다.
 
 직접 빌드 스크립트는 출력을 만들기 전에 compiler 도구, 소스 디렉터리, localization과
-아이콘, `LuminaNative-Info.plist`, Hikari 버전 값을 읽기 전용으로 사전 점검합니다.
+아이콘, `Hikari-Info.plist`, Hikari 버전 값을 읽기 전용으로 사전 점검합니다.
 `entries.json`과 `Index.plist`는 빌드 입력이 아닙니다. macOS의 사용자 또는 system
 wallpaper 저장소가 소유하며, 실행 중인 Native Lock transaction이 시작된 뒤 검증하고
 snapshot합니다. 빌드 스크립트는 이 runtime 파일을 bundle 안에 만들거나 복사하지 않습니다.
@@ -100,7 +98,7 @@ Native Lock을 켜기 전에 소스와 `docs/` 문서를 확인하세요. `git s
 Spotlight에 등록합니다.
 
 ```sh
-scripts/build-native-local.sh
+scripts/build-hikari.sh
 codesign --verify --deep --strict /Applications/Hikari.app
 open -a Hikari
 ```
@@ -110,8 +108,8 @@ open -a Hikari
 
 ```sh
 mkdir -p "$HOME/Applications"
-LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications" \
-  scripts/build-native-local.sh
+HIKARI_INSTALL_DIRECTORY="$HOME/Applications" \
+  scripts/build-hikari.sh
 open "$HOME/Applications/Hikari.app"
 ```
 
@@ -119,13 +117,12 @@ Hikari는 agent 앱이므로 Dock 대신 메뉴 막대에 나타납니다. 스�
 Spotlight에서 `Hikari`를 찾을 수 있습니다. Spotlight 색인이 끝나기 전에는 위의
 `open` 명령으로 직접 실행할 수 있습니다.
 
-### Hikari ad-hoc release asset
+### Hikari tagged release asset
 
-`hikari-vX.Y.Z` tag를 push하면 Hikari Release workflow가 macOS 15·26 compile/test를
-통과한 뒤 `Hikari-macOS-native-vX.Y.Z.zip`과 SHA-256 checksum을 별도 GitHub Release에
-올립니다. asset은 현재와 같은 ad-hoc 서명·비공증 상태이며 일반 Lumina release와 분리됩니다.
-설치 전 checksum과 `codesign --verify --deep --strict`를 확인하고, 앱 업데이트 기능은
-사용하지 않습니다. Hikari에는 Lumina의 선택적 전역 event-tap 단축키가 포함되지 않습니다.
+일반 `vX.Y.Z` tag를 push하면 Hikari workflow가 macOS 15·26 compile/test를 통과한 뒤
+`Hikari-macOS-portable.zip`과 SHA-256 checksum을 GitHub Release에 올립니다. asset은
+ad-hoc 서명·비공증 상태입니다. 설치 전 checksum과
+`codesign --verify --deep --strict`를 확인하세요.
 
 ## 4. 선택: Xcode 빌드와 테스트
 
@@ -135,16 +132,16 @@ Spotlight에서 `Hikari`를 찾을 수 있습니다. Spotlight 색인이 끝나�
 ```sh
 xcodegen generate
 xcodebuild \
-  -project Lumina.xcodeproj \
-  -scheme LuminaNative \
+  -project Hikari.xcodeproj \
+  -scheme Hikari \
   -configuration Debug \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   build
 
 xcodebuild \
-  -project Lumina.xcodeproj \
-  -scheme LuminaNative \
+  -project Hikari.xcodeproj \
+  -scheme Hikari \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   test
@@ -169,7 +166,7 @@ Native Lock transaction이 활성인 동안에는 Hikari를 실행해 둬야 사
 | --- | --- |
 | `xcodebuild`가 라이선스 미승인을 알림 | `sudo xcodebuild -license`를 실행하고 대화형 승인을 완료합니다. |
 | 도구가 `/Library/Developer/CommandLineTools`를 사용함 | `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer`로 전체 Xcode를 선택합니다. |
-| 설치 단계에서 `/Applications` 쓰기 실패 | 위의 `LUMINA_NATIVE_INSTALL_DIRECTORY="$HOME/Applications"` 방식을 사용합니다. |
+| 설치 단계에서 `/Applications` 쓰기 실패 | 위의 `HIKARI_INSTALL_DIRECTORY="$HOME/Applications"` 방식을 사용합니다. |
 | Spotlight에 Hikari가 아직 안 보임 | `open /Applications/Hikari.app` 또는 `$HOME/Applications`의 해당 경로로 실행하고 색인이 끝날 때까지 기다립니다. |
 | Hikari가 Native Lock 쓰기를 사용할 수 없다고 표시 | macOS 15 또는 26인지 확인하세요. 운영체제 안전 차단을 우회하지 마세요. |
 | macOS 26에서 `Clear Failed Preparation`이 보임 | 구형 빌드가 system write 전에 거절된 기록입니다. 이 버튼은 적용 hash가 전혀 없는 정확한 실패 기록만 정리합니다. 누른 뒤 Lock Screen에서 선택 영상을 다시 Apply하세요. |
@@ -180,5 +177,5 @@ Apply 또는 Restore 진단은 다음 명령으로 확인할 수 있습니다.
 
 ```sh
 log stream --level info \
-  --predicate 'subsystem == "com.hodadako.Lumina.NativeLocal"'
+  --predicate 'subsystem == "com.hodadako.Hikari"'
 ```
