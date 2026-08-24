@@ -25,7 +25,7 @@ jobs:
       tag_version: ${{ steps.version.outputs.tag_version }}
       build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: version
         name: Validate Hikari tag and marketing version
         shell: bash
@@ -68,7 +68,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Hikari Xcode project
@@ -134,7 +134,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Hikari Xcode project
@@ -152,7 +152,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Upload Hikari coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: hodadako/lumina
@@ -175,7 +175,7 @@ jobs:
       contents: read
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Hikari Xcode project
@@ -210,7 +210,7 @@ jobs:
             shasum -a 256 -c "Hikari-macOS-portable.zip.sha256"
           )
       - name: Upload Hikari artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Hikari-macOS-portable
           path: |
@@ -227,7 +227,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: Hikari-macOS-portable
           path: dist
