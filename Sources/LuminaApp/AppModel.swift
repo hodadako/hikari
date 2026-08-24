@@ -359,6 +359,7 @@ final class AppModel: ObservableObject {
             settings.playbackPreference = .playing
             try persistSettings()
             reconcilePlayback()
+            scheduleNativeLockAutoApply()
         } catch {
             if error as? LuminaError == .duplicateContent {
                 presentedError = NSLocalizedString(
@@ -375,6 +376,7 @@ final class AppModel: ObservableObject {
         settings.selectedContentID = content.id
         settings.playbackPreference = .playing
         saveAndReconcile()
+        scheduleNativeLockAutoApply()
     }
 
     func delete(_ content: LiveContent) {
@@ -655,7 +657,6 @@ final class AppModel: ObservableObject {
 
     private func scheduleNativeLockAutoApply() {
         guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
-              nativeLockRecord?.journal.phase != .active,
               nativeLockRecord?.journal.phase != .recoveryRequired,
               selectedContent != nil,
               nativeLockAutoApplyTask == nil else {
@@ -664,9 +665,9 @@ final class AppModel: ObservableObject {
         nativeLockAutoApplyTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
+            defer { self.nativeLockAutoApplyTask = nil }
             guard !self.stateMonitor.isScreenLocked,
                   !self.stateMonitor.isSleeping,
-                  self.nativeLockRecord?.journal.phase != .active,
                   self.nativeLockRecord?.journal.phase != .recoveryRequired,
                   self.selectedContent != nil else {
                 return

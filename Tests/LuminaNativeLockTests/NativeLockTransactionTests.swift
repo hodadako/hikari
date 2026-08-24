@@ -412,6 +412,33 @@ final class NativeLockTransactionTests: XCTestCase {
         )
     }
 
+    func testDiscardUnappliedTransactionRemovesOnlyLocalStaging() throws {
+        let store = makeUserStore()
+        let mediaURL = rootURL.appendingPathComponent("prepared.mov")
+        let previewURL = rootURL.appendingPathComponent("preview.jpg")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+        let originalIndex = try Data(contentsOf: wallpaperIndexURL)
+        let record = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Unapplied legacy video",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+
+        try store.discardUnappliedTransaction(
+            transactionID: record.request.transactionID
+        )
+
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: store.transactionDirectoryURL(
+                for: record.request.transactionID
+            ).path
+        ))
+        XCTAssertNil(try store.activeOrPendingTransaction())
+        XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), originalIndex)
+    }
+
     private func makeUserStore() -> NativeLockUserTransactionStore {
         NativeLockUserTransactionStore(
             supportRootURL: userSupportURL,

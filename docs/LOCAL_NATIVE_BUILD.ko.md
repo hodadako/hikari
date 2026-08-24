@@ -150,7 +150,9 @@ xcodebuild \
 ## 5. Native Lock을 안전하게 사용하기
 
 1. Hikari를 실행하고 **General**에서 영상을 가져옵니다.
-2. **Lock Screen**에서 safety status를 읽은 뒤에만 선택 영상을 적용합니다.
+2. macOS 26에서는 **General**에서 선택 영상을 바꾸면 활성 Hikari Lock Screen Aerial
+   transaction도 짧은 대기 뒤 자동으로 교체됩니다. macOS 15에서는 **Lock Screen**의
+   safety status를 읽은 뒤에만 선택 영상을 적용합니다.
 3. macOS 15의 Apply와 Restore는 매번 관리자 승인을 요청합니다. macOS 26 user Aerial
    transaction은 관리자 승인 없이 현재 사용자 저장소를 변경합니다.
 4. 사용하기 전에 lock → unlock → 다음 lock을 직접 시험합니다.
