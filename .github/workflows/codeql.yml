@@ -26,16 +26,16 @@ jobs:
             runner: ubuntu-latest
             build-mode: none
           - language: swift
-            runner: macos-15
+            runner: macos-15-intel
             build-mode: manual
     steps:
       - uses: actions/checkout@v7
       - name: Install XcodeGen
         if: matrix.language == 'swift'
-        run: arch -arm64 brew install xcodegen
+        run: brew install xcodegen
       - name: Generate Hikari Xcode project
         if: matrix.language == 'swift'
-        run: arch -arm64 xcodegen generate
+        run: xcodegen generate
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Build Hikari for CodeQL
         if: matrix.language == 'swift'
         run: |
-          arch -x86_64 xcodebuild \
+          xcodebuild \
             -project Hikari.xcodeproj \
             -scheme Hikari \
             -configuration Debug \
