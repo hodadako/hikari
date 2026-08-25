@@ -37,18 +37,19 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
       - name: Install XcodeGen
         if: matrix.language == 'swift'
-        run: brew install xcodegen
+        run: arch -arm64 brew install xcodegen
       - name: Generate Hikari Xcode project
         if: matrix.language == 'swift'
-        run: xcodegen generate
+        run: arch -arm64 xcodegen generate
       - name: Build Hikari for CodeQL
         if: matrix.language == 'swift'
         run: |
-          xcodebuild \
+          arch -arm64 xcodebuild \
             -project Hikari.xcodeproj \
             -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS' \
+            ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO \
             build
       - name: Perform CodeQL Analysis
