@@ -30,17 +30,17 @@ jobs:
             build-mode: manual
     steps:
       - uses: actions/checkout@v7
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
       - name: Install XcodeGen
         if: matrix.language == 'swift'
         run: arch -arm64 brew install xcodegen
       - name: Generate Hikari Xcode project
         if: matrix.language == 'swift'
         run: arch -arm64 xcodegen generate
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
       - name: Build Hikari for CodeQL
         if: matrix.language == 'swift'
         run: |

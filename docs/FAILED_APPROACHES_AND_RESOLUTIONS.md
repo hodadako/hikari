@@ -15,7 +15,12 @@ Homebrew 설치 위치는 ARM64였다.
 
 Swift CodeQL job의 XcodeGen 설치·프로젝트 생성·`xcodebuild`를 모두 `arch -arm64`로
 실행하고, build setting에도 `ARCHS=arm64`를 지정한다. 이로써 ARM64 Homebrew와 Xcode build
-architecture를 일치시키며, CodeQL에는 해당 build의 추적 환경이 그대로 상속된다.
+architecture를 일치시킨다.
+
+처음에는 이 전체 작업을 CodeQL 초기화 뒤에 실행했으나, Swift tracer가 ARM `xcodegen`에도
+주입돼 `Trace/BPT trap`으로 종료했다. 따라서 XcodeGen 설치와 프로젝트 생성은 CodeQL 초기화
+**전**에 수행하고, 초기화 뒤에는 실제 `xcodebuild`만 실행해 CodeQL의 build 추적 환경을
+상속한다.
 
 ## Native Local CI 테스트 helper에서 명시적 `return` 누락
 
