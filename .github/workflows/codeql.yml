@@ -44,12 +44,12 @@ jobs:
       - name: Build Hikari for CodeQL
         if: matrix.language == 'swift'
         run: |
-          arch -arm64 xcodebuild \
+          arch -x86_64 xcodebuild \
             -project Hikari.xcodeproj \
             -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS' \
-            ARCHS=arm64 \
+            ARCHS=x86_64 \
             CODE_SIGNING_ALLOWED=NO \
             build
       - name: Perform CodeQL Analysis
