@@ -10,8 +10,8 @@ private let playbackLogger = Logger(
 
 @MainActor
 public final class VideoRenderer: ObservableObject, PlaybackSession {
-    /// Keep only a short local-file buffer per display. Longer buffers multiply
-    /// memory use because the app owns one queue player for each display.
+    /// Keep only a short local-file buffer. Longer buffers increase memory use
+    /// and raise the chance of a visible stall while a wallpaper recovers.
     public static let preferredForwardBufferDuration: TimeInterval = 1
 
     @Published public private(set) var currentURL: URL?
@@ -30,7 +30,22 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
     }
 
     public func load(url: URL, muted: Bool) {
-        guard currentURL != url else {
+        load(url: url, muted: muted, forceReload: false)
+    }
+
+    /// Recreate a failed item without changing the shared player that feeds
+    /// every display layer.
+    public func reloadCurrentItem() {
+        guard let currentURL else { return }
+        load(
+            url: currentURL,
+            muted: player.isMuted,
+            forceReload: true
+        )
+    }
+
+    private func load(url: URL, muted: Bool, forceReload: Bool) {
+        guard forceReload || currentURL != url else {
             player.isMuted = muted
             return
         }

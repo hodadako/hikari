@@ -59,8 +59,20 @@ final class MenuBarStatusItemController: NSObject {
         popover.delegate = self
         popover.contentSize = NSSize(width: 300, height: 420)
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarView(model: model)
+            rootView: MenuBarView(
+                model: model,
+                onShowSettings: { [weak self] in
+                    self?.showSettings()
+                }
+            )
         )
+    }
+
+    private func showSettings() {
+        // Settings must not leave a second, transient menu-bar surface behind
+        // while its independent window becomes key.
+        popover.performClose(nil)
+        SettingsWindowPresenter.shared.show(model: model)
     }
 
     @objc

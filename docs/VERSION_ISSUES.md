@@ -33,6 +33,11 @@
   Codable/module 식별자는 기존 설치·데이터 호환성을 위해 유지한다.
 - Updater가 Hikari bundle, executable, bundle ID, version, ZIP checksum, ad-hoc signature를
   확인하도록 했다. README와 architecture/guardrail 문서를 Hikari 단일 제품 기준으로 갱신했다.
+- 메뉴 막대의 **Settings** 동작은 transient 팝오버를 먼저 닫은 뒤 별도 설정 창을 연다. 메뉴
+  막대 근처에 팝오버가 남는 상태와 설정 창을 혼동하지 않도록 했다.
+- 일반 wallpaper의 다중 디스플레이 표시는 화면별 독립 `AVQueuePlayer` 대신 공유 `AVPlayer`
+  하나와 화면별 `AVPlayerLayer`를 사용한다. 로컬 4K 영상의 해상도·코덱을 낮추지 않고 중복
+  디코더와 forward buffer를 제거하며, 플레이어 오류 때만 같은 공유 item을 재생성한다.
 
 ### 검증
 
@@ -46,6 +51,10 @@
   ARM64/Intel, macOS 26 ARM64/Intel Hikari build/test/release bundle checks가 모두
   성공했다. non-tag 실행에서 release coverage, package, publish job이 의도대로 skipped
   된 것도 확인했다.
+- Apple AVFoundation 문서의 `AVPlayerLayer(player:)`는 같은 player에 임의 개수의 layer를
+  만들 수 있다고 명시한다. `preferredMaximumResolution`과 `preferredForwardBufferDuration`은
+  각각 HLS 다운로드와 network-ahead buffer 설정이므로, 로컬 파일의 화질을 낮춰 메모리를
+  줄이는 수단으로 사용하지 않는다.
 
 ### 남은 제약
 
