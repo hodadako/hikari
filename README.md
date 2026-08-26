@@ -21,7 +21,8 @@ macOS Native Lock Screen path.
 - Low-overhead looping playback across connected displays and Spaces
 - Fill and Fit scaling, mute, battery pause, launch at login, and library management
 - Menu bar playback and content controls
-- Native Lock Screen apply and explicit Restore with transaction recovery
+- Automatic macOS 26 Native Lock Screen updates when the selected video changes,
+  plus transaction recovery and Restore
 - Built-in and custom app/menu bar icons
 - Checksum-verified Hikari updates from the normal `vX.Y.Z` release channel
 
@@ -41,8 +42,9 @@ may request administrator authorization; macOS 26 uses the current user's
 Aerial store.
 
 Keep a verified backup and do not use this feature on a managed or irreplaceable
-Mac. Hikari creates transaction journals and requires **Restore** before a new
-video or app update can proceed when a transaction is unfinished. An active
+Mac. Hikari creates transaction journals and requires **Restore** before an app
+update, or before changing a recovery-required transaction. On macOS 26,
+selecting a different video automatically replaces an active Aerial transaction. An active
 transaction may create a root-readable playback copy; other local accounts on
 the Mac may be able to read it while Native Lock is active.
 
@@ -94,9 +96,10 @@ For a local ad-hoc installation:
 scripts/build-hikari.sh
 ```
 
-The script builds and installs `/Applications/Hikari.app`. Apply and Restore
-are available in Settings → Lock Screen. The script does not install a daemon
-or persistent privileged helper.
+The script builds and installs `/Applications/Hikari.app`. On macOS 26,
+changing the selected video in General automatically updates the Native Lock
+Screen Aerial. Restore is shown in General only while a transaction needs
+recovery. The script does not install a daemon or persistent privileged helper.
 
 ## Test
 

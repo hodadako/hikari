@@ -10,7 +10,7 @@
 - 메뉴 막대 아이콘은 기존 디스플레이 아이콘 크기를 유지한다. 반짝임은 아이콘을 가리지 않도록 현재의 소폭 위쪽 오프셋만 유지한다.
 - 다른 앱에서 Hikari 설정으로 돌아오는 일반 앱 활성화는 배경 창 또는 영상 레이어를 재생성하지 않는다. 실제 잠자기 복귀, 디스플레이 변경, Space 전환만 해당 복구를 시작할 수 있다.
 - `Fill`은 화면을 꽉 채우고 가장자리를 잘라낼 수 있는 모드이며, `Fit`은 영상 전체를 보이게 하는 모드다. 두 동작을 혼동해 바꾸지 않는다.
-- Hikari의 설정은 `General`과 `Lock Screen`으로 단순화한다. 모양·재생·관리 영상 라이브러리는 `General`에 두며, 라이브러리는 하나만 유지한다. macOS 26의 active user Aerial transaction에서는 General의 영상 선택을 즉시 Lock Screen에도 transactionally 교체한다. macOS 15의 root catalog 경로와 recovery-required transaction은 명시적 Apply/Restore를 유지한다.
+- Hikari 설정은 `General`과 `About`만 제공한다. 모양·재생·관리 영상 라이브러리는 `General`에 두며, 라이브러리는 하나만 유지한다. macOS 26에서는 General의 영상 선택을 즉시 Native Lock Aerial transaction에도 교체하며 별도 Lock Screen 탭이나 Apply 버튼을 두지 않는다. transaction의 Restore·recovery 상태는 복구 경로를 잃지 않도록 General 안에만 조건부로 표시한다. macOS 15의 root catalog 경로는 General 안의 명시적 Apply/Restore를 유지한다.
 
 ## 재생·legacy 보존
 

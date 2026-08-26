@@ -44,7 +44,7 @@ macOS 26에서 Aerial catalog는 Apple Aerial wallpaper를 한 번 선택하거�
 
 1. **시스템 설정 → 배경화면**을 엽니다.
 2. Apple **Aerial** wallpaper 하나를 선택하고 다운로드가 끝날 때까지 기다립니다.
-3. Hikari의 **Lock Screen**으로 돌아가 `Ready to apply locally` 상태인지 확인합니다.
+3. Hikari의 **General**로 돌아가 Native Lock 상태가 `Ready to apply locally`인지 확인합니다.
 
 catalog를 직접 만들거나 편집하지 마세요. Hikari는 Apple이 초기화한 manifest만 transaction의
 기준으로 사용합니다.
@@ -150,9 +150,9 @@ xcodebuild \
 ## 5. Native Lock을 안전하게 사용하기
 
 1. Hikari를 실행하고 **General**에서 영상을 가져옵니다.
-2. macOS 26에서는 **General**에서 선택 영상을 바꾸면 활성 Hikari Lock Screen Aerial
-   transaction도 짧은 대기 뒤 자동으로 교체됩니다. macOS 15에서는 **Lock Screen**의
-   safety status를 읽은 뒤에만 선택 영상을 적용합니다.
+2. macOS 26에서는 **General**에서 선택 영상을 바꾸면 Hikari Lock Screen Aerial
+   transaction도 짧은 대기 뒤 자동으로 교체됩니다. macOS 15에서는 **General**에
+   조건부로 보이는 Native Lock 상태를 읽은 뒤에만 선택 영상을 적용합니다.
 3. macOS 15의 Apply와 Restore는 매번 관리자 승인을 요청합니다. macOS 26 user Aerial
    transaction은 관리자 승인 없이 현재 사용자 저장소를 변경합니다.
 4. 사용하기 전에 lock → unlock → 다음 lock을 직접 시험합니다.
@@ -171,7 +171,7 @@ Native Lock transaction이 활성인 동안에는 Hikari를 실행해 둬야 사
 | 설치 단계에서 `/Applications` 쓰기 실패 | 위의 `HIKARI_INSTALL_DIRECTORY="$HOME/Applications"` 방식을 사용합니다. |
 | Spotlight에 Hikari가 아직 안 보임 | `open /Applications/Hikari.app` 또는 `$HOME/Applications`의 해당 경로로 실행하고 색인이 끝날 때까지 기다립니다. |
 | Hikari가 Native Lock 쓰기를 사용할 수 없다고 표시 | macOS 15 또는 26인지 확인하세요. 운영체제 안전 차단을 우회하지 마세요. |
-| macOS 26에서 `Clear Failed Preparation`이 보임 | 구형 빌드가 system write 전에 거절된 기록입니다. 이 버튼은 적용 hash가 전혀 없는 정확한 실패 기록만 정리합니다. 누른 뒤 Lock Screen에서 선택 영상을 다시 Apply하세요. |
+| macOS 26에서 `Clear Failed Preparation`이 보임 | 구형 빌드가 system write 전에 거절된 기록입니다. 이 버튼은 적용 hash가 전혀 없는 정확한 실패 기록만 정리합니다. 누른 뒤 General에서 영상을 다시 선택하세요. |
 | macOS 26에서 구형 transaction Restore가 실패함 | system 또는 user mapping이 적용된 기록이라면 macOS 15에서 Hikari를 실행해 Restore하세요. journal이나 wallpaper 파일을 직접 삭제하지 마세요. |
 | Apply 또는 잠금 화면 시험이 이상함 | 추가 시험을 멈추고 Restore를 실행한 뒤, 다른 변경을 하기 전에 transaction/error 정보를 보존합니다. |
 
