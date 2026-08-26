@@ -168,8 +168,10 @@ xcodebuild \
 ## 5. Use Native Lock cautiously
 
 1. Launch Hikari and import a video in **General**.
-2. Open **Lock Screen** and apply the selected video only after reading the
-   safety status.
+2. On macOS 26, changing the selected video in **General** automatically
+   replaces an active Hikari Lock Screen Aerial transaction after a short
+   debounce. On macOS 15, apply the selected video from **Lock Screen** only
+   after reading the safety status.
 3. macOS 15 asks for administrator authorization for each Apply and Restore.
    macOS 26 user Aerial transactions use the current user's store without an
    administrator prompt.

@@ -2,9 +2,11 @@ import AppKit
 import AVFoundation
 import LuminaCore
 
-/// Creates exactly one desktop-level window and one AVPlayer session per
-/// connected display. Display IDs come from NSScreenNumber instead of relying
-/// on the mutable order of `NSScreen.screens`.
+/// Creates exactly one desktop-level window per connected display. Every
+/// window presents the same AVPlayer so multi-display wallpaper playback uses
+/// one decoder and one local buffer instead of multiplying both per display.
+/// Display IDs come from NSScreenNumber instead of relying on the mutable
+/// order of `NSScreen.screens`.
 @MainActor
 final class WallpaperController {
     private static let wallpaperCollectionBehavior: NSWindow.CollectionBehavior = [
@@ -14,22 +16,22 @@ final class WallpaperController {
     ]
 
     private struct DisplaySession {
-        let renderer: VideoRenderer
         let window: NSWindow
         let view: WallpaperPlayerView
     }
 
     private var sessions: [UInt32: DisplaySession] = [:]
     private var plans: [WallpaperWindowPlan] = []
-    private let playback = PlaybackCoordinator()
+    private let renderer = VideoRenderer()
     private var maintenanceTask: Task<Void, Never>?
     private(set) var scalingMode: ScalingMode = .fill
+    private var wantsPlayback = false
 
     var isPlaying: Bool {
-        guard playback.wantsPlayback, playback.currentURL != nil else {
+        guard wantsPlayback, renderer.currentURL != nil else {
             return false
         }
-        return !sessions.isEmpty && sessions.values.allSatisfy { $0.renderer.isPlaying }
+        return !sessions.isEmpty && renderer.isPlaying
     }
 
     func setContentAvailable(_ isAvailable: Bool) {
@@ -52,25 +54,20 @@ final class WallpaperController {
         // topology-only update cannot detect that case when the connected
         // displays have not changed, so recreate every session. This restores
         // the pre-v0.1.15 wake behavior while retaining the current
-        // per-display playback architecture. Preserve the playback position
-        // as well as the URL so a surface recovery does not restart the video.
-        let currentURL = playback.currentURL
-        let playbackPosition = playback.currentTime
-        let muted = playback.isMuted
-        let wantsPlayback = playback.wantsPlayback
-        closeWindows()
+        // shared-player playback architecture. Preserve the playback position
+        // so a surface recovery does not restart the video.
+        let playbackPosition = renderer.currentTime
+        let shouldPlay = wantsPlayback
+        removeAllWindows()
         synchronizeDisplayTopology()
 
-        guard let currentURL else { return }
-        playback.setContent(url: currentURL, muted: muted)
-        if let playbackPosition {
-            playback.seekAll(to: playbackPosition)
-        }
-        if wantsPlayback {
-            playback.play()
+        guard renderer.currentURL != nil else { return }
+        renderer.seek(to: playbackPosition)
+        if shouldPlay {
+            renderer.play()
             startMaintenanceMonitoring()
         } else {
-            playback.pause()
+            renderer.pause()
         }
     }
 
@@ -89,7 +86,7 @@ final class WallpaperController {
             return
         }
         synchronizeDisplayTopology()
-        playback.recoverFailedSessions()
+        recoverFailedPlayer()
     }
 
     func refreshWindowsForActiveSpaceIfContentAvailable(_ isAvailable: Bool) {
@@ -142,22 +139,29 @@ final class WallpaperController {
     }
 
     func setContent(url: URL?, muted: Bool) {
-        playback.setContent(url: url, muted: muted)
-        playback.recoverFailedSessions()
+        guard let url else {
+            renderer.stopAndRelease()
+            wantsPlayback = false
+            return
+        }
+        renderer.load(url: url, muted: muted)
+        recoverFailedPlayer()
         startMaintenanceMonitoring()
     }
 
     func setMuted(_ muted: Bool) {
-        playback.setMuted(muted)
+        renderer.setMuted(muted)
     }
 
     func play() {
-        playback.play()
+        wantsPlayback = true
+        renderer.play()
         startMaintenanceMonitoring()
     }
 
     func pause() {
-        playback.pause()
+        wantsPlayback = false
+        renderer.pause()
         // Keep topology monitoring active while paused. A display attached in
         // this state still needs exactly one prepared wallpaper session, and
         // playback must remain paused when the session is created.
@@ -172,8 +176,14 @@ final class WallpaperController {
 
     func closeWindows() {
         stopMaintenanceMonitoring()
-        playback.releaseAll()
+        wantsPlayback = false
+        renderer.releaseResources()
+        removeAllWindows()
+    }
+
+    private func removeAllWindows() {
         for session in sessions.values {
+            session.view.detachPlayer()
             session.window.contentView = nil
             session.window.orderOut(nil)
             session.window.close()
@@ -185,7 +195,6 @@ final class WallpaperController {
     private func createSession(for plan: WallpaperWindowPlan) {
         guard sessions[plan.displayID] == nil else { return }
 
-        let renderer = VideoRenderer()
         let window = NSWindow(
             contentRect: plan.frame,
             styleMask: .borderless,
@@ -216,11 +225,9 @@ final class WallpaperController {
         window.contentView = playerView
 
         sessions[plan.displayID] = DisplaySession(
-            renderer: renderer,
             window: window,
             view: playerView
         )
-        playback.addSession(id: plan.displayID, session: renderer)
         window.orderFront(nil)
         playerView.needsLayout = true
         playerView.layoutSubtreeIfNeeded()
@@ -228,7 +235,7 @@ final class WallpaperController {
 
     private func removeSession(displayID: UInt32) {
         guard let session = sessions.removeValue(forKey: displayID) else { return }
-        playback.removeSession(id: displayID)
+        session.view.detachPlayer()
         session.window.contentView = nil
         session.window.orderOut(nil)
         session.window.close()
@@ -278,8 +285,7 @@ final class WallpaperController {
                     // reconciliation covers a dropped/coalesced WindowServer
                     // event and a display that materialized late.
                     self?.synchronizeDisplayTopology()
-                    self?.playback.recoverFailedSessions()
-                    self?.playback.synchronizeDrift()
+                    self?.recoverFailedPlayer()
                 }
             }
         }
@@ -288,6 +294,14 @@ final class WallpaperController {
     private func stopMaintenanceMonitoring() {
         maintenanceTask?.cancel()
         maintenanceTask = nil
+    }
+
+    private func recoverFailedPlayer() {
+        guard renderer.hasPlaybackError else { return }
+        renderer.reloadCurrentItem()
+        if wantsPlayback {
+            renderer.play()
+        }
     }
 }
 
@@ -336,6 +350,10 @@ private final class WallpaperPlayerView: NSView {
     }
 
     deinit {
+        detachPlayer()
+    }
+
+    func detachPlayer() {
         playerLayer.player = nil
     }
 }

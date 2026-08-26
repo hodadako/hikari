@@ -2,6 +2,33 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## macOS 15 ARM CodeQL runner에서 Rosetta Homebrew 실행
+
+### 관찰
+
+포크 PR에서도 실행되도록 추가한 Advanced CodeQL Swift job의 첫 실행에서
+`brew install xcodegen`이 `Cannot install under Rosetta 2 in ARM default prefix
+(/opt/homebrew)!`로 실패했다. CodeQL이 설정한 실행 셸은 x86_64/Rosetta였지만 runner의
+Homebrew 설치 위치는 ARM64였다.
+
+### 해결
+
+Swift CodeQL은 `macos-15-intel` runner에서 실행한다. 이 저장소의 release matrix에도 있는
+native Intel 환경이므로 Homebrew, XcodeGen 및 CodeQL Swift tracer의 architecture가 일치한다.
+XcodeGen 설치와 프로젝트 생성은 CodeQL 초기화 전에 수행하고, 초기화 뒤에는
+`ARCHS=x86_64`의 실제 `xcodebuild`만 추적한다.
+
+처음에는 이 전체 작업을 CodeQL 초기화 뒤에 실행했으나, Swift tracer가 ARM `xcodegen`에도
+주입돼 `Trace/BPT trap`으로 종료했다. 따라서 XcodeGen 설치와 프로젝트 생성은 CodeQL 초기화
+**전**에 수행하고, 초기화 뒤에는 실제 `xcodebuild`만 실행해 CodeQL의 build 추적 환경을
+상속한다.
+
+`xcodebuild`까지 ARM64로 실행한 두 번째 시도는 앱 빌드는 성공했지만 CodeQL이 Swift source를
+하나도 처리하지 못했다. CodeQL이 제공한 `CODEQL_PLATFORM=osx64` tracer와 대상 build의
+architecture가 달랐기 때문이다. ARM runner에서 Rosetta x86_64 build를 실행한 후속 시도도
+수 분 동안 build 단계가 진행되지 않아 취소했다. 교차 architecture 경로 대신 native Intel
+runner를 사용한다.
+
 ## Native Local CI 테스트 helper에서 명시적 `return` 누락
 
 ### 관찰

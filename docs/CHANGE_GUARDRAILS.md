@@ -6,15 +6,17 @@
 
 - 설정 창의 빨간 닫기 버튼은 Hikari를 종료하지 않고 설정 창만 숨긴다. 메뉴 막대 아이콘과 앱 기능은 계속 유지되어야 한다.
 - 메뉴 막대 팝오버만 외부 클릭에 반응해 닫는다. 별도 설정 창은 앱 비활성화나 외부 클릭으로 숨기지 않고 사용자가 빨간 닫기 버튼을 눌렀을 때만 숨긴다.
+- 메뉴 막대의 **Settings**를 선택하면 transient 팝오버를 먼저 닫고 별도 설정 창을 연다. 설정 창과 메뉴 막대 근처에 팝오버가 동시에 남지 않아야 한다.
 - 메뉴 막대 아이콘은 기존 디스플레이 아이콘 크기를 유지한다. 반짝임은 아이콘을 가리지 않도록 현재의 소폭 위쪽 오프셋만 유지한다.
 - 다른 앱에서 Hikari 설정으로 돌아오는 일반 앱 활성화는 배경 창 또는 영상 레이어를 재생성하지 않는다. 실제 잠자기 복귀, 디스플레이 변경, Space 전환만 해당 복구를 시작할 수 있다.
 - `Fill`은 화면을 꽉 채우고 가장자리를 잘라낼 수 있는 모드이며, `Fit`은 영상 전체를 보이게 하는 모드다. 두 동작을 혼동해 바꾸지 않는다.
-- Hikari의 설정은 `General`과 `Lock Screen`으로 단순화한다. 모양·재생·관리 영상 라이브러리는 `General`에 두며, 라이브러리는 하나만 유지한다. Lock Screen은 현재 선택 영상을 적용·복원하는 데만 사용하고, 활성 transaction 중에는 새 적용을 Restore 뒤까지 막는다.
+- Hikari의 설정은 `General`과 `Lock Screen`으로 단순화한다. 모양·재생·관리 영상 라이브러리는 `General`에 두며, 라이브러리는 하나만 유지한다. macOS 26의 active user Aerial transaction에서는 General의 영상 선택을 즉시 Lock Screen에도 transactionally 교체한다. macOS 15의 root catalog 경로와 recovery-required transaction은 명시적 Apply/Restore를 유지한다.
 
 ## 재생·legacy 보존
 
 - Hikari는 화면 보호기와 전역 event-tap 잠금 경로를 제공하지 않는다. 해당 소스와 plist는 `Archive/LuminaLegacy`에 보존하며 Hikari target에는 포함하지 않는다.
 - 잠금·잠자기·디스플레이·Space 변경 뒤 데스크톱 영상의 재생 상태와 display topology 복구를 유지한다.
+- 다중 디스플레이 데스크톱 wallpaper는 하나의 `AVPlayer`를 화면별 `AVPlayerLayer`로 공유한다. 화면별 독립 디코더·버퍼를 다시 도입하지 않으며, display/Space 복구 때도 공유 player의 재생 위치와 의도를 유지한다.
 
 ## 권한·보안·배포
 
@@ -26,6 +28,7 @@
 - native 잠금 화면 실험은 관리자 승인, 변경 전 검증 가능한 백업, 단계별 transaction journal, 조건부 rollback 및 명시적인 제거 경로가 마련되기 전에는 실제 system write를 수행하지 않는다. CI 빌드 성공은 이 root 변경의 런타임 안전성을 보증하지 않는다.
 - Native Local의 root 작업은 앱 번들에서 매번 관리자 승인을 받아 실행하는 고정 인자 one-shot 도구로만 수행한다. 상시 daemon, LaunchDaemon 또는 persistent privileged helper로 바꾸지 않는다.
 - root-owned legacy catalog write는 확인된 macOS 15 및 manifest schema version 1에서만 허용한다. 새 macOS major version에서는 이 경로를 활성화하지 않는다.
+- macOS 26에서 system/user mapping hash가 전혀 없는 구형 macOS 15 transaction은 Native Lock state를 소유하지 않은 실패 기록으로 취급한다. 해당 로컬 journal·staged media는 자동 제거하되, applied hash가 있는 legacy catalog transaction이나 root catalog 파일은 제거·수정하지 않는다.
 - macOS 26 Native Lock은 root catalog를 사용하지 않고, 현재 사용자의 `com.apple.wallpaper/aerials` manifest·media store만 transaction으로 변경한다. 적용 전 `entries.json`과 `Index.plist` 원본 bytes를 보관한다. 사용자가 요청한 자동 적용에서는 `Linked`가 아직 없을 때에만, 기존 Apple Aerial manifest의 실제 로컬 asset과 현재 Space/display 식별자로 macOS가 materialize한 topology를 transaction 안에서 준비한 뒤 Hikari asset/category와 `Linked` choice를 적용한다. `Desktop`·`Idle`의 값을 fallback으로 재사용하지 않으며, 다른 도구가 소유한 manifest record는 바꾸지 않는다.
 - macOS 26 user Aerial transaction은 manifest/media를 먼저 원자적으로 준비한 뒤 `WallpaperAgent`와 `WallpaperAerialsExtension`을 정지한 상태에서 `Linked` choice를 바꾸고, 재시작 뒤 30초 안정화 동안 모든 `Linked` choice가 Hikari asset ID를 유지하는지 검증한다. 알려진 외부 writer인 `BackdropWallpaper`가 실행 중이면 해당 renderer만 적용 직전에 종료하며, Backdrop의 manifest/media record는 건드리지 않는다. Restore는 원본 bytes가 적용 hash와 맞을 때만 전체 복원하고, 그 외에는 Hikari-owned asset/category/choice만 선택적으로 제거한다.
 - macOS 26 `Linked` choice의 `Content.EncodedOptionValues`는 문자열 `$null`로 되돌리지 않는다. 기존 바이너리 placement option을 보존하고, 새 topology를 materialize할 때는 바이너리 plist의 `FillScreen` placement를 기록해 Aerial renderer의 비율 fallback을 피한다. 이 modern placement option을 macOS 15 전체 choice에 확장하지 않는다.

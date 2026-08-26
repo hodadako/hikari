@@ -59,7 +59,28 @@ final class NativeLockController {
     }
 
     func currentRecord() -> NativeLockTransactionRecord? {
-        try? store.activeOrPendingTransaction()
+        guard let record = try? store.activeOrPendingTransaction() else {
+            return nil
+        }
+        let currentMajorVersion = ProcessInfo.processInfo
+            .operatingSystemVersion.majorVersion
+        guard NativeLockRecovery.canDiscardUnappliedLegacyTransaction(
+            record.journal,
+            operatingSystemMajorVersion: currentMajorVersion
+        ) else {
+            return record
+        }
+        do {
+            try store.discardUnappliedTransaction(
+                transactionID: record.request.transactionID
+            )
+            nativeLockLogger.notice(
+                "Discarded unapplied legacy transaction \(record.request.transactionID.uuidString, privacy: .public) on macOS 26"
+            )
+            return nil
+        } catch {
+            return record
+        }
     }
 
     /// Clears only the known macOS 26 legacy-helper preflight failure. The
@@ -75,7 +96,9 @@ final class NativeLockController {
               ) else {
             throw NativeLockTransactionError.transactionMismatch
         }
-        try store.markRestored(transactionID: record.request.transactionID)
+        try store.discardUnappliedTransaction(
+            transactionID: record.request.transactionID
+        )
         nativeLockLogger.notice(
             "Discarded known no-op legacy preflight transaction \(record.request.transactionID.uuidString, privacy: .public)"
         )
@@ -142,6 +165,17 @@ final class NativeLockController {
     func apply(content: LiveContent) async throws -> NativeLockTransactionRecord {
         let usesModernAerials = ProcessInfo.processInfo
             .operatingSystemVersion.majorVersion == 26
+        if let current = try store.activeOrPendingTransaction() {
+            guard usesModernAerials,
+                  current.journal.phase == .active,
+                  current.journal.backend == .userAerials else {
+                throw NativeLockTransactionError.activeTransactionExists
+            }
+            if current.request.sourceContentID == content.id {
+                return current
+            }
+            try restore()
+        }
         let modernManager = usesModernAerials
             ? NativeLockModernTransactionManager(environment: .live)
             : nil

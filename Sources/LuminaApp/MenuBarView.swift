@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var model: AppModel
+    let onShowSettings: () -> Void
     @State private var showingImporter = false
 
     var body: some View {
@@ -151,7 +152,7 @@ struct MenuBarView: View {
     }
 
     private func showSettings() {
-        SettingsWindowPresenter.shared.show(model: model)
+        onShowSettings()
     }
 
     private func localized(_ key: String) -> String {

@@ -38,6 +38,18 @@ public enum NativeLockRecovery {
             && journal.systemManifestAppliedSHA256 == nil
             && journal.lastError == macOS26LegacyHelperFailure
     }
+
+    public static func canDiscardUnappliedLegacyTransaction(
+        _ journal: NativeLockJournal,
+        operatingSystemMajorVersion: Int
+    ) -> Bool {
+        operatingSystemMajorVersion == 26
+            && journal.backend != .userAerials
+            && journal.phase != .active
+            && journal.appliedWallpaperIndexSHA256 == nil
+            && journal.materializedWallpaperIndexSHA256 == nil
+            && journal.systemManifestAppliedSHA256 == nil
+    }
 }
 
 public struct NativeLockRequest: Codable, Equatable, Sendable {
@@ -808,6 +820,27 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         }
     }
 
+    /// Removes local staging only after proving the transaction never wrote a
+    /// wallpaper mapping or catalog manifest.
+    public func discardUnappliedTransaction(transactionID: UUID) throws {
+        let record = try record(for: transactionID)
+        guard record.journal.phase != .active,
+              record.journal.appliedWallpaperIndexSHA256 == nil,
+              record.journal.materializedWallpaperIndexSHA256 == nil,
+              record.journal.systemManifestAppliedSHA256 == nil else {
+            throw NativeLockTransactionError.transactionMismatch
+        }
+        if fileManager.fileExists(atPath: activeTransactionURL.path),
+           let marker: ActiveTransactionMarker = try? read(
+               ActiveTransactionMarker.self,
+               from: activeTransactionURL
+           ), marker.transactionID == transactionID {
+            try fileManager.removeItem(at: activeTransactionURL)
+        }
+        try fileManager.removeItem(at: transactionDirectoryURL(for: transactionID))
+        try synchronizeDirectory(transactionsDirectoryURL)
+    }
+
     public func markRecoveryRequired(
         transactionID: UUID,
         error: String
@@ -1053,6 +1086,17 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         }
         defer { close(parentDescriptor) }
         guard fsync(parentDescriptor) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+    }
+
+    private func synchronizeDirectory(_ url: URL) throws {
+        let descriptor = open(url.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+        guard descriptor >= 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        defer { close(descriptor) }
+        guard fsync(descriptor) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
     }
