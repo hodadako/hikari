@@ -20,7 +20,7 @@ Hikari는 macOS용 네이티브 라이브 배경화면 앱입니다. 영상을 �
 - 연결된 디스플레이와 Space에서 저부하 반복 재생
 - 채우기/맞추기 배율, 음소거, 배터리 일시정지, 로그인 시 실행, 라이브러리 관리
 - 메뉴 막대 재생 및 콘텐츠 제어
-- Native Lock Screen 적용·명시적 복원 및 transaction 복구
+- macOS 26에서 영상 선택 시 자동 Native Lock Screen 적용, transaction 복구 및 Restore
 - 기본·사용자 지정 앱 아이콘과 메뉴 막대 아이콘
 - 일반 `vX.Y.Z` 릴리스 채널의 checksum 검증 앱 업데이트
 
@@ -40,8 +40,9 @@ Native Lock은 문서화되지 않은 macOS wallpaper/Aerial 상태를 변경합
 사용합니다.
 
 검증된 백업을 준비하고 관리형 Mac이나 복구하기 어려운 장비에서는 사용하지
-마세요. Hikari는 transaction journal을 만들며, 미완료 transaction이 있으면 새
-영상 적용과 앱 업데이트 전에 **Restore**를 요구합니다. Native Lock 활성 중에는
+마세요. Hikari는 transaction journal을 만들며, 앱 업데이트 전 또는 recovery-required
+transaction을 바꾸기 전에는 **Restore**를 요구합니다. macOS 26에서는 다른 영상을
+선택하면 active Aerial transaction을 자동으로 교체합니다. Native Lock 활성 중에는
 macOS 서비스가 읽을 수 있는 root-readable 재생 복사본이 생길 수 있습니다.
 
 ## 다운로드
@@ -92,9 +93,10 @@ xcodebuild \
 scripts/build-hikari.sh
 ```
 
-스크립트는 `/Applications/Hikari.app`을 빌드·설치합니다. 적용과 복원은 설정의
-Lock Screen에서 수행합니다. daemon이나 persistent privileged helper는 설치하지
-않습니다.
+스크립트는 `/Applications/Hikari.app`을 빌드·설치합니다. macOS 26에서는 General에서
+영상을 바꾸면 Native Lock Screen Aerial도 자동 적용됩니다. Restore는 transaction
+복구가 필요한 경우에만 General에 표시됩니다. daemon이나 persistent privileged helper는
+설치하지 않습니다.
 
 ## 테스트
 

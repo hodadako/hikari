@@ -36,9 +36,6 @@ struct SettingsView: View {
                 GeneralSettingsView(model: model)
                     .tabItem { Label("General", systemImage: "gearshape") }
                     .tag(SettingsSection.general)
-                NativeLockSettingsView(model: model)
-                    .tabItem { Label("Lock Screen", systemImage: "lock.display") }
-                    .tag(SettingsSection.nativeLock)
                 AboutView(model: model)
                     .tabItem { Label("About", systemImage: "info.circle") }
                     .tag(SettingsSection.about)
@@ -50,7 +47,6 @@ struct SettingsView: View {
 
 private enum SettingsSection: Hashable {
     case general
-    case nativeLock
     case about
 }
 
@@ -291,6 +287,8 @@ private struct GeneralSettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
+
+            NativeLockStatusSection(model: model)
         }
         .formStyle(.grouped)
         .confirmationDialog(
@@ -353,55 +351,68 @@ private struct GeneralSettingsView: View {
     }
 }
 
-private struct NativeLockSettingsView: View {
+/// Native Lock is automatic on macOS 26: selecting a video from General
+/// updates the Aerial transaction after a short debounce. This section is
+/// deliberately not a separate settings tab; it exposes only the recovery
+/// actions that must remain available while a transaction owns system state.
+private struct NativeLockStatusSection: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        Form {
-            Section {
-                let report = NativeLockSafetyInspector.evaluate(
-                    hasSelectedMedia: model.selectedContent != nil,
-                    transactionPhase: model.nativeLockPhase
-                )
-                LabeledContent("Safety Status") {
-                    Label(localized(report.title), systemImage: "lock.shield.fill")
-                        .foregroundStyle(
-                            report.state == .active ? Color.green : Color.orange
-                        )
-                }
-                Text(localized(report.detail))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                if NativeLockUpgradeGuard
-                    .requiresRestoreBeforeMajorOperatingSystemUpdate(
-                        transactionPhase: model.nativeLockPhase
-                    ) {
-                    Label {
-                        Text(
-                            "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update."
-                        )
-                        .fixedSize(horizontal: false, vertical: true)
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                    }
-                    .font(.callout)
-                    .foregroundStyle(.orange)
-                    .padding(10)
-                    .background(
-                        Color.orange.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+        Section {
+            let report = NativeLockSafetyInspector.evaluate(
+                hasSelectedMedia: model.selectedContent != nil,
+                transactionPhase: model.nativeLockPhase
+            )
+            LabeledContent("Safety Status") {
+                Label(localized(report.title), systemImage: "lock.shield.fill")
+                    .foregroundStyle(
+                        report.state == .active ? Color.green : Color.orange
                     )
-                }
+            }
+            Text(localized(report.detail))
+                .font(.callout)
+                .foregroundStyle(.secondary)
 
-                if let title = model.nativeLockAppliedContentTitle,
-                   model.nativeLockPhase != .restored {
-                    LabeledContent("Applied video") {
-                        Text(title).lineLimit(1)
-                    }
-                }
+            if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+               report.state != .recoveryRequired {
+                Text(
+                    "Changing the selected video automatically updates the Lock Screen."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
 
-                HStack {
+            if NativeLockUpgradeGuard
+                .requiresRestoreBeforeMajorOperatingSystemUpdate(
+                    transactionPhase: model.nativeLockPhase
+                ) {
+                Label {
+                    Text(
+                        "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update."
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.callout)
+                .foregroundStyle(.orange)
+                .padding(10)
+                .background(
+                    Color.orange.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+            }
+
+            if let title = model.nativeLockAppliedContentTitle,
+               model.nativeLockPhase != .restored {
+                LabeledContent("Applied video") {
+                    Text(title).lineLimit(1)
+                }
+            }
+
+            HStack {
+                if ProcessInfo.processInfo.operatingSystemVersion.majorVersion != 26 {
                     Button {
                         model.applySelectedVideoToNativeLock()
                     } label: {
@@ -413,29 +424,28 @@ private struct NativeLockSettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(report.state != .ready || model.isNativeLockWorking)
-
-                    if model.canDiscardKnownNoopNativeLockPreflight {
-                        Button("Clear Failed Preparation") {
-                            model.discardKnownNoopNativeLockPreflight()
-                        }
-                        .disabled(model.isNativeLockWorking)
-                    } else if model.nativeLockPhase != nil,
-                              model.nativeLockPhase != .restored {
-                        Button("Restore Previous Wallpaper") {
-                            model.restoreNativeLock()
-                        }
-                        .disabled(model.isNativeLockWorking)
-                    }
                 }
-            } header: {
-                Text("Lock Screen")
-            } footer: {
-                Text(
-                    "Hikari uses macOS's native Lock Screen path. Restore an unfinished transaction before updating the app or macOS."
-                )
+
+                if model.canDiscardKnownNoopNativeLockPreflight {
+                    Button("Clear Failed Preparation") {
+                        model.discardKnownNoopNativeLockPreflight()
+                    }
+                    .disabled(model.isNativeLockWorking)
+                } else if model.nativeLockPhase != nil,
+                          model.nativeLockPhase != .restored {
+                    Button("Restore Previous Wallpaper") {
+                        model.restoreNativeLock()
+                    }
+                    .disabled(model.isNativeLockWorking)
+                }
             }
+        } header: {
+            Text("Lock Screen")
+        } footer: {
+            Text(
+                "Hikari uses macOS's native Lock Screen path. Restore an unfinished transaction before updating the app or macOS."
+            )
         }
-        .formStyle(.grouped)
     }
 }
 

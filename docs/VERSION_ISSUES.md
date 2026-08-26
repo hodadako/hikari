@@ -20,6 +20,9 @@
 
 ### 조치
 
+- 설정의 Lock Screen 탭을 제거하고 General과 About만 남겼다. macOS 26에서는 General에서
+  영상을 가져오거나 선택하면 Native Lock Aerial transaction을 자동 적용하며, 일반 화면에는
+  별도 Apply 버튼을 보이지 않는다. Restore·recovery 상태만 General 안에 조건부로 남긴다.
 - `NativeStorageMigration`을 추가해 콘텐츠 ID·미디어·썸네일·설정·아이콘·Native Lock
   journal·macOS 15 `Index.plist`를 idempotently 병합하고, canonical 충돌은 기존 파일을
   우선하도록 했다.
@@ -41,8 +44,8 @@
 
 ### 검증
 
-- `swift test --parallel` 통과(71개).
-- `xcodegen generate`, Hikari Debug/Release build, Hikari Xcode 전체 test 통과(71개).
+- `swift test --parallel` 통과(72개).
+- `xcodegen generate`, Hikari Debug/Release build, Hikari Xcode 전체 test 통과(72개).
 - 임시 설치 경로에서 `scripts/build-hikari.sh`를 실행해 ad-hoc 서명, Hikari bundle
   identity, `hikari-native-tool` embedded one-shot tool, Hikari asset 이름,
   `Hikari-macOS-portable.zip` 생성과 SHA-256/`codesign --verify --deep --strict` 검증을
@@ -51,6 +54,10 @@
   ARM64/Intel, macOS 26 ARM64/Intel Hikari build/test/release bundle checks가 모두
   성공했다. non-tag 실행에서 release coverage, package, publish job이 의도대로 skipped
   된 것도 확인했다.
+- macOS 26.6.2에서 General의 다른 영상을 선택해 새 `userAerials` transaction이
+  자동으로 active가 되는 것을 확인했다. 35초 안정화 뒤 Hikari를 종료해도 새 asset의
+  manifest·`Index.plist` mapping과 Aerial video·preview 파일이 유지됐다. 설정 탭은
+  General과 About만 보였고, Restore는 active transaction이 있을 때 General 안에만 보였다.
 - Apple AVFoundation 문서의 `AVPlayerLayer(player:)`는 같은 player에 임의 개수의 layer를
   만들 수 있다고 명시한다. `preferredMaximumResolution`과 `preferredForwardBufferDuration`은
   각각 HLS 다운로드와 network-ahead buffer 설정이므로, 로컬 파일의 화질을 낮춰 메모리를
