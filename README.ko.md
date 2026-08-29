@@ -3,7 +3,11 @@
 [English](README.md) | [한국어](README.ko.md)
 
 [![CI](https://github.com/hodadako/lumina/actions/workflows/ci.yml/badge.svg)](https://github.com/hodadako/lumina/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/hodadako/lumina/actions/workflows/codeql.yml/badge.svg)](https://github.com/hodadako/lumina/actions/workflows/codeql.yml)
 [![Codecov](https://codecov.io/gh/hodadako/lumina/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/lumina)
+[![Latest release](https://img.shields.io/github/v/release/hodadako/lumina?display_name=tag&sort=semver&label=latest%20release)](https://github.com/hodadako/lumina/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/hodadako/lumina?label=license)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/hodadako/lumina?branch=main&label=last%20commit)](https://github.com/hodadako/lumina/commits/main/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hodadako/lumina)
 
 **데스크톱에 생동감을 더하세요.**
