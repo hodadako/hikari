@@ -68,8 +68,12 @@ final class StoreTests: XCTestCase {
 
     func testMenuBarIconFrameLeavesAConsistentVisualMargin() {
         XCTAssertEqual(
+            MenuBarIconGeometry.canvasSize,
+            CGSize(width: 256, height: 256)
+        )
+        XCTAssertEqual(
             MenuBarIconGeometry.iconFrame,
-            CGRect(x: 64, y: 64, width: 896, height: 896)
+            CGRect(x: 16, y: 16, width: 224, height: 224)
         )
     }
 

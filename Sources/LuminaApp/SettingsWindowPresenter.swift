@@ -21,6 +21,8 @@ final class SettingsWindowPresenter: NSObject {
 
     func show(model: AppModel) {
         if let window = windowController?.window {
+            installContentIfNeeded(in: window, model: model)
+            configureTitle(of: window, model: model)
             NSApplication.shared.activate(ignoringOtherApps: true)
             if window.isMiniaturized {
                 window.deminiaturize(nil)
@@ -29,15 +31,14 @@ final class SettingsWindowPresenter: NSObject {
             return
         }
 
-        let rootView = SettingsView(model: model)
-            .frame(minWidth: 560, minHeight: 460)
         let window = NSWindow(
-            contentViewController: NSHostingController(rootView: rootView)
+            contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
         )
-        window.title = model.contents.isEmpty
-            ? "Set Up \(model.appDisplayName)"
-            : "\(model.appDisplayName) Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        installContentIfNeeded(in: window, model: model)
+        configureTitle(of: window, model: model)
         window.setContentSize(NSSize(width: 620, height: 520))
         window.isReleasedWhenClosed = false
         window.delegate = self
@@ -54,15 +55,30 @@ final class SettingsWindowPresenter: NSObject {
         isTerminating = true
     }
 
+    private func installContentIfNeeded(in window: NSWindow, model: AppModel) {
+        guard window.contentViewController == nil else { return }
+        let rootView = SettingsView(model: model)
+            .frame(minWidth: 560, minHeight: 460)
+        window.contentViewController = NSHostingController(rootView: rootView)
+    }
+
+    private func configureTitle(of window: NSWindow, model: AppModel) {
+        window.title = model.contents.isEmpty
+            ? "Set Up \(model.appDisplayName)"
+            : "\(model.appDisplayName) Settings"
+    }
+
 }
 
 extension SettingsWindowPresenter: NSWindowDelegate {
     /// The close button on a menu-bar app means "hide settings", not "quit
-    /// Hikari". Retaining the controller also makes a subsequent Open
-    /// Settings action reliably reuse the same window and its state.
+    /// Hikari". Retain the lightweight window shell, but release the hidden
+    /// SwiftUI hierarchy so its thumbnails, icon previews, and view graph do
+    /// not remain in the agent's steady-state footprint.
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !isTerminating else { return true }
         sender.orderOut(nil)
+        sender.contentViewController = nil
         return false
     }
 }

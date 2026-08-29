@@ -2,6 +2,40 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — Hikari steady-state footprint reductions
+
+### 이슈와 영향
+
+- macOS 26.6.2에서 3840×2160 H.264 wallpaper를 재생하는 Hikari의 physical footprint는
+  약 152~164MB, CPU는 약 6.7~7.9%로 관측됐다. 50MB 메모리 목표를 넘으며, 숨긴 설정 창의
+  SwiftUI view graph와 1024px 메뉴 막대 artwork, active transaction이 없어도 반복하던
+  Native Lock 유지보수 작업이 steady-state 비용에 포함됐다.
+
+### 조치
+
+- 설정 창을 닫으면 창 자체와 메뉴 막대 앱은 유지하되, 숨겨진 `NSHostingController`를
+  해제하고 다음 Settings 열기에서 다시 만든다.
+- 메뉴 막대 artwork와 custom menu-bar icon의 정규화 canvas를 1024px에서 256px로 줄이고,
+  기존 6.25% visual margin 및 화면 표시 크기는 유지한다. Finder/App icon의 1024px canvas는
+  변경하지 않는다.
+- Native Lock 유지보수 task는 active transaction이 있을 때만 실행한다. modern mapping이
+  정상인 5초 주기에는 `BackdropWallpaper` 확인을 위한 `killall`을 실행하지 않고, 실제
+  reconcile write 직전에만 해당 renderer를 종료한다.
+
+### 검증
+
+- `swift test --parallel` 72개 통과.
+- `xcodegen generate`, Hikari Debug Xcode test 72개 통과.
+- 실제 4K desktop video 재생의 end-to-end memory는 VideoToolbox/WindowServer surface도
+  포함하므로, 새 app bundle을 실행한 뒤 같은 영상·display 상태에서 physical footprint를
+  다시 비교해야 한다.
+
+### 남은 제약
+
+- 4K source frame과 hardware decode surface가 전체 비용의 대부분을 차지한다. 원본 화질을
+  자동으로 낮추지 않으며, 50MB 목표를 재생 중에도 요구한다면 별도 opt-in 성능 profile과
+  display/Space/wake 수동 회귀 검증이 필요하다.
+
 ## Unreleased — Hikari main migration
 
 ### 이슈와 영향
