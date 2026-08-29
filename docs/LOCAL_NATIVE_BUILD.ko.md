@@ -84,8 +84,8 @@ brew install xcodegen
 ## 2. 소스 받기
 
 ```sh
-git clone https://github.com/hodadako/lumina.git
-cd lumina
+git clone https://github.com/hodadako/hikari.git
+cd hikari
 git status --short
 ```
 

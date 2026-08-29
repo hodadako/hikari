@@ -104,7 +104,7 @@ enum UpdateCheckState: Equatable {
 
 struct ReleaseUpdateService {
     static let latestReleaseURL = URL(
-        string: "https://api.github.com/repos/hodadako/lumina/releases/latest"
+        string: "https://api.github.com/repos/hodadako/hikari/releases/latest"
     )!
 
     private let session: URLSession
