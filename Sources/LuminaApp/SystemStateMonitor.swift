@@ -23,11 +23,12 @@ final class SystemStateMonitor {
     private var stateTask: Task<Void, Never>?
     private var displayTask: Task<Void, Never>?
     private var spaceTask: Task<Void, Never>?
+    private var displaySpaceRecoveryState = DisplaySpaceRecoveryState()
 
     // WindowServer can publish the screen-parameter notification before the
     // newly attached display has a stable NSScreen/window surface. Recheck
-    // the topology at increasing delays, but only recreate AVPlayer-backed
-    // surfaces after the final snapshot has settled.
+    // the topology at increasing delays so one early snapshot cannot become
+    // the permanent state for the app.
     private let displayRecoveryIntervals: [UInt64] = [
         0,
         250_000_000,
@@ -37,8 +38,9 @@ final class SystemStateMonitor {
     // WindowServer finishes a Spaces mutation asynchronously. A single
     // callback can run while the new desktop is still being materialized, so
     // use a short recovery sequence and collapse overlapping notifications.
-    // The final pass is deliberately distinct: it is safe to recreate an
-    // AVPlayerLayer-backed desktop surface only after the Space settles.
+    // The final pass is deliberately distinct. Independent Space transitions
+    // recreate an AVPlayerLayer-backed desktop surface only after settling;
+    // display-derived Space changes preserve the healthy existing surfaces.
     private let spaceRecoveryDelays: [UInt64] = [
         80_000_000,
         220_000_000,
@@ -82,7 +84,9 @@ final class SystemStateMonitor {
 
         let defaultCenter = NotificationCenter.default
         observe(defaultCenter, name: NSApplication.didChangeScreenParametersNotification) { [weak self] in
-            self?.scheduleDisplaysChanged()
+            guard let self else { return }
+            displaySpaceRecoveryState.displayRecoveryDidStart()
+            scheduleDisplaysChanged()
         }
         observe(defaultCenter, name: NSApplication.didBecomeActiveNotification) { [weak self] in
             guard let self else { return }
@@ -144,6 +148,7 @@ final class SystemStateMonitor {
         stateTask = nil
         displayTask = nil
         spaceTask = nil
+        displaySpaceRecoveryState = DisplaySpaceRecoveryState()
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
             NSWorkspace.shared.notificationCenter.removeObserver(token)
@@ -231,6 +236,8 @@ final class SystemStateMonitor {
                     case .topology:
                         self.onDisplaysChanged?()
                     case .settled:
+                        self.displaySpaceRecoveryState.displayRecoveryDidSettle()
+                        self.displayTask = nil
                         self.onDisplaysSettled?()
                     }
                 }
@@ -241,15 +248,25 @@ final class SystemStateMonitor {
     private func scheduleActiveSpaceChanged(after delay: UInt64 = 80_000_000) {
         let recoveryDelays = [delay] + Array(spaceRecoveryDelays.dropFirst())
         spaceTask?.cancel()
+        displaySpaceRecoveryState.activeSpaceRecoveryDidStart()
         spaceTask = Task { [weak self] in
             for (index, recoveryDelay) in recoveryDelays.enumerated() {
                 try? await Task.sleep(nanoseconds: recoveryDelay)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self else { return }
                     if index == recoveryDelays.indices.last {
-                        self?.onActiveSpaceSettled?()
+                        let disposition = self.displaySpaceRecoveryState
+                            .activeSpaceRecoveryDidSettle()
+                        self.spaceTask = nil
+                        switch disposition {
+                        case .preserveSurfaces:
+                            self.onActiveSpaceChanged?()
+                        case .rebuildSurfaces:
+                            self.onActiveSpaceSettled?()
+                        }
                     } else {
-                        self?.onActiveSpaceChanged?()
+                        self.onActiveSpaceChanged?()
                     }
                 }
             }
