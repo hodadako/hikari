@@ -61,8 +61,12 @@ public enum IconGeometry {
 /// transparent margins. Normalize its visible pixels into one smaller frame so
 /// every preset and custom icon has the same visual size in the status item.
 public enum MenuBarIconGeometry {
-    public static let canvasSize = CGSize(width: 1024, height: 1024)
+    /// The status item renders at 18pt and the settings preview at 58pt.
+    /// A 256px bitmap leaves ample Retina headroom for both while avoiding
+    /// persistent 1024px RGBA backing stores for menu-bar-only artwork.
+    public static let canvasSize = CGSize(width: 256, height: 256)
     public static let canvasBounds = CGRect(origin: .zero, size: canvasSize)
-    public static let iconInset: CGFloat = 64
+    /// Keep the existing 6.25% visual margin when reducing the canvas.
+    public static let iconInset: CGFloat = 16
     public static let iconFrame = canvasBounds.insetBy(dx: iconInset, dy: iconInset)
 }

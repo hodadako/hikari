@@ -138,7 +138,7 @@ final class AppModel: ObservableObject {
         settings.lastKnownScreenSaverInstalled = false
         nativeLockRecord = nativeLockController.currentRecord()
         wasScreenLocked = stateMonitor.isScreenLocked
-        startNativeLockMaintenance()
+        updateNativeLockMaintenance()
         scheduleNativeLockAutoApply()
         settings.launchAtLogin = SMAppService.mainApp.status == .enabled
         try? settingsStore.save(settings)
@@ -242,8 +242,10 @@ final class AppModel: ObservableObject {
                 self.nativeRendererRefreshTask?.cancel()
                 self.nativeRendererRefreshTask = nil
                 self.nativeRendererRefreshRequested = false
+                self.updateNativeLockMaintenance()
             } catch {
                 self.nativeLockRecord = self.nativeLockController.currentRecord()
+                self.updateNativeLockMaintenance()
                 self.presentedError = error.localizedDescription
             }
             self.isNativeLockWorking = false
@@ -260,8 +262,10 @@ final class AppModel: ObservableObject {
             nativeRendererRefreshTask?.cancel()
             nativeRendererRefreshTask = nil
             nativeRendererRefreshRequested = false
+            updateNativeLockMaintenance()
         } catch {
             nativeLockRecord = nativeLockController.currentRecord()
+            updateNativeLockMaintenance()
             presentedError = error.localizedDescription
         }
         isNativeLockWorking = false
@@ -677,8 +681,11 @@ final class AppModel: ObservableObject {
     }
 
     private func startNativeLockMaintenance() {
-        guard nativeLockMaintenanceTask == nil else { return }
-        nativeRendererRefreshRequested = nativeLockRecord?.journal.phase == .active
+        guard nativeLockMaintenanceTask == nil,
+              nativeLockRecord?.journal.phase == .active else {
+            return
+        }
+        nativeRendererRefreshRequested = true
         let clock = SuspendingClock()
         nativeLockMaintenanceTask = Task { [weak self] in
             await self?.performNativeLockMaintenance()
@@ -692,7 +699,22 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func updateNativeLockMaintenance() {
+        if nativeLockRecord?.journal.phase == .active {
+            startNativeLockMaintenance()
+        } else {
+            stopNativeLockMaintenance()
+        }
+    }
+
+    private func stopNativeLockMaintenance() {
+        nativeLockMaintenanceTask?.cancel()
+        nativeLockMaintenanceTask = nil
+        nativeRendererRefreshRequested = false
+    }
+
     private func requestNativeRendererRefreshAfterUnlock() {
+        guard nativeLockRecord?.journal.phase == .active else { return }
         nativeRendererRefreshTask?.cancel()
         nativeRendererRefreshTask = Task { [weak self] in
             // WallpaperAgent owns the outgoing Lock Screen surface briefly
@@ -713,6 +735,7 @@ final class AppModel: ObservableObject {
         // pass after the session has returned to the desktop.
         guard !stateMonitor.isScreenLocked,
               !stateMonitor.isSleeping,
+              nativeLockRecord?.journal.phase == .active,
               !nativeLockMaintenanceInProgress,
               !isNativeLockWorking else { return }
         nativeLockMaintenanceInProgress = true

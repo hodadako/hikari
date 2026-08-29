@@ -74,8 +74,8 @@ final class CustomMenuBarIconStore {
     private func renderedRepresentation(_ image: NSImage) -> NSBitmapImageRep? {
         guard let representation = NSBitmapImageRep(
             bitmapDataPlanes: nil,
-            pixelsWide: Int(IconGeometry.canvasSize.width),
-            pixelsHigh: Int(IconGeometry.canvasSize.height),
+            pixelsWide: Int(MenuBarIconGeometry.canvasSize.width),
+            pixelsHigh: Int(MenuBarIconGeometry.canvasSize.height),
             bitsPerSample: 8,
             samplesPerPixel: 4,
             hasAlpha: true,
@@ -88,7 +88,7 @@ final class CustomMenuBarIconStore {
             return nil
         }
 
-        let canvas = NSRect(origin: .zero, size: IconGeometry.canvasSize)
+        let canvas = NSRect(origin: .zero, size: MenuBarIconGeometry.canvasSize)
         let sourceRect = IconGeometry.aspectFillSourceRect(
             sourceSize: image.size,
             targetSize: canvas.size
@@ -108,7 +108,7 @@ final class CustomMenuBarIconStore {
     }
 
     private func image(from representation: NSBitmapImageRep) -> NSImage {
-        let image = NSImage(size: IconGeometry.canvasSize)
+        let image = NSImage(size: MenuBarIconGeometry.canvasSize)
         image.addRepresentation(representation)
         return image
     }

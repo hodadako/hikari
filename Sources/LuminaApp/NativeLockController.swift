@@ -120,9 +120,6 @@ final class NativeLockController {
         var record = current
         var restartedAgent = false
         let usesModernAerials = current.journal.backend == .userAerials
-        if usesModernAerials {
-            stopCompetingWallpaperRenderer()
-        }
         let mappingMatches = try usesModernAerials
             ? store.linkedWallpaperMappingMatches(
                 transactionID: current.request.transactionID
@@ -131,6 +128,12 @@ final class NativeLockController {
                 transactionID: current.request.transactionID
             )
         if !mappingMatches {
+            // Backdrop only needs to be stopped immediately before this
+            // transaction writes the shared index. Avoid launching killall on
+            // every healthy five-second maintenance pass.
+            if usesModernAerials {
+                stopCompetingWallpaperRenderer()
+            }
             record = try withWallpaperAgentSuspended {
                 try usesModernAerials
                     ? store.reconcileLinkedWallpaperMapping(
@@ -805,7 +808,7 @@ final class NativeLockController {
     private func stopCompetingWallpaperRenderer() {
         if signalNamedWallpaperProcess("BackdropWallpaper", "TERM") {
             nativeLockLogger.notice(
-                "Stopped the competing Backdrop wallpaper renderer before applying Native Lock"
+                "Stopped the competing Backdrop wallpaper renderer before updating Native Lock mapping"
             )
         }
     }
