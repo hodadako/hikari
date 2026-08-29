@@ -83,6 +83,7 @@ final class StoreTests: XCTestCase {
         let selectedID = UUID()
         let expected = LuminaSettings(
             selectedContentID: selectedID,
+            lastVideoPickerDirectoryPath: "/tmp/Hikari Videos",
             playbackPreference: .paused,
             scalingMode: .fit,
             isMuted: false,
@@ -121,6 +122,7 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(settings.appIconStyle, .lumina)
         XCTAssertNil(settings.customAppIconRelativePath)
         XCTAssertEqual(settings.menuBarIconStyle, .lumina)
+        XCTAssertNil(settings.lastVideoPickerDirectoryPath)
         XCTAssertNil(settings.customMenuBarIconRelativePath)
         XCTAssertFalse(settings.overrideSystemLockShortcut)
         XCTAssertFalse(settings.lockScreenPlaybackEnabled)

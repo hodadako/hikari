@@ -140,12 +140,12 @@ struct MenuBarView: View {
     }
 
     private func chooseVideo() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.message = localized("Choose a video for your Hikari wallpaper.")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = VideoPicker.chooseVideo(
+            startingAt: model.videoPickerDirectoryURL,
+            message: localized("Choose a video for your Hikari wallpaper.")
+        ) else {
+            return
+        }
         Task {
             await model.importVideo(from: url)
         }
