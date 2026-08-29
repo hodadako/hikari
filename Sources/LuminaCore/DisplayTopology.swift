@@ -74,6 +74,56 @@ public enum DisplayRecoveryPolicy {
     }
 }
 
+public enum ActiveSpaceRecoveryDisposition: Equatable, Sendable {
+    case preserveSurfaces
+    case rebuildSurfaces
+}
+
+/// Coordinates display and Space recovery notifications that WindowServer can
+/// emit for the same physical display transition.
+///
+/// A display attach/detach can materialize per-display Spaces and publish an
+/// `activeSpaceDidChange` notification even though the user did not switch
+/// desktops. Rebuilding every wallpaper surface for that derived notification
+/// removes all AVPlayerLayer targets and visibly flashes the desktop. A real,
+/// independent Space transition still requires the existing surface rebuild.
+public struct DisplaySpaceRecoveryState: Equatable, Sendable {
+    public private(set) var isDisplayRecoveryInProgress = false
+
+    private var isActiveSpaceRecoveryInProgress = false
+    private var activeSpaceDisposition: ActiveSpaceRecoveryDisposition =
+        .rebuildSurfaces
+
+    public init() {}
+
+    public mutating func displayRecoveryDidStart() {
+        isDisplayRecoveryInProgress = true
+        if isActiveSpaceRecoveryInProgress {
+            activeSpaceDisposition = .preserveSurfaces
+        }
+    }
+
+    public mutating func displayRecoveryDidSettle() {
+        isDisplayRecoveryInProgress = false
+    }
+
+    public mutating func activeSpaceRecoveryDidStart() {
+        isActiveSpaceRecoveryInProgress = true
+        activeSpaceDisposition = isDisplayRecoveryInProgress
+            ? .preserveSurfaces
+            : .rebuildSurfaces
+    }
+
+    public mutating func activeSpaceRecoveryDidSettle()
+        -> ActiveSpaceRecoveryDisposition
+    {
+        let disposition = activeSpaceDisposition
+        isActiveSpaceRecoveryInProgress = false
+        activeSpaceDisposition = .rebuildSurfaces
+        return disposition
+    }
+}
+
 public enum DisplayTopology {
     public static func plans(
         for descriptors: [DisplayDescriptor]

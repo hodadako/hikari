@@ -92,4 +92,58 @@ final class DisplayTopologyTests: XCTestCase {
             [.topology, .topology, .settled]
         )
     }
+
+    func testIndependentSpaceRecoveryRebuildsSurfaces() {
+        var state = DisplaySpaceRecoveryState()
+
+        state.activeSpaceRecoveryDidStart()
+
+        XCTAssertEqual(
+            state.activeSpaceRecoveryDidSettle(),
+            .rebuildSurfaces
+        )
+    }
+
+    func testDisplayDerivedSpaceRecoveryPreservesSurfaces() {
+        var state = DisplaySpaceRecoveryState()
+
+        state.displayRecoveryDidStart()
+        state.activeSpaceRecoveryDidStart()
+
+        XCTAssertEqual(
+            state.activeSpaceRecoveryDidSettle(),
+            .preserveSurfaces
+        )
+    }
+
+    func testDisplayRecoverySuppressesAnAlreadyPendingSpaceRebuild() {
+        var state = DisplaySpaceRecoveryState()
+
+        state.activeSpaceRecoveryDidStart()
+        state.displayRecoveryDidStart()
+        state.displayRecoveryDidSettle()
+
+        XCTAssertEqual(
+            state.activeSpaceRecoveryDidSettle(),
+            .preserveSurfaces
+        )
+    }
+
+    func testIndependentSpaceRecoveryRebuildsAfterDisplaySettles() {
+        var state = DisplaySpaceRecoveryState()
+
+        state.displayRecoveryDidStart()
+        state.activeSpaceRecoveryDidStart()
+        XCTAssertEqual(
+            state.activeSpaceRecoveryDidSettle(),
+            .preserveSurfaces
+        )
+        state.displayRecoveryDidSettle()
+
+        state.activeSpaceRecoveryDidStart()
+        XCTAssertEqual(
+            state.activeSpaceRecoveryDidSettle(),
+            .rebuildSurfaces
+        )
+    }
 }

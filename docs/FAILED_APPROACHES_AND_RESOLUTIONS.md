@@ -636,3 +636,31 @@ parameter 알림을 연속해서 보냈다. 각 확인에서 wallpaper 창과 `A
   새 session을 만든 뒤 모든 display에 position을 복원한 다음 재생을 재개한다.
 - `DisplayRecoveryPolicy`와 모든 session의 `seekAll` 동작을 단위 테스트로 고정해
   topology 확인 횟수와 playback 복원 규칙이 다시 합쳐지지 않도록 한다.
+
+## 디스플레이 전환의 Space 알림을 독립적인 Space 전환으로 처리
+
+### 관찰
+
+디스플레이 전환의 최종 pass에서 전체 wallpaper surface를 재생성하지 않도록 수정한
+뒤에도 1개와 2개 디스플레이 사이를 전환하면 기존 화면이 검게 번쩍였다. 2026-08-29
+실행 로그에서 AppKit의 연속 display configuration 변경 뒤 Hikari의 CoreMedia video
+target이 `2 → 1`, `1 → 2`로 topology를 따라간 다음 다시 `2 → 1 → 0`으로 모두
+제거됐고, 새 video receiver 두 개가 만들어진 뒤에야 첫 프레임이 출력됐다.
+
+### 원인
+
+macOS는 디스플레이를 연결하거나 해제할 때 per-display Space도 함께 materialize하며
+`activeSpaceDidChange`를 보낼 수 있다. Hikari의 display recovery와 Space recovery는
+서로 독립된 task였으므로, display 경로가 기존 surface를 보존해도 Space 경로의 최종
+pass가 `rebuildWindowsIfContentAvailable`을 호출해 모든 `AVPlayerLayer`를 떼었다가
+다시 붙였다. display final-pass만 고친 이전 접근은 이 교차 알림을 처리하지 못했다.
+
+### 해결
+
+- display configuration recovery와 active-Space recovery의 겹침을
+  `DisplaySpaceRecoveryState`로 추적한다.
+- display 전환에서 파생된 Space recovery의 final pass는 전체 surface rebuild 대신
+  all-Spaces membership과 topology만 다시 확인한다.
+- 디스플레이 전환과 무관한 실제 Space 변경은 기존처럼 settled pass에서 surface를 한
+  번 재생성한다.
+- display와 Space 알림의 두 발생 순서 및 이후 독립 Space 전환을 단위 테스트로 고정한다.

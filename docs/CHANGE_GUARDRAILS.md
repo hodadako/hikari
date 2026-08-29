@@ -16,6 +16,9 @@
 
 - Hikari는 화면 보호기와 전역 event-tap 잠금 경로를 제공하지 않는다. 해당 소스와 plist는 `Archive/LuminaLegacy`에 보존하며 Hikari target에는 포함하지 않는다.
 - 잠금·잠자기·디스플레이·Space 변경 뒤 데스크톱 영상의 재생 상태와 display topology 복구를 유지한다.
+- 디스플레이 연결·해제에서 파생된 Space 알림은 건강한 모든 데스크톱 surface를 다시
+  만들지 않고 topology와 all-Spaces membership만 확인한다. 디스플레이 전환과 무관한
+  실제 Space 변경의 settled surface 복구는 유지한다.
 - 다중 디스플레이 데스크톱 wallpaper는 하나의 `AVPlayer`를 화면별 `AVPlayerLayer`로 공유한다. 화면별 독립 디코더·버퍼를 다시 도입하지 않으며, display/Space 복구 때도 공유 player의 재생 위치와 의도를 유지한다.
 
 ## 권한·보안·배포
