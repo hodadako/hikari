@@ -2,6 +2,22 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## GitHub 자동 생성 CodeQL workflow를 Actions API로 비활성화
+
+### 시도와 결과
+
+저장소 YAML의 CodeQL workflow와 이름이 같은 과거 default-setup workflow
+`dynamic/github-code-scanning/codeql`을 `gh workflow disable`로 정리하려 했다. GitHub는
+동적 workflow의 disable 요청을 `HTTP 422: Unable to disable this workflow`로 거부했다.
+
+### 해결
+
+Code scanning default setup 상태를 API로 별도 확인한다. 현재 상태는 `not-configured`이고
+동적 workflow는 2026-08-24 이후 실행되지 않았으므로 runner 비용이나 중복 분석은 없다.
+저장소의 `.github/workflows/codeql.yml`만 현재 분석을 수행한다. 동적 항목이 다시 실행되는
+경우에만 GitHub Code Security 설정에서 default setup을 해제하며, Actions workflow disable
+API를 반복 호출하지 않는다.
+
 ## 문서 전용 PR에서 전체 Swift CodeQL 실행
 
 ### 관찰
