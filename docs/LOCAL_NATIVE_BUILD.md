@@ -100,8 +100,8 @@ brew install xcodegen
 ## 2. Get the source
 
 ```sh
-git clone https://github.com/hodadako/lumina.git
-cd lumina
+git clone https://github.com/hodadako/hikari.git
+cd hikari
 git status --short
 ```
 

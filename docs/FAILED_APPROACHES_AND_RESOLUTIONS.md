@@ -2,6 +2,36 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 문서 전용 PR에서 전체 Swift CodeQL 실행
+
+### 관찰
+
+README 두 파일만 바꾼 PR #42에서도 CodeQL workflow가 `actions`와 `swift` matrix를 모두
+실행했다. Swift 분석은 Hikari를 새로 빌드하며 14분 44초가 걸렸고, CI workflow는 기존
+`paths-ignore`에 따라 실행되지 않았다.
+
+### 해결
+
+CodeQL의 `push`와 `pull_request`에도 `docs/**`와 `**/*.md` 제외 조건을 추가한다. 소스나
+workflow가 함께 바뀌면 계속 분석하고, 주간 schedule과 수동 실행은 경로와 무관하게 전체
+분석한다. 같은 PR에 새 commit이 올라오면 이전 CI·CodeQL 실행을 취소하되 `main`과 release
+tag 실행은 취소하지 않는다.
+
+## GitHub 저장소 이름 변경 뒤 이전 Codecov slug 유지
+
+### 관찰
+
+GitHub의 canonical 저장소가 `hodadako/hikari`로 바뀐 뒤에도 workflow와 README가
+`hodadako/lumina` Codecov slug를 사용했다. 이전 slug의 badge는 `unknown`을 반환했지만
+새 canonical slug의 badge는 실제 project coverage를 반환했다.
+
+### 해결
+
+Codecov upload slug와 README badge를 `hodadako/hikari`로 맞춘다. 앱 업데이트 API,
+About 링크, release·security·clone 문서도 canonical GitHub URL을 사용한다. bundle ID,
+저장 경로, 내부 module처럼 기존 설치·데이터 호환성을 위해 유지하는 `Lumina` 식별자는
+변경하지 않는다.
+
 ## macOS 15 ARM CodeQL runner에서 Rosetta Homebrew 실행
 
 ### 관찰

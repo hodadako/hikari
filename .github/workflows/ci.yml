@@ -13,6 +13,10 @@ on:
       - "**/*.md"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -155,7 +159,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: hodadako/lumina
+          slug: hodadako/hikari
           plugins: xcode
           swift_project: Hikari
           flags: ${{ matrix.codecov_flag }}

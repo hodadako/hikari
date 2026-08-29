@@ -469,7 +469,7 @@ private struct AboutView: View {
                 .foregroundStyle(.secondary)
             Link(
                 "GitHub Repository",
-                destination: URL(string: "https://github.com/hodadako/lumina")!
+                destination: URL(string: "https://github.com/hodadako/hikari")!
             )
             Text("Released under the MIT License")
                 .font(.caption)
