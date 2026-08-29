@@ -116,11 +116,11 @@ private struct WelcomeView: View {
     }
 
     private func chooseVideo() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = VideoPicker.chooseVideo(
+            startingAt: model.videoPickerDirectoryURL
+        ) else {
+            return
+        }
         Task { await model.importVideo(from: url) }
     }
 }
@@ -312,10 +312,11 @@ private struct GeneralSettingsView: View {
     }
 
     private func chooseVideo() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = VideoFileSupport.pickerContentTypes
-        panel.canChooseDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = VideoPicker.chooseVideo(
+            startingAt: model.videoPickerDirectoryURL
+        ) else {
+            return
+        }
         Task { await model.importVideo(from: url) }
     }
 

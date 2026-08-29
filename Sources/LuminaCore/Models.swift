@@ -75,6 +75,10 @@ public enum MenuBarIconStyle: String, Codable, CaseIterable, Identifiable, Senda
 
 public struct LuminaSettings: Codable, Equatable, Sendable {
     public var selectedContentID: UUID?
+    /// The last folder from which the user selected a video. The picker
+    /// falls back to the user's home directory when this folder no longer
+    /// exists.
+    public var lastVideoPickerDirectoryPath: String?
     public var playbackPreference: PlaybackPreference
     public var scalingMode: ScalingMode
     public var isMuted: Bool
@@ -93,6 +97,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
 
     public init(
         selectedContentID: UUID? = nil,
+        lastVideoPickerDirectoryPath: String? = nil,
         playbackPreference: PlaybackPreference = .playing,
         scalingMode: ScalingMode = .fill,
         isMuted: Bool = true,
@@ -108,6 +113,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         screenSaverPreviousIdleTime: Int? = nil
     ) {
         self.selectedContentID = selectedContentID
+        self.lastVideoPickerDirectoryPath = lastVideoPickerDirectoryPath
         self.playbackPreference = playbackPreference
         self.scalingMode = scalingMode
         self.isMuted = isMuted
@@ -125,6 +131,7 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case selectedContentID
+        case lastVideoPickerDirectoryPath
         case playbackPreference
         case scalingMode
         case isMuted
@@ -145,6 +152,10 @@ public struct LuminaSettings: Codable, Equatable, Sendable {
         selectedContentID = try values.decodeIfPresent(
             UUID.self,
             forKey: .selectedContentID
+        )
+        lastVideoPickerDirectoryPath = try values.decodeIfPresent(
+            String.self,
+            forKey: .lastVideoPickerDirectoryPath
         )
         playbackPreference = try values.decodeIfPresent(
             PlaybackPreference.self,

@@ -171,6 +171,20 @@ final class AppModel: ObservableObject {
         selectedContent.map(container.mediaURL(for:))
     }
 
+    var videoPickerDirectoryURL: URL {
+        guard let path = settings.lastVideoPickerDirectoryPath else {
+            return FileManager.default.homeDirectoryForCurrentUser
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(
+            atPath: path,
+            isDirectory: &isDirectory
+        ), isDirectory.boolValue else {
+            return FileManager.default.homeDirectoryForCurrentUser
+        }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
     var isPlaying: Bool {
         wallpaperController.isPlaying
     }
@@ -343,6 +357,7 @@ final class AppModel: ObservableObject {
         guard !isImporting else { return }
         isImporting = true
         defer { isImporting = false }
+        rememberVideoPickerDirectory(for: url)
         let didAccess = url.startAccessingSecurityScopedResource()
         defer {
             if didAccess { url.stopAccessingSecurityScopedResource() }
@@ -755,6 +770,16 @@ final class AppModel: ObservableObject {
 
     private func persistSettings() throws {
         try settingsStore.save(settings)
+    }
+
+    private func rememberVideoPickerDirectory(for url: URL) {
+        let directoryURL = url.deletingLastPathComponent()
+        settings.lastVideoPickerDirectoryPath = directoryURL.path
+        do {
+            try persistSettings()
+        } catch {
+            presentedError = error.localizedDescription
+        }
     }
 
     private func applyApplicationIcon() {
