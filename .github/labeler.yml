@@ -1,0 +1,33 @@
+enhancement:
+  - head-branch:
+      - "^(feat|feature|perf)/"
+
+bug:
+  - head-branch:
+      - "^fix/"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "**/*.md"
+          - "docs/**"
+
+github_actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/dependabot.yml"
+          - ".github/dependabot.yaml"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/Package.swift"
+          - "**/Package.resolved"
+          - "**/Podfile"
+          - "**/Podfile.lock"
+          - "**/Cartfile"
+          - "**/Cartfile.resolved"
+          - "**/Gemfile"
+          - "**/Gemfile.lock"
