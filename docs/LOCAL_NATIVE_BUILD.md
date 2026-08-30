@@ -4,7 +4,7 @@ Hikari is the only shipped app. It is published on the normal `vX.Y.Z` release
 channel as an ad-hoc asset and also supports checksum-verified in-app updates.
 Build it on the Mac where it will run when possible; a copied ad-hoc build may
 trigger Gatekeeper warnings. Hikari
-uses the macOS-owned lock shortcut and does not enable Lumina's optional global
+uses the macOS-owned lock shortcut and does not enable the retired global
 event-tap shortcut, so this Native Local path does not require Accessibility or
 Input Monitoring permission.
 
@@ -35,7 +35,7 @@ manifest and media records are preserved.
 - The direct build script needs a Swift toolchain with the macOS 15 SDK or
   newer. A full Xcode installation is required for Xcode builds and tests.
 - Hikari is built from source and is the app included in the normal tagged
-  release. The old Lumina screen-saver/event-tap code is archived and is not
+  release. The pre-Hikari screen-saver/event-tap code is archived and is not
   included in Hikari.
 
 ## Prerequisites for macOS 26 Native Lock

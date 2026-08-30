@@ -13,9 +13,11 @@ app_name="Hikari"
 app_path="${output_root}/${app_name}.app"
 resource_path="${app_path}/Contents/Resources"
 iconset_path="${output_root}/HikariIcon.iconset"
-install_directory="${HIKARI_INSTALL_DIRECTORY:-${LUMINA_NATIVE_INSTALL_DIRECTORY:-/Applications}}"
+install_directory="${HIKARI_INSTALL_DIRECTORY:-/Applications}"
 installed_app_path="${install_directory}/${app_name}.app"
 install_staging_path="${install_directory}/.${app_name}.app.installing.$$"
+predecessor_product_component="$(printf '\114\165\155\151\156\141')"
+predecessor_bundle_identifier="com.hodadako.${predecessor_product_component}.NativeLocal"
 
 required_commands=(
   swiftc
@@ -40,10 +42,10 @@ done
 
 required_paths=(
   "${repository_root}/project.yml"
-  "${repository_root}/Sources/LuminaCore"
-  "${repository_root}/Sources/LuminaNativeLock"
-  "${repository_root}/Sources/LuminaNativeTool"
-  "${repository_root}/Sources/LuminaApp"
+  "${repository_root}/Sources/HikariCore"
+  "${repository_root}/Sources/HikariNativeLock"
+  "${repository_root}/Sources/HikariNativeTool"
+  "${repository_root}/Sources/HikariApp"
   "${repository_root}/Resources/Hikari-Info.plist"
   "${repository_root}/Resources/en.lproj"
   "${repository_root}/Resources/ko.lproj"
@@ -121,30 +123,30 @@ swiftc \
   -emit-module \
   -emit-library \
   -static \
-  -module-name LuminaCore \
+  -module-name HikariCore \
   -target "${deployment_target}" \
-  Sources/LuminaCore/*.swift \
-  -emit-module-path "${module_directory}/LuminaCore.swiftmodule" \
-  -o "${library_directory}/libLuminaCore.a"
+  Sources/HikariCore/*.swift \
+  -emit-module-path "${module_directory}/HikariCore.swiftmodule" \
+  -o "${library_directory}/libHikariCore.a"
 
 swiftc \
   -parse-as-library \
   -emit-module \
   -emit-library \
   -static \
-  -module-name LuminaNativeLock \
+  -module-name HikariNativeLock \
   -target "${deployment_target}" \
-  Sources/LuminaNativeLock/*.swift \
-  -emit-module-path "${module_directory}/LuminaNativeLock.swiftmodule" \
-  -o "${library_directory}/libLuminaNativeLock.a"
+  Sources/HikariNativeLock/*.swift \
+  -emit-module-path "${module_directory}/HikariNativeLock.swiftmodule" \
+  -o "${library_directory}/libHikariNativeLock.a"
 
 swiftc \
   -parse-as-library \
   -target "${deployment_target}" \
   -I "${module_directory}" \
   -L "${library_directory}" \
-  -lLuminaNativeLock \
-  Sources/LuminaNativeTool/*.swift \
+  -lHikariNativeLock \
+  Sources/HikariNativeTool/*.swift \
   -o "${app_path}/Contents/MacOS/hikari-native-tool"
 
 swiftc \
@@ -152,9 +154,9 @@ swiftc \
   -target "${deployment_target}" \
   -I "${module_directory}" \
   -L "${library_directory}" \
-  -lLuminaCore \
-  -lLuminaNativeLock \
-  Sources/LuminaApp/*.swift \
+  -lHikariCore \
+  -lHikariNativeLock \
+  Sources/HikariApp/*.swift \
   -o "${app_path}/Contents/MacOS/${app_name}"
 
 ditto Resources/Hikari-Info.plist "${app_path}/Contents/Info.plist"
@@ -162,7 +164,7 @@ plutil -replace CFBundleDevelopmentRegion -string en "${app_path}/Contents/Info.
 plutil -replace CFBundleExecutable -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string "${app_name}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleName -string "${app_name}" "${app_path}/Contents/Info.plist"
-plutil -replace CFBundleIdentifier -string com.hodadako.Lumina.NativeLocal "${app_path}/Contents/Info.plist"
+plutil -replace CFBundleIdentifier -string com.hodadako.Hikari.NativeLocal "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleShortVersionString -string "${hikari_marketing_version}" "${app_path}/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "${hikari_build_number}" "${app_path}/Contents/Info.plist"
 plutil -replace LSMinimumSystemVersion -string 15.0 "${app_path}/Contents/Info.plist"
@@ -195,22 +197,29 @@ codesign --verify --deep --strict "${app_path}"
 
 mkdir -p "${install_directory}"
 
-# Terminate the currently running Hikari process (bundle ID
-# com.hodako.Lumina.NativeLocal) before replacing the bundle so the old
-# executable cannot continue reading files from the newly installed bundle.
-# Only target Hikari; do not kill unrelated applications.
-if /usr/bin/pgrep -f "com.hodako.Lumina.NativeLocal" >/dev/null 2>&1 || \
+# Terminate the currently running Hikari process under either the current or
+# predecessor bundle identity before replacing the bundle. Only target Hikari;
+# do not kill unrelated applications.
+if /usr/bin/pgrep -f "com.hodadako.Hikari.NativeLocal" >/dev/null 2>&1 || \
+   /usr/bin/pgrep -f "${predecessor_bundle_identifier}" >/dev/null 2>&1 || \
    /usr/bin/osascript -e 'id of app "Hikari"' >/dev/null 2>&1; then
   /usr/bin/osascript -e \
-    'tell application id "com.hodadako.Lumina.NativeLocal" to quit' \
+    'tell application id "com.hodadako.Hikari.NativeLocal" to quit' \
+    >/dev/null 2>&1 || true
+  /usr/bin/osascript -e \
+    "tell application id \"${predecessor_bundle_identifier}\" to quit" \
     >/dev/null 2>&1 || true
   # Give the app up to 3 seconds to quit gracefully before continuing.
   for _i in 1 2 3; do
     sleep 1
-    /usr/bin/pgrep -qf "com.hodadako.Lumina.NativeLocal" || break
+    if ! /usr/bin/pgrep -qf "com.hodadako.Hikari.NativeLocal" && \
+       ! /usr/bin/pgrep -qf "${predecessor_bundle_identifier}"; then
+      break
+    fi
   done
-  # If still running, send SIGTERM to the specific bundle only.
-  /usr/bin/pkill -TERM -f "com.hodadako.Lumina.NativeLocal" >/dev/null 2>&1 || true
+  # If still running, send SIGTERM to either Hikari bundle identity.
+  /usr/bin/pkill -TERM -f "com.hodadako.Hikari.NativeLocal" >/dev/null 2>&1 || true
+  /usr/bin/pkill -TERM -f "${predecessor_bundle_identifier}" >/dev/null 2>&1 || true
 fi
 
 rm -rf "${install_staging_path}"

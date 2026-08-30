@@ -30,6 +30,19 @@ jobs:
       build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
       - uses: actions/checkout@v7
+      - name: Reject retired product naming
+        shell: bash
+        run: |
+          set -euo pipefail
+          retired_product="$(printf '\114\165\155\151\156\141')"
+          if git grep -Iin "${retired_product}" -- .; then
+            echo "Retired product naming remains in tracked content." >&2
+            exit 1
+          fi
+          if git ls-files | grep -i "${retired_product}"; then
+            echo "Retired product naming remains in a tracked path." >&2
+            exit 1
+          fi
       - id: version
         name: Validate Hikari tag and marketing version
         shell: bash
@@ -117,7 +130,7 @@ jobs:
           test -x "${app_path}/Contents/MacOS/hikari-native-tool"
           test ! -d "${app_path}/Contents/PlugIns"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${app_path}/Contents/Info.plist")" = "Hikari"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Lumina.NativeLocal"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Hikari.NativeLocal"
 
   release-coverage:
     name: Hikari release coverage (${{ matrix.runner }})

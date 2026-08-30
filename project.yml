@@ -15,38 +15,38 @@ settings:
     CURRENT_PROJECT_VERSION: 12
     MARKETING_VERSION: 0.3.2
 targets:
-  LuminaCore:
+  HikariCore:
     type: framework.static
     platform: macOS
     sources:
-      - Sources/LuminaCore
+      - Sources/HikariCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.LuminaCore
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariCore
         GENERATE_INFOPLIST_FILE: YES
         DEFINES_MODULE: YES
-  LuminaNativeLock:
+  HikariNativeLock:
     type: framework.static
     platform: macOS
     deploymentTarget: "15.0"
     sources:
-      - Sources/LuminaNativeLock
+      - Sources/HikariNativeLock
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.LuminaNativeLock
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariNativeLock
         GENERATE_INFOPLIST_FILE: YES
         DEFINES_MODULE: YES
-  LuminaNativeTool:
+  HikariNativeTool:
     type: tool
     platform: macOS
     deploymentTarget: "15.0"
     sources:
-      - Sources/LuminaNativeTool
+      - Sources/HikariNativeTool
     dependencies:
-      - target: LuminaNativeLock
+      - target: HikariNativeLock
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.NativeTool
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Hikari.NativeTool
         PRODUCT_NAME: hikari-native-tool
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         SKIP_INSTALL: YES
@@ -56,7 +56,7 @@ targets:
     productName: Hikari
     deploymentTarget: "15.0"
     sources:
-      - path: Sources/LuminaApp
+      - path: Sources/HikariApp
         excludes:
           - LockShortcutController.swift
           - ScreenSaverInstaller.swift
@@ -78,9 +78,9 @@ targets:
         NSHighResolutionCapable: true
         NSHumanReadableCopyright: Copyright © 2026 Hikari contributors
     dependencies:
-      - target: LuminaCore
-      - target: LuminaNativeLock
-      - target: LuminaNativeTool
+      - target: HikariCore
+      - target: HikariNativeLock
+      - target: HikariNativeTool
         embed: false
     postBuildScripts:
       - name: Embed Hikari Native Tool
@@ -93,43 +93,43 @@ targets:
         basedOnDependencyAnalysis: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Lumina.NativeLocal
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.Hikari.NativeLocal
         PRODUCT_NAME: Hikari
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         MACOSX_DEPLOYMENT_TARGET: "15.0"
-  LuminaCoreTests:
+  HikariCoreTests:
     type: bundle.unit-test
     platform: macOS
     deploymentTarget: "15.0"
     sources:
-      - Tests/LuminaCoreTests
+      - Tests/HikariCoreTests
     dependencies:
-      - target: LuminaCore
+      - target: HikariCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.LuminaCoreTests
-  LuminaNativeLockTests:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariCoreTests
+  HikariNativeLockTests:
     type: bundle.unit-test
     platform: macOS
     deploymentTarget: "15.0"
     sources:
-      - Tests/LuminaNativeLockTests
+      - Tests/HikariNativeLockTests
     dependencies:
-      - target: LuminaNativeLock
+      - target: HikariNativeLock
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.LuminaNativeLockTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariNativeLockTests
 schemes:
   Hikari:
     build:
       targets:
         Hikari: all
-        LuminaNativeTool: all
-        LuminaCoreTests: [test]
-        LuminaNativeLockTests: [test]
+        HikariNativeTool: all
+        HikariCoreTests: [test]
+        HikariNativeLockTests: [test]
     test:
       targets:
-        - LuminaCoreTests
-        - LuminaNativeLockTests
+        - HikariCoreTests
+        - HikariNativeLockTests
       gatherCoverageData: true

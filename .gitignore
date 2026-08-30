@@ -8,5 +8,4 @@ DerivedData/
 build/
 *.xcuserstate
 xcuserdata/
-Lumina.xcodeproj/
 Hikari.xcodeproj/

@@ -65,6 +65,6 @@ count, baseline RSS, final RSS, average CPU, and Energy Impact.
 Changes to `VideoRenderer`, `WallpaperController`, or Native Lock playback should
 include before/after measurements in their pull request. Normal Hikari launch,
 playback, sleep/wake, and quit do not write Native Lock system state.
-Legacy `DesktopPosters` files from older Lumina versions, if present, remain
-ordinary files inside Lumina's Application Support directory and are not read,
+Legacy `DesktopPosters` files from pre-Hikari versions, if present, remain
+ordinary files inside the migrated Application Support directory and are not read,
 deleted, or passed to WindowServer.

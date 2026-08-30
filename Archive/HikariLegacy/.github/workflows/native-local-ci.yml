@@ -1,0 +1,111 @@
+name: Native Local CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/native-local-ci.yml"
+      - "project.yml"
+      - "Package.swift"
+      - "Sources/HikariApp/**"
+      - "Sources/HikariCore/**"
+      - "Sources/HikariNativeLock/**"
+      - "Sources/HikariNativeTool/**"
+      - "Tests/HikariCoreTests/**"
+      - "Tests/HikariNativeLockTests/**"
+      - "Resources/**"
+      - "scripts/build-native-local.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/native-local-ci.yml"
+      - "project.yml"
+      - "Package.swift"
+      - "Sources/HikariApp/**"
+      - "Sources/HikariCore/**"
+      - "Sources/HikariNativeLock/**"
+      - "Sources/HikariNativeTool/**"
+      - "Tests/HikariCoreTests/**"
+      - "Tests/HikariNativeLockTests/**"
+      - "Resources/**"
+      - "scripts/build-native-local.sh"
+  workflow_dispatch:
+
+# This workflow is a compile/test gate only. Hikari release packaging is handled
+# separately by hikari-release.yml on hikari-v* tags. This workflow must not
+# publish, install, or execute the Native Local app, and it never receives
+# repository write access.
+permissions:
+  contents: read
+
+jobs:
+  native-local-build-and-test:
+    name: Native Local compile and test (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel, macos-26, macos-26-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Debug build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme HikariNative \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Unit test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme HikariNative \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Release compile and isolation checks
+        env:
+          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariNativeDerivedData
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme HikariNative \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
+          test -d "${app_path}"
+          test -x "${app_path}/Contents/MacOS/Hikari"
+          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
+          test ! -e "${app_path}/Contents/PlugIns/Hikari.saver"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+            "${app_path}/Contents/Info.plist")" = "com.hodadako.Hikari.NativeLocal"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
+            "${app_path}/Contents/Info.plist")" = "Hikari"
+          hikari_marketing_version="$(awk '/HIKARI_MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+          hikari_build_number="$(awk '/HIKARI_BUILD_NUMBER:/ { print $2; exit }' project.yml)"
+          [[ "${hikari_marketing_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${hikari_build_number}" =~ ^[0-9]+$ ]]
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
+            "${app_path}/Contents/Info.plist")" = "${hikari_marketing_version}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' \
+            "${app_path}/Contents/Info.plist")" = "${hikari_build_number}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' \
+            "${app_path}/Contents/Info.plist")" = "15.0"
+      - name: Validate local build script syntax
+        run: zsh -n scripts/build-native-local.sh
+
+      # Intentionally no artifact upload, archive, package, release, app launch,
+      # privileged helper invocation, or system wallpaper-state mutation.
