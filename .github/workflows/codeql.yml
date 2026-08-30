@@ -3,14 +3,8 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   schedule:
     - cron: "20 14 * * 1"
   workflow_dispatch:
@@ -24,20 +18,74 @@ permissions:
   security-events: write
 
 jobs:
+  select_analyses:
+    name: Select CodeQL analyses
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: matrix
+        name: Select languages for changed paths
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          base_sha=""
+          head_sha=""
+          case "${EVENT_NAME}" in
+            pull_request)
+              base_sha="${PR_BASE_SHA}"
+              head_sha="${PR_HEAD_SHA}"
+              ;;
+            push)
+              base_sha="${PUSH_BASE_SHA}"
+              head_sha="${CURRENT_SHA}"
+              ;;
+          esac
+
+          docs_only=false
+          if [[ -n "${base_sha}" && ! "${base_sha}" =~ ^0+$ ]] &&
+             git cat-file -e "${base_sha}^{commit}" &&
+             git cat-file -e "${head_sha}^{commit}"; then
+            docs_only=true
+            while IFS= read -r changed_path; do
+              case "${changed_path}" in
+                docs/*|*.md) ;;
+                *)
+                  docs_only=false
+                  break
+                  ;;
+              esac
+            done < <(git diff --name-only "${base_sha}" "${head_sha}")
+          fi
+
+          if [[ "${docs_only}" == "true" ]]; then
+            matrix='{"include":[{"language":"actions","runner":"ubuntu-latest","build-mode":"none"}]}'
+          else
+            matrix='{"include":[{"language":"actions","runner":"ubuntu-latest","build-mode":"none"},{"language":"swift","runner":"macos-15-intel","build-mode":"manual"}]}'
+          fi
+
+          echo "docs_only=${docs_only}"
+          echo "matrix=${matrix}" >> "${GITHUB_OUTPUT}"
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: select_analyses
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - language: actions
-            runner: ubuntu-latest
-            build-mode: none
-          - language: swift
-            runner: macos-15-intel
-            build-mode: manual
+      matrix: ${{ fromJSON(needs.select_analyses.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - name: Install XcodeGen

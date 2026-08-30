@@ -26,12 +26,22 @@ README 두 파일만 바꾼 PR #42에서도 CodeQL workflow가 `actions`와 `swi
 실행했다. Swift 분석은 Hikari를 새로 빌드하며 14분 44초가 걸렸고, CI workflow는 기존
 `paths-ignore`에 따라 실행되지 않았다.
 
-### 해결
+### 실패한 해결
 
-CodeQL의 `push`와 `pull_request`에도 `docs/**`와 `**/*.md` 제외 조건을 추가한다. 소스나
-workflow가 함께 바뀌면 계속 분석하고, 주간 schedule과 수동 실행은 경로와 무관하게 전체
-분석한다. 같은 PR에 새 commit이 올라오면 이전 CI·CodeQL 실행을 취소하되 `main`과 release
-tag 실행은 취소하지 않는다.
+처음에는 CodeQL의 `push`와 `pull_request`에 `docs/**`와 `**/*.md` 제외 조건을 추가했다.
+그러나 `main` ruleset은 모든 PR commit에 CodeQL code-scanning 결과를 요구한다. README만
+바꾼 PR #46에서는 workflow 자체가 생성되지 않아 code-scanning 결과도 없었고, PR은
+`BLOCKED` 상태가 됐다. 관리자 bypass에 의존하는 이 방식은 일반 기여자 workflow로 사용할
+수 없다.
+
+### 수정된 해결
+
+CodeQL workflow는 문서 전용 변경에도 시작하되, 먼저 Ubuntu job에서 base와 head의 변경
+경로를 읽어 analysis matrix를 만든다. `docs/**`와 `**/*.md`만 바뀌면 빠른 `actions` 분석만
+실행해 ruleset에 CodeQL 결과를 제공하고, `macos-15-intel` Swift build·분석은 matrix에서
+제외한다. 소스나 workflow가 함께 바뀌거나 schedule·수동 실행이면 기존 actions+Swift 전체
+분석을 유지한다. 같은 PR에 새 commit이 올라오면 이전 CI·CodeQL 실행을 취소하되 `main`과
+release tag 실행은 취소하지 않는다.
 
 ## GitHub 저장소 이름 변경 뒤 이전 Codecov slug 유지
 
