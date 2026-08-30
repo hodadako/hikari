@@ -4,7 +4,7 @@ Hikari는 유일하게 배포하는 앱입니다. 일반 `vX.Y.Z` release channe
 asset으로 게시되며 checksum 검증 앱 업데이트도 지원합니다. ad-hoc 앱을 다른 Mac에
 설치하면 Gatekeeper 경고가 나타날 수 있으므로, 가능하면 사용할 Mac에서 직접 빌드하세요.
 Hikari는 macOS가 소유한 잠금 단축키를
-사용하고 Lumina의 선택적 전역 event-tap 단축키를 시작하지 않으므로, 이 Native Local 경로에는
+사용하고 Hikari의 선택적 전역 event-tap 단축키를 시작하지 않으므로, 이 Native Local 경로에는
 Accessibility와 Input Monitoring 권한이 필요하지 않습니다.
 
 Native Lock은 macOS 15에서는 관리자 승인을 받은 뒤, macOS 26에서는 현재 사용자
@@ -27,7 +27,7 @@ Backdrop manifest와 media record는 삭제하지 않습니다.
   한 번 내려받아 catalog를 초기화해야 합니다.
 - 직접 빌드 스크립트에는 macOS 15 SDK 이상이 포함된 Swift toolchain이 필요합니다.
   Xcode 빌드와 테스트에는 전체 Xcode 설치본이 필요합니다.
-- Hikari는 소스에서 빌드하며 일반 tagged release에 포함됩니다. 이전 Lumina 화면
+- Hikari는 소스에서 빌드하며 일반 tagged release에 포함됩니다. pre-Hikari 화면
   보호기와 event-tap 코드는 archive에 보존하고 Hikari에는 포함하지 않습니다.
 
 직접 빌드 스크립트는 출력을 만들기 전에 compiler 도구, 소스 디렉터리, localization과

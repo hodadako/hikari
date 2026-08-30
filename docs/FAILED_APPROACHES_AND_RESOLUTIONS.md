@@ -48,14 +48,14 @@ release tag 실행은 취소하지 않는다.
 ### 관찰
 
 GitHub의 canonical 저장소가 `hodadako/hikari`로 바뀐 뒤에도 workflow와 README가
-`hodadako/lumina` Codecov slug를 사용했다. 이전 slug의 badge는 `unknown`을 반환했지만
+`hodadako/hikari` Codecov slug를 사용했다. 이전 slug의 badge는 `unknown`을 반환했지만
 새 canonical slug의 badge는 실제 project coverage를 반환했다.
 
 ### 해결
 
 Codecov upload slug와 README badge를 `hodadako/hikari`로 맞춘다. 앱 업데이트 API,
 About 링크, release·security·clone 문서도 canonical GitHub URL을 사용한다. bundle ID,
-저장 경로, 내부 module처럼 기존 설치·데이터 호환성을 위해 유지하는 `Lumina` 식별자는
+저장 경로, 내부 module처럼 기존 설치·데이터 호환성을 위해 유지하는 `Hikari` 식별자는
 변경하지 않는다.
 
 ## macOS 15 ARM CodeQL runner에서 Rosetta Homebrew 실행
@@ -263,7 +263,7 @@ Main10으로 준비한다.
 
 ### 결과
 
-v0.2.5 이후 실제 루미나 잠금 화면의 비디오 재생이 회귀했다. 화면 보호기 프로세스의 컨테이너 구성과 맞지 않는 경로일 가능성이 높다.
+v0.2.5 이후 실제 Hikari 잠금 화면의 비디오 재생이 회귀했다. 화면 보호기 프로세스의 컨테이너 구성과 맞지 않는 경로일 가능성이 높다.
 
 ### 해결
 
@@ -273,7 +273,7 @@ v0.2.5 이후 실제 루미나 잠금 화면의 비디오 재생이 회귀했다
 
 ### 시도/가정
 
-Lumina.app만 업데이트하면 `~/Library/Screen Savers/Lumina.saver`도 최신 코드가 된다고 보았다.
+Hikari.app만 업데이트하면 `~/Library/Screen Savers/Hikari.saver`도 최신 코드가 된다고 보았다.
 
 ### 결과
 
@@ -282,7 +282,7 @@ Lumina.app만 업데이트하면 `~/Library/Screen Savers/Lumina.saver`도 최�
 ### 해결
 
 - 앱의 화면 보호기 업데이트 흐름을 실행해 별도 설치본을 갱신한다.
-- 문제 재현 시 앱 번들만 보지 말고 `~/Library/Screen Savers/Lumina.saver`의 버전과 실제 실행 프로세스가 매핑한 바이너리를 함께 확인한다.
+- 문제 재현 시 앱 번들만 보지 말고 `~/Library/Screen Savers/Hikari.saver`의 버전과 실제 실행 프로세스가 매핑한 바이너리를 함께 확인한다.
 
 ## 화면 보호기 파일 교체만으로 이미 실행 중인 프로세스가 바뀐다는 가정
 
@@ -320,7 +320,7 @@ v0.2.8은 `CGPreflightListenEventAccess()`가 true일 때만 `CGEvent.tapCreate`
 
 ### 결과
 
-시스템 설정에서 Lumina의 Input Monitoring 토글이 켜져 있어도 사전 판정이 false이면
+시스템 설정에서 Hikari의 Input Monitoring 토글이 켜져 있어도 사전 판정이 false이면
 이벤트 탭을 만들 기회 자체가 없었다. Accessibility가 허용된 내장 키보드 환경에서도
 단축키가 동작하지 않는 상태가 확인됐다.
 
@@ -333,14 +333,14 @@ CoreGraphics의 실제 `CGEvent.tapCreate`를 시도하고, 그 결과를 활성
 
 ### 관찰
 
-ad-hoc 서명된 v0.2.10에서 시스템 설정에 Lumina 행이 보이더라도, 실행 중인
+ad-hoc 서명된 v0.2.10에서 시스템 설정에 Hikari 행이 보이더라도, 실행 중인
 프로세스의 `AXIsProcessTrusted()`는 `1`이고 `CGPreflightListenEventAccess()`는
-`0`인 상태가 실제로 확인됐다. 이 상태에서는 Lumina가 키보드 이벤트를 받을 수
+`0`인 상태가 실제로 확인됐다. 이 상태에서는 Hikari가 키보드 이벤트를 받을 수
 없어 macOS 기본 잠금만 실행됐다.
 
 ### 해결 및 검증
 
-두 TCC 권한을 재부여하고 Lumina를 재실행한 뒤, 현재 프로세스에서 두 API가 모두
+두 TCC 권한을 재부여하고 Hikari를 재실행한 뒤, 현재 프로세스에서 두 API가 모두
 `1`을 반환하는 것을 확인했다. 같은 프로세스는 `Global keyboard event tap enabled`
 로그도 남겼다. 권한 문제를 판정할 때는 UI 색상만 보지 않고 이 런타임 상태와 탭
 생성 로그를 함께 확인한다. ad-hoc 릴리스는 코드 정체성이 바뀔 수 있으므로,
@@ -369,14 +369,14 @@ v0.2.10부터 `.cghidEventTap`을 먼저 만들고, 해당 위치를 지원하�
 v0.2.8 실행본에서 다음 상태를 실제 시스템 설정으로 확인했다.
 
 - `overrideSystemLockShortcut`이 `true`
-- Lumina가 실행 중이며 앱과 설치된 `.saver`가 모두 v0.2.8
-- Accessibility와 Input Monitoring의 Lumina 토글이 모두 켜짐
+- Hikari가 실행 중이며 앱과 설치된 `.saver`가 모두 v0.2.8
+- Accessibility와 Input Monitoring의 Hikari 토글이 모두 켜짐
 - Karabiner의 활성 프로파일에는 Q 키 또는 잠금 조합을 직접 가로채는 complex modification이 없음
 
 ### 실제 원인
 
 해당 Karabiner 장치 설정은 물리 `left_command`를 `left_option`으로,
-물리 `left_option`을 `left_command`로 바꾼다. Lumina는 `Control` +
+물리 `left_option`을 `left_command`로 바꾼다. Hikari는 `Control` +
 `Command` + `Q`만 받고 Option 또는 Shift가 포함된 이벤트는 거부한다.
 따라서 이 외장 키보드의 물리 `Control` + `left_command` + `Q`는
 `Control` + `Option` + `Q`가 되어 단축키가 발동하지 않는다.
@@ -398,7 +398,7 @@ v0.2.8 실행본에서 다음 상태를 실제 시스템 설정으로 확인했�
 
 ### 영향
 
-이 상태는 Lumina의 키 이벤트 탭을 막지는 않지만, 단축키가 호출하는
+이 상태는 Hikari의 키 이벤트 탭을 막지는 않지만, 단축키가 호출하는
 ScreenSaverEngine 실행 요청이 이미 실행 중인 화면 보호기 때문에 눈에 띄는
 새 화면 전환 없이 성공으로 반환될 수 있다.
 
@@ -406,7 +406,7 @@ ScreenSaverEngine 실행 요청이 이미 실행 중인 화면 보호기 때문�
 
 문제 재현을 판별할 때는 키 입력 수신과 화면 보호기 시작을 분리한다. 실제
 화면 보호기 프로세스가 중복·잔존했다면 종료 후 새 프로세스로 다시 확인한다.
-후속 설치 갱신 흐름은 Lumina가 선택된 경우 이 호스트를 종료해 다음 실행이
+후속 설치 갱신 흐름은 Hikari가 선택된 경우 이 호스트를 종료해 다음 실행이
 새 번들을 사용하도록 한다.
 
 ## 자동 화면 보호기의 큰 영상 크기를 재생 버그로 판단
@@ -503,14 +503,14 @@ round-trip 검사가 `index=false`를 반환했다. 검증 프로그램은 이 �
 ### 해결
 
 현재 hash가 적용 기록과 같으면 `Index.original.plist`의 검증된 원본 bytes를 그대로
-원자적으로 쓴다. 외부 변경 때문에 hash가 다를 때만 구조를 해석해 Lumina-owned
+원자적으로 쓴다. 외부 변경 때문에 hash가 다를 때만 구조를 해석해 Hikari-owned
 choice를 선택적으로 복원한다.
 
 ## Xcode tool 타깃의 `main.swift`에서 `@main` 사용
 
 ### 시도
 
-one-shot tool entry를 `Sources/LuminaNativeTool/main.swift`에 두고 `@main` 구조체로
+one-shot tool entry를 `Sources/HikariNativeTool/main.swift`에 두고 `@main` 구조체로
 선언했다. SwiftPM과 로컬 빌드 스크립트는 `-parse-as-library`를 사용해 통과했다.
 
 ### 결과
@@ -520,14 +520,14 @@ Xcode 16.4는 이름이 `main.swift`인 파일을 top-level entry로 취급하�
 
 ### 해결
 
-동작 코드는 유지하고 파일명을 `LuminaNativeTool.swift`로 변경했다. SwiftPM, 직접
+동작 코드는 유지하고 파일명을 `HikariNativeTool.swift`로 변경했다. SwiftPM, 직접
 `swiftc`, Xcode가 모두 같은 `@main` entry 규칙을 사용하게 한다.
 
 ## 저장소 루트에서 release ZIP checksum 생성
 
 ### 시도
 
-package job이 `shasum -a 256 dist/Lumina-macOS-portable.zip` 출력 전체를
+package job이 `shasum -a 256 dist/Hikari-macOS-portable.zip` 출력 전체를
 `.sha256` asset으로 저장했다.
 
 ### 결과
@@ -720,3 +720,18 @@ pass가 `rebuildWindowsIfContentAvailable`을 호출해 모든 `AVPlayerLayer`�
 - 디스플레이 전환과 무관한 실제 Space 변경은 기존처럼 settled pass에서 surface를 한
   번 재생성한다.
 - display와 Space 알림의 두 발생 순서 및 이후 독립 Space 전환을 단위 테스트로 고정한다.
+
+## predecessor 저장소 URL을 directory hint 없이 직접 비교
+
+### 시도와 결과
+
+pre-Hikari 저장소의 탐색 우선순위를 검사하는 테스트에서 expected URL 일부를 일반
+path component로 만들고, resolver는 `isDirectory: true` URL을 반환하게 했다. 두 URL은
+같은 파일시스템 경로를 가리켰지만 Foundation URL의 directory 표시 차이로 trailing
+slash가 달라져 equality 검사가 실패했다.
+
+### 해결
+
+expected URL도 `isDirectory: true`로 구성해 resolver 계약과 맞췄다. 실제 migration은
+기존처럼 입력 URL을 `standardizedFileURL`로 정규화한 뒤 canonical/source 충돌을
+검사하며, 문자열 trailing slash에 의존하지 않는다.

@@ -61,11 +61,10 @@ shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 
 ## 저장소 마이그레이션
 
-Hikari는 기존 `~/Library/Application Support/Lumina`를 canonical 라이브러리로
-유지합니다. 첫 실행 시 이전
-`~/Library/Application Support/LuminaNative`에서 없는 콘텐츠·설정·아이콘·Native
-Lock transaction을 합친 뒤 원본 폴더를 복구 가능한 `.archived` 폴더로 이동합니다.
-충돌 시 기존 canonical 파일을 우선하며 원본 영상은 삭제하지 않습니다.
+Hikari는 `~/Library/Application Support/Hikari`를 canonical 라이브러리로
+사용합니다. 첫 실행 시 감지한 pre-Hikari 저장소에서 없는 콘텐츠·설정·아이콘·Native
+Lock transaction을 합친 뒤 원본 폴더를 복구 가능한 `.archived` 인접 경로로
+이동합니다. 충돌 시 기존 canonical 파일을 우선하며 원본 영상은 삭제하지 않습니다.
 
 ## 빌드
 
@@ -120,14 +119,14 @@ xcodebuild \
 
 ```text
 Sources/
-├── LuminaApp/          Hikari 메뉴 막대 UI, 설정, 배경화면 창
-├── LuminaCore/         모델, 저장소, 가져오기, 정책, 렌더러
-├── LuminaNativeLock/   Native Lock transaction·백업·적용·복원 엔진
-└── LuminaNativeTool/   관리자 인증 one-shot 시스템 작업
-Archive/LuminaLegacy/   폐기된 Lumina 화면 보호기·event-tap 소스
+├── HikariApp/          Hikari 메뉴 막대 UI, 설정, 배경화면 창
+├── HikariCore/         모델, 저장소, 가져오기, 정책, 렌더러
+├── HikariNativeLock/   Native Lock transaction·백업·적용·복원 엔진
+└── HikariNativeTool/   관리자 인증 one-shot 시스템 작업
+Archive/HikariLegacy/   폐기된 Hikari 화면 보호기·event-tap 소스
 Tests/
-├── LuminaCoreTests/
-└── LuminaNativeLockTests/
+├── HikariCoreTests/
+└── HikariNativeLockTests/
 ```
 
 ## 현재 제한 사항

@@ -2,6 +2,45 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — Hikari naming consolidation
+
+### 이슈와 영향
+
+- shipped app은 Hikari지만 소스·테스트 디렉터리, SwiftPM/Xcode 타깃, Swift 타입,
+  bundle ID, 저장소 경로, 문서와 legacy archive에 pre-Hikari 제품명이 남아 있었다.
+- 이름만 기계적으로 바꾸면 기존 사용자 라이브러리와 macOS 15 root-owned Native Lock
+  journal을 찾지 못해 콘텐츠가 비어 보이거나 Restore 경로를 잃을 수 있었다.
+
+### 조치
+
+- 현재 제품의 디렉터리·모듈·타깃·테스트·타입·bundle identifier·로그 subsystem·
+  archive를 `hikari`/`Hikari` casing으로 통일했다.
+- canonical 사용자 저장소를 `~/Library/Application Support/Hikari`로 전환했다.
+  pre-Hikari 일반·Native Local 저장소 이름은 runtime byte compatibility table로만
+  해석하고, 발견된 모든 source를 우선순위대로 병합해 기존 충돌 우선순위·recoverable
+  archive 규칙을 유지한다.
+- macOS 15 신규 system catalog asset/category와 root support 경로는 Hikari identity를
+  사용한다. 기존 transaction Restore는 predecessor journal root와 category UUID도
+  인식해 적용된 상태를 고립시키지 않는다.
+- CI metadata gate에서 tracked content와 path에 퇴역 제품명이 다시 들어오면 실패하도록
+  고정했다.
+
+### 검증
+
+- 대소문자 무관 tracked content/path 검색에서 퇴역 제품명 0건을 확인한다.
+- `swift test`의 HikariCore/HikariNativeLock 전체 81개 테스트를 통과한다.
+- `xcodegen generate`, Hikari Debug build와 Xcode test를 통과한다.
+- `scripts/build-hikari.sh` 구문 검사와 새 module/bundle 입력의 read-only preflight를
+  통과한다.
+
+### 남은 제약
+
+- bundle identifier가 Hikari identity로 바뀌므로 predecessor identity를 기대하는 구형
+  in-app updater는 새 bundle을 거부할 수 있다. 해당 설치는 이번 전환에 한해 release
+  asset을 수동 교체해야 하며, 이후 Hikari identity 내 업데이트는 정상 경로를 사용한다.
+- 실제 pre-Hikari 사용자 저장소 병합과 macOS 15 active root transaction Restore는
+  system state를 다루므로 release 전 실제 장비에서 한 번 수동 확인한다.
+
 ## Unreleased — Hikari steady-state footprint reductions
 
 ### 이슈와 영향
@@ -40,15 +79,14 @@
 
 ### 이슈와 영향
 
-- 다음 normal Hikari release 기준은 기존 Lumina `v0.3.1` 다음 버전인 `v0.3.2`
+- 다음 normal Hikari release 기준은 pre-Hikari `v0.3.1` 다음 버전인 `v0.3.2`
   (`CURRENT_PROJECT_VERSION=12`)로 정한다. 이전 Hikari 전용 `0.1.10 (11)` version line은
   normal release channel로 재사용하지 않는다.
-- Hikari가 유일한 shipped app이 되며, 기존 Lumina 화면 보호기·event-tap 코드는
-  `Archive/LuminaLegacy`로 이동하고 정상 `vX.Y.Z` release의 제품 이름과 asset은
+- Hikari가 유일한 shipped app이 되며, pre-Hikari 화면 보호기·event-tap 코드는
+  `Archive/HikariLegacy`로 이동하고 정상 `vX.Y.Z` release의 제품 이름과 asset은
   Hikari로 통일한다.
-- 기존 Lumina 사용자의 canonical 저장소는 그대로 `~/Library/Application Support/Lumina`를
-  사용한다. 이전 Hikari Native Local의 `LuminaNative` 저장소는 첫 실행에 병합한 뒤
-  삭제하지 않고 `.archived`로 보존한다.
+- pre-Hikari 사용자의 일반·Native Local 저장소는 Hikari canonical 저장소로 첫 실행에
+  병합한 뒤 삭제하지 않고 `.archived`로 보존한다.
 - 미완료 Native Lock transaction 또는 실패한 storage migration이 있으면 앱 업데이트를
   차단하고 Restore 또는 migration 복구를 먼저 요구한다.
 
@@ -108,7 +146,7 @@
 ### 이슈와 영향
 
 - Hikari는 Native Local compile/test와 별도 ad-hoc release asset을 게시할 수 있는
-  경로로 분리되어 있으며, 첫 Hikari tag 전에는 일반 Lumina Portable 릴리스에 포함되지
+  경로로 분리되어 있으며, 첫 Hikari tag 전에는 pre-Hikari Portable 릴리스에 포함되지
   않는다.
 - Hikari `0.1.9 (10)` preflight 변경에서 Native Local CI 테스트 helper의 명시적 `return`이
   누락되어 macOS 15·26 Unit test compile이 실패했다.
@@ -118,7 +156,7 @@
 - `hikari-vX.Y.Z` tag 전용 Hikari Release workflow를 추가했다. macOS 15·26 build/test와
   Release bundle isolation을 통과한 뒤 현재 ad-hoc 서명 구조로 Hikari ZIP과 SHA-256
   checksum을 만들고 별도 GitHub Release asset으로 게시한다.
-- 일반 Lumina Portable release workflow와 Hikari release를 분리하고, Hikari version/build
+- pre-Hikari Portable release workflow와 Hikari release를 분리하고, Hikari version/build
   값을 tag·bundle plist·package output에서 검증한다.
 - 테스트 helper의 plist 생성식에 명시적 `return`을 추가했다.
 - transaction backup/hash 검증, `Linked` topology 안전성, macOS major-version guard,
@@ -133,7 +171,7 @@
 - PR과 `workflow_dispatch`에서는 macOS 15·26 build/test, ad-hoc package, signature 및
   checksum 검증을 수행하며 GitHub Release 생성은 하지 않는다. 실제 release tag 실행,
   GitHub asset 다운로드 후 checksum, Gatekeeper 경고, macOS 15 관리자 승인 동작의 수동
-  검증은 첫 Hikari release tag에서 수행해야 한다. Hikari는 Lumina의 선택적 전역 event-tap
+  검증은 첫 Hikari release tag에서 수행해야 한다. Hikari는 Hikari의 선택적 전역 event-tap
   단축키를 사용하지 않으므로 Accessibility/Input Monitoring 권한 재승인은 이 release
   경로의 검증 항목이 아니다.
 
@@ -325,14 +363,14 @@
 - `runPrivilegedTool()`에 방어적 macOS 26 가드를 추가해 라우팅 오류가 있어도 헬퍼를 실행하지 않는다.
 - `NativeLockModernTransactionManager.apply()`에서 `entries.json` 부재 시 `aerialCatalogMissing` 도메인 오류를 반환한다.
 - `NativeLockSafetyInspector`에 Aerial 카탈로그 사전 검사를 추가하고 `aerialCatalogRequired` 안전 상태를 노출한다. 매니페스트 없음·스키마 불일치를 구분한다.
-- `build-native-local.sh`가 번들 교체 전 `com.hodadako.Lumina.NativeLocal` 프로세스만 정상 종료 후 SIGTERM으로 처리한다.
+- `build-native-local.sh`가 번들 교체 전 `com.hodadako.Hikari.NativeLocal` 프로세스만 정상 종료 후 SIGTERM으로 처리한다.
 - 영어·한국어 로컬라이제이션에 새 안전 상태 문자열을 추가한다.
 - `LOCAL_NATIVE_BUILD.md`에 macOS 15/26 백엔드 차이, macOS 26 Aerial 카탈로그 초기화 전제 조건, 재빌드 후 재실행 안내를 추가한다.
 
 ### 검증
 
-- `swift build` 및 `swiftc -typecheck -D LUMINA_NATIVE_LOCAL Sources/LuminaApp/NativeLockController.swift` 통과.
-- `swiftc -typecheck Sources/LuminaNativeLock/*.swift` 통과.
+- `swift build` 및 `swiftc -typecheck -D HIKARI_NATIVE_LOCAL Sources/HikariApp/NativeLockController.swift` 통과.
+- `swiftc -typecheck Sources/HikariNativeLock/*.swift` 통과.
 - 새 안전 검사 테스트(매니페스트 없음·불일치·정상), 새 오류 모델 테스트, 기존 모던 트랜잭션 테스트 추가. XCTest 실행은 전체 Xcode가 있는 CI에서 확인한다.
 
 ### 남은 제약
@@ -447,7 +485,7 @@
 
 ### 이슈와 영향
 
-- Hikari는 별도 bundle ID와 설치 경로를 사용하지만 마케팅 버전은 Lumina의
+- Hikari는 별도 bundle ID와 설치 경로를 사용하지만 마케팅 버전은 pre-Hikari app의
   `MARKETING_VERSION`을 공유했고, 로컬 빌드 번호는 항상 `1`로 고정됐다.
   따라서 Hikari 코드를 갱신해도 About과 bundle plist만으로 어떤 빌드인지
   구분하거나 독립적으로 버전을 올릴 수 없었다.
@@ -457,7 +495,7 @@
 - `project.yml`에 Hikari 전용 `HIKARI_MARKETING_VERSION`과
   `HIKARI_BUILD_NUMBER`을 추가하고 첫 독립 기준을 `0.1.0 (1)`로 정했다.
 - Hikari Info.plist, Xcode 타깃, 로컬 빌드 스크립트, Native Local CI가 모두
-  같은 두 값을 사용·검증하도록 연결했다. 일반 Lumina의 `0.3.1 (1)`과
+  같은 두 값을 사용·검증하도록 연결했다. pre-Hikari app의 `0.3.1 (1)`과
   release tag 검증은 바꾸지 않았다.
 
 ### 검증
@@ -506,7 +544,7 @@
   명시적으로 등록해 검색 후 직접 실행할 수 있게 한다. bundle ID와 별도 저장소,
   CI의 compile/test-only 격리는 그대로 유지한다.
 - Native Local의 설정, 환영 화면, 메뉴, 오류 안내와 system Aerial category에 남아 있던
-  일반 앱 제품명을 `Hikari`로 분기했다. 일반 빌드의 `Lumina` 표기와 기존 저장소 경로,
+  일반 앱 제품명을 `Hikari`로 분기했다. 당시 pre-Hikari 일반 빌드의 표기와 저장소 경로,
   bundle ID 및 transaction 식별자는 호환성을 위해 유지한다.
 - 일반 wallpaper는 콘텐츠가 있는 동안 5초 간격으로 display topology, player 오류,
   다중 session drift를 함께 조정한다. Pause 중에도 topology 확인은 유지한다.
@@ -516,8 +554,8 @@
 - Space 변경의 초기 두 확인에서는 창의 all-Spaces 소속만 다시 확인하고, 최종 안정화
   확인에서만 재생 상태를 보존해 wallpaper 창과 `AVPlayerLayer`를 한 번 재생성한다.
 - 일반 push/PR에서는 unit test를 실행·검증만 하고 Codecov에 업로드하지 않는다. 버전과
-  일치하는 `vX.Y.Z` 태그에서만 별도 `release-coverage` job을 실행해 `LuminaNative`
-  scheme의 `LuminaCoreTests`와 `LuminaNativeLockTests` 전체를 macOS 15·26의 ARM64·Intel
+  일치하는 `vX.Y.Z` 태그에서만 별도 `release-coverage` job을 실행해 `HikariNative`
+  scheme의 `HikariCoreTests`와 `HikariNativeLockTests` 전체를 macOS 15·26의 ARM64·Intel
   runner에서 실행하고, 각 결과를 `macos-15-arm64`·`macos-15-intel`·`macos-26-arm64`·
   `macos-26-intel` Codecov flag로 업로드한다. OS와 architecture 결과를 Codecov에서
   분리해 비교할 수 있고, 프로젝트 전체 coverage에도 반영된다.
@@ -558,8 +596,8 @@
 - Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
   Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
 - 디스플레이 복구 정책과 모든 session의 playback position 복원 단위 테스트를 추가하고,
-  전체 Xcode 환경의 `LuminaNative` 72개 XCTest를 실패 없이 실행했다. 이 구성은
-  `LuminaCoreTests` 35개와 `LuminaNativeLockTests` 37개를 포함한다.
+  전체 Xcode 환경의 `HikariNative` 72개 XCTest를 실패 없이 실행했다. 이 구성은
+  `HikariCoreTests` 35개와 `HikariNativeLockTests` 37개를 포함한다.
 - Native Local build script의 `zsh -n`, plist lint, Swift build 및 workflow YAML
   구문 검사를 통과했다. 실제 `/Applications` 설치와 privileged Native Apply는
   system-write guardrail에 따라 실행하지 않았다.
@@ -582,7 +620,7 @@
 ### 이슈와 영향
 
 - v0.3.0의 ZIP digest 자체는 정확했지만 `.sha256` 안의 대상 이름이
-  `dist/Lumina-macOS-portable.zip`이었다. 두 release asset을 같은 폴더에 받은 뒤
+  `dist/Hikari-macOS-portable.zip`이었다. 두 release asset을 같은 폴더에 받은 뒤
   README의 `shasum -a 256 -c` 명령을 실행하면 파일을 찾지 못해 실패했다.
 
 ### 원인 및 조치
@@ -603,7 +641,7 @@
 
 ### 이슈와 사용자 영향
 
-- 일반 Lumina의 화면 보호기 방식은 시스템 잠금 단축키 직후 native Lock Screen에서
+- pre-Hikari app의 화면 보호기 방식은 시스템 잠금 단축키 직후 native Lock Screen에서
   임의 영상을 직접 재생할 수 없다.
 - 기존 Native Local 타깃은 별도 bundle/storage/CI와 안전 상태 UI만 제공했고 실제
   적용·복원 경로가 없었다.
@@ -643,7 +681,7 @@
   `idleassetsd` DB 인덱싱 완료 뒤 에이전트를 재시작해 1/5/10/20/30/40초 시점에
   12개 display/Space/Desktop/Idle choice가 동일 asset ID를 유지하는 것을 확인했다.
   복원 뒤에는 12개 choice가 적용 전 asset ID로 돌아가고,
-  Lumina system asset/category, root-owned 영상·미리보기, user active marker가 제거되며
+  Hikari system asset/category, root-owned 영상·미리보기, user active marker가 제거되며
   user journal이 `restored`로 끝나는 것도 확인했다.
 - 전체 XCTest와 Xcode Debug/Release 번들 검사는 PR의 standard/native macOS 15 CI
   결과로 최종 확인한다.
@@ -661,11 +699,11 @@
 ### 이슈
 
 - 메뉴 막대에서 설정을 연 뒤 다른 앱 창이나 바탕화면을 클릭해도 설정 창이 계속 남아 있었다.
-- 여러 디스플레이에서 사용한 뒤 잠자기에서 복귀하면, 화면 구성은 그대로인데 Lumina 배경이 검은 화면으로 남을 수 있었다.
+- 여러 디스플레이에서 사용한 뒤 잠자기에서 복귀하면, 화면 구성은 그대로인데 Hikari 배경이 검은 화면으로 남을 수 있었다.
 
 ### 원인 및 조치
 
-- 설정 창은 닫기 버튼만 숨기도록 처리돼 있었고, Lumina가 비활성화될 때 숨기는 처리가 없었다. 앱 비활성화 시 설정 창만 숨기며, 파일 선택 시트 등 Lumina 소유 창은 정상적으로 유지한다.
+- 설정 창은 닫기 버튼만 숨기도록 처리돼 있었고, Hikari가 비활성화될 때 숨기는 처리가 없었다. 앱 비활성화 시 설정 창만 숨기며, 파일 선택 시트 등 Hikari 소유 창은 정상적으로 유지한다.
 - v0.1.15의 다중 디스플레이 토폴로지 최적화가 화면 구성에 변화가 없으면 기존 창과 `AVPlayerLayer`를 재사용했다. wake 뒤 WindowServer가 해당 레이어 표면을 잃으면 이 경로로는 복구되지 않는다. 화면 복구 알림마다 모든 배경 세션을 재생 상태, 음소거, 현재 콘텐츠를 보존한 채 다시 만든다.
 
 ### 검증
@@ -678,13 +716,13 @@
 
 ### 이슈
 
-- v0.2.9가 설치되고 권한도 모두 허용됐지만, 내장 키보드의 `Control` + `Command` + `Q`가 여전히 Lumina에 도달하지 않았다.
+- v0.2.9가 설치되고 권한도 모두 허용됐지만, 내장 키보드의 `Control` + `Command` + `Q`가 여전히 Hikari에 도달하지 않았다.
 
 ### 원인 및 조치
 
 - 세션 단계 event tap은 macOS 표준 잠금 단축키가 시스템에 소비된 뒤에 실행될 수 있다.
 - HID 단계 event tap을 우선 사용하고, 지원되지 않는 환경에서는 기존 세션 탭으로 폴백한다.
-- event tap 생성 실패·활성화·실제 단축키 수신을 `com.hodadako.Lumina/LockShortcut` unified log에 기록한다.
+- event tap 생성 실패·활성화·실제 단축키 수신을 `com.hodadako.Hikari/LockShortcut` unified log에 기록한다.
 
 ### 검증 계획
 
@@ -695,20 +733,20 @@
 
 - 초기에는 현재 프로세스의 Accessibility만 허용되고 Input Monitoring은 미허용이었다.
   이 경우 기본 macOS 잠금이 실행된다.
-- 권한을 재부여하고 Lumina를 재실행한 뒤 두 런타임 권한 API가 모두 허용 상태이며,
+- 권한을 재부여하고 Hikari를 재실행한 뒤 두 런타임 권한 API가 모두 허용 상태이며,
   전역 event tap 생성 로그가 남는 것을 확인했다.
 
 ## v0.2.9 — 2026-08-11
 
 ### 이슈
 
-- v0.2.8에서 Accessibility와 Input Monitoring이 모두 시스템 설정에서 허용된 상태인데도 내장 키보드의 Lumina 잠금 단축키가 동작하지 않았다.
+- v0.2.8에서 Accessibility와 Input Monitoring이 모두 시스템 설정에서 허용된 상태인데도 내장 키보드의 Hikari 잠금 단축키가 동작하지 않았다.
 
 ### 원인 및 조치
 
 - v0.2.8은 `CGPreflightListenEventAccess()`가 false이면 `CGEvent.tapCreate`를 시도하지 않았다. 이 사전 판정은 TCC 설정 화면의 현재 상태보다 늦게 갱신될 수 있다.
 - v0.2.9는 Accessibility만 확인한 뒤 CoreGraphics의 실제 event tap 생성 결과를 사용한다. Input Monitoring 권한 요청과 안내는 유지한다.
-- 화면 보호기 설치 갱신 뒤 Lumina가 선택된 상태라면, 이전 `legacyScreenSaver` 호스트를 종료해 다음 실행이 새 `.saver`를 사용하도록 한다.
+- 화면 보호기 설치 갱신 뒤 Hikari가 선택된 상태라면, 이전 `legacyScreenSaver` 호스트를 종료해 다음 실행이 새 `.saver`를 사용하도록 한다.
 
 ### 검증 계획
 
@@ -719,7 +757,7 @@
 
 ### 이슈
 
-- `Control` + `Command` + `Q` 루미나 잠금 단축키가 일부 macOS 15 환경에서 동작하지 않았다.
+- `Control` + `Command` + `Q` Hikari 잠금 단축키가 일부 macOS 15 환경에서 동작하지 않았다.
 
 ### 조치 및 검증
 
@@ -729,7 +767,7 @@
 
 ### 남은 확인 사항
 
-- 업데이트 뒤 설정에서 단축키를 껐다가 다시 켜고, Lumina에 두 권한을 모두 부여한 뒤 재실행하여 실제 단축키를 확인한다.
+- 업데이트 뒤 설정에서 단축키를 껐다가 다시 켜고, Hikari에 두 권한을 모두 부여한 뒤 재실행하여 실제 단축키를 확인한다.
 - Karabiner 등 다른 전역 단축키 도구가 같은 조합을 가로채는지 확인한다. 실제 확인에서 Q 조합을 가로채는 규칙은 없었지만, 외장 키보드의 Command/Option 교환 때문에 물리 키 조합이 달라질 수 있었다.
 
 ## v0.2.7 — 2026-08-11
@@ -751,7 +789,7 @@
 
 ### 이슈
 
-- v0.2.5에서 화면 보호기 컨테이너의 비디오를 강제로 앱 루트에서 열고 즉시 재생하도록 바꾼 뒤, 루미나 잠금 화면 재생이 회귀했다.
+- v0.2.5에서 화면 보호기 컨테이너의 비디오를 강제로 앱 루트에서 열고 즉시 재생하도록 바꾼 뒤, Hikari 잠금 화면 재생이 회귀했다.
 
 ### 조치
 

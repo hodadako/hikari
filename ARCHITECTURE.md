@@ -1,16 +1,15 @@
 # Architecture
 
-Hikari is the only shipped app. The old Lumina screen-saver and event-tap
-implementation is preserved under `Archive/LuminaLegacy` and is not part of
+Hikari is the only shipped app. The pre-Hikari screen-saver and event-tap
+implementation is preserved under `Archive/HikariLegacy` and is not part of
 the Hikari Xcode target.
 
 ## Hikari app
 
-The `Hikari` scheme builds the menu bar application, `LuminaCore`,
-`LuminaNativeLock`, and the one-shot Native Lock tool. The app runs on macOS
-15 or later and uses the existing Hikari bundle identity
-`com.hodadako.Lumina.NativeLocal` so installed Hikari builds can update in
-place.
+The `Hikari` scheme builds the menu bar application, `HikariCore`,
+`HikariNativeLock`, and the one-shot Native Lock tool. The app runs on macOS
+15 or later and uses the Hikari bundle identity
+`com.hodadako.Hikari.NativeLocal`.
 
 Hikari owns desktop wallpaper windows only. `WallpaperController` creates one
 borderless player per display and keeps those players synchronized across
@@ -19,14 +18,15 @@ or intercepts the system lock shortcut.
 
 ## Shared core
 
-`LuminaCore` contains the video importer, content/settings stores, playback
+`HikariCore` contains the video importer, content/settings stores, playback
 policy, display topology, renderer, and custom icon handling. Internal type
-names remain compatible with existing SwiftPM clients and stored data.
+names use Hikari consistently; the stored JSON schema remains backward
+readable.
 
 The canonical user container is:
 
 ```text
-~/Library/Application Support/Lumina/
+~/Library/Application Support/Hikari/
 ├── Media/
 ├── Thumbnails/
 ├── contents.json
@@ -37,37 +37,32 @@ The canonical user container is:
 
 ## First-launch storage migration
 
-`NativeStorageMigration` runs before Hikari loads its stores. It merges the
-former:
-
-```text
-~/Library/Application Support/LuminaNative/
-```
-
-into the canonical root. Existing canonical content IDs and files win
-conflicts; missing legacy records and referenced media/thumbnails are copied.
-Conflicting files are copied under `MigratedLuminaNative/` and the merged
-metadata points to that copy. Settings and custom icons are copied only when
-the canonical file is absent.
+`NativeStorageMigration` runs before Hikari loads its stores. It discovers
+the pre-Hikari general and Native Local support roots through a runtime-only
+compatibility table and merges every existing source into the canonical root
+in priority order. Existing canonical content IDs and files win conflicts; missing records
+and referenced media/thumbnails are copied. Conflicting files are copied under
+`MigratedPredecessor/` and the merged metadata points to that copy. Settings
+and custom icons are copied only when the canonical file is absent.
 
 Native Lock transaction directories and the active marker are copied before
-the old root is moved to a recoverable `LuminaNative.archived` path. The
+the source root is moved to a recoverable `.archived` sibling. The
 migration is idempotent and writes `hikari-storage-migration.json`. An active,
 prepared, restoring, or recovery-required journal continues to be visible to
 Hikari, so the app can offer Restore and blocks app updates until the journal
 is `restored`.
 
-If migration fails, the old directory is not removed or overwritten. Hikari
+If migration fails, the source directory is not removed or overwritten. Hikari
 keeps updates blocked and shows the migration error so the user can recover
 the original data first.
 
 ## Native Lock transaction
 
-`LuminaNativeLock` owns the user-side transaction journal and both supported
+`HikariNativeLock` owns the user-side transaction journal and both supported
 backends:
 
 - macOS 15 uses a root-owned idleassets catalog through the embedded one-shot
-  `LuminaNativeTool`, after explicit administrator authorization.
+  `HikariNativeTool`, after explicit administrator authorization.
 - macOS 26 uses the current user's Aerial manifest and media store without a
   root catalog write.
 

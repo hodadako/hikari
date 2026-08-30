@@ -8,30 +8,30 @@ let package = Package(
     // Hikari application target is macOS 15+ in project.yml.
     platforms: [.macOS(.v13)],
     products: [
-        .library(name: "LuminaCore", targets: ["LuminaCore"]),
-        .library(name: "LuminaNativeLock", targets: ["LuminaNativeLock"]),
-        .executable(name: "hikari-native-tool", targets: ["LuminaNativeTool"])
+        .library(name: "HikariCore", targets: ["HikariCore"]),
+        .library(name: "HikariNativeLock", targets: ["HikariNativeLock"]),
+        .executable(name: "hikari-native-tool", targets: ["HikariNativeTool"])
     ],
     targets: [
         .target(
-            name: "LuminaCore",
+            name: "HikariCore",
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("AppKit")
             ]
         ),
-        .target(name: "LuminaNativeLock"),
+        .target(name: "HikariNativeLock"),
         .executableTarget(
-            name: "LuminaNativeTool",
-            dependencies: ["LuminaNativeLock"]
+            name: "HikariNativeTool",
+            dependencies: ["HikariNativeLock"]
         ),
         .testTarget(
-            name: "LuminaCoreTests",
-            dependencies: ["LuminaCore"]
+            name: "HikariCoreTests",
+            dependencies: ["HikariCore"]
         ),
         .testTarget(
-            name: "LuminaNativeLockTests",
-            dependencies: ["LuminaNativeLock"]
+            name: "HikariNativeLockTests",
+            dependencies: ["HikariNativeLock"]
         )
     ]
 )
