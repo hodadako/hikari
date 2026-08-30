@@ -1,0 +1,67 @@
+name: Pull request automation
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: pr-automation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label-and-assign:
+    name: Label and assign PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      # This workflow never checks out or executes pull request code.
+      - name: Apply labels from changed paths
+        uses: actions/labeler@v6
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply labels from title and assign owner
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const title = context.payload.pull_request.title.trim().toLowerCase();
+            const labels = [];
+
+            if (/^(feat|feature|perf)(\([^)]*\))?!?:/.test(title)) {
+              labels.push('enhancement');
+            }
+            if (/^(fix|bug)(\([^)]*\))?!?:/.test(title)) {
+              labels.push('bug');
+            }
+            if (/^(doc|docs|documentation)(\([^)]*\))?!?:/.test(title)) {
+              labels.push('documentation');
+            }
+            if (/^(ci|github[-_ ]actions|workflow)(\([^)]*\))?!?:/.test(title)) {
+              labels.push('github_actions');
+            }
+            if (/^(build|chore)\(deps[^)]*\)!?:/.test(title) || /^(dep|deps)!?:/.test(title)) {
+              labels.push('dependencies');
+            }
+
+            const uniqueLabels = [...new Set(labels)];
+            if (uniqueLabels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: uniqueLabels,
+              });
+            }
+
+            await github.rest.issues.addAssignees({
+              owner,
+              repo,
+              issue_number,
+              assignees: ['hodadako'],
+            });
