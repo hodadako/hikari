@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import HikariCore
 import SwiftUI
 
@@ -162,11 +163,12 @@ struct MenuBarView: View {
 
 struct ThumbnailView: View {
     let url: URL?
+    @State private var image: NSImage?
 
     var body: some View {
         ZStack {
             Color.black
-            if let url, let image = NSImage(contentsOf: url) {
+            if let image {
                 Image(nsImage: image)
                     .resizable()
                     // Library thumbnails must show the whole video frame.
@@ -188,5 +190,51 @@ struct ThumbnailView: View {
         .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .accessibilityLabel("Current video thumbnail")
+        .task(id: url) {
+            image = nil
+            guard let url else { return }
+
+            // `NSImage(contentsOf:)` eagerly decodes every stored thumbnail
+            // while SwiftUI constructs the initial library. Yielding first
+            // lets the settings window draw, then ImageIO decodes only the
+            // pixels this 72 x 44 pt view can display.
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            image = ThumbnailImageCache.image(for: url)
+        }
+    }
+}
+
+@MainActor
+private enum ThumbnailImageCache {
+    private static let images = NSCache<NSURL, NSImage>()
+    // The visible library thumbnail is 72 x 44 pt. Retain 2x source pixels
+    // for Retina rendering without decoding the 1280 x 720 preview files.
+    private static let maximumPixelSize = 160
+
+    static func image(for url: URL) -> NSImage? {
+        let key = url as NSURL
+        if let cached = images.object(forKey: key) {
+            return cached
+        }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
+            source,
+            0,
+            options as CFDictionary
+        ) else {
+            return nil
+        }
+        let image = NSImage(cgImage: cgImage, size: .zero)
+        images.setObject(image, forKey: key)
+        return image
     }
 }

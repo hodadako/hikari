@@ -47,6 +47,7 @@ final class AppModel: ObservableObject {
     private var updateTask: Task<Void, Never>?
     private var normalizedMenuBarIconCache: [String: NSImage] = [:]
     private var normalizedMenuBarHeartbeatCache: NSImage?
+    private var hasStartedInitialPlayback = false
     init() {
         do {
             let canonicalURL = try SharedContainer.applicationSupportRootURL(
@@ -143,7 +144,6 @@ final class AppModel: ObservableObject {
         try? settingsStore.save(settings)
         applyApplicationIcon()
         wallpaperController.setScalingMode(settings.scalingMode)
-        reconcilePlayback()
         terminationToken = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -160,6 +160,17 @@ final class AppModel: ObservableObject {
         } else if variant.supportsAutomaticUpdates {
             checkForUpdates()
         }
+    }
+
+    /// Lets the settings window reach its first AppKit drawing pass before
+    /// opening the selected movie and creating desktop-level wallpaper
+    /// windows.  Loading a local 4K movie can synchronously allocate an
+    /// AVPlayer item and WindowServer surfaces, neither of which is required
+    /// to render Hikari's initial settings screen.
+    func startInitialPlayback() {
+        guard !hasStartedInitialPlayback else { return }
+        hasStartedInitialPlayback = true
+        reconcilePlayback()
     }
 
     var selectedContent: LiveContent? {

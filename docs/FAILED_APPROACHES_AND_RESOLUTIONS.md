@@ -58,6 +58,37 @@ About 링크, release·security·clone 문서도 canonical GitHub URL을 사용�
 저장 경로, 내부 module처럼 기존 설치·데이터 호환성을 위해 유지하는 `Hikari` 식별자는
 변경하지 않는다.
 
+## 다른 저장소 경로를 참조하는 SwiftPM module cache로 테스트 실행
+
+### 관찰
+
+2026-09-01 `hikari` 경로에서 `swift test --parallel`을 처음 실행했을 때
+`.build` 안의 `SwiftShims` precompiled module이 이전
+`/Users/hodako/personal/lumina` 경로에서 만들어졌다는 오류로 컴파일이 중단됐다.
+제품 소스 컴파일 오류나 테스트 실패가 아니었다.
+
+### 해결
+
+`swift package clean`으로 재생성 가능한 SwiftPM build/module cache만 정리한 뒤
+같은 명령을 다시 실행한다. 이 작업은 Native Lock transaction, 사용자 라이브러리,
+wallpaper store를 건드리지 않는다. 이후 72개 테스트가 통과했다.
+
+## 미추적 workflow 파일이 있는 작업 트리에서 PR 기준 브랜치 전환
+
+### 관찰
+
+2026-09-01 초기 화면 개선 변경을 최신 `main` 기준 PR로 분리하기 위해 staged
+변경을 stash한 후 `git switch -c ... origin/main`을 실행했다. 기존 작업 트리의
+미추적 `.github/labeler.yml`, `.github/release.yml`,
+`.github/workflows/pr-automation.yml`이 `main`의 추적 파일을 덮어쓸 수 있어 Git이
+전환을 거절했다.
+
+### 해결
+
+미추적 파일을 이동·삭제하지 않는다. 별도 Git worktree를 최신 `main`에서 만들고
+stash한 변경을 그 worktree에만 적용해 PR을 생성한다. 원래 작업 트리의 사용자
+파일과 브랜치는 그대로 보존한다.
+
 ## macOS 15 ARM CodeQL runner에서 Rosetta Homebrew 실행
 
 ### 관찰
