@@ -10,6 +10,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             SettingsWindowPresenter.shared.showOnLaunch(model: self.model)
+            // Queue playback separately so AppKit can present the settings
+            // window before AVFoundation and WindowServer begin creating the
+            // desktop wallpaper surfaces.
+            DispatchQueue.main.async { [weak self] in
+                self?.model.startInitialPlayback()
+            }
         }
     }
 
