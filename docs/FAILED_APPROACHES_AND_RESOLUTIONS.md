@@ -57,6 +57,38 @@ Codecov upload slug와 README badge를 `hodadako/hikari`로 맞춘다. 앱 업�
 About 링크, release·security·clone 문서도 canonical GitHub URL을 사용한다. bundle ID,
 저장 경로, 내부 module처럼 기존 설치·데이터 호환성을 위해 유지하는 `Hikari` 식별자는
 변경하지 않는다.
+## 활성 Hikari agent 앱을 Spotlight 이름으로 재실행
+
+### 관찰
+
+2026-09-01 활성 Native Lock transaction의 stale `WallpaperVideoExtension`을
+안전한 앱 시작 refresh로 교체하려고, Hikari를 종료한 뒤 `open -a Hikari`를 실행했다.
+LaunchServices가 `_LSOpenURLsWithCompletionHandler ... error -600`을 반환해 앱이 다시
+시작되지 않았다. transaction journal과 wallpaper mapping은 변경되지 않았지만, 활성
+transaction을 유지보수하는 앱이 불필요하게 중단된 상태가 됐다.
+
+### 해결
+
+agent 앱 재실행에는 Spotlight 등록 이름에 의존하지 말고 번들의 확인된 절대 경로를
+사용한다: `open /Applications/Hikari.app`. 이 경로로 재실행한 뒤 Hikari PID와
+`WallpaperAgent` 및 `WallpaperAerialsExtension` PID가 모두 새로 생긴 것을 확인한다.
+Native Lock transaction ID가 그대로인지도 읽기 전용으로 확인한다.
+
+## 실행 뒤 Hikari bundle에 strict code-signature 검증을 다시 수행
+
+### 관찰
+
+2026-09-01 `scripts/build-hikari.sh`의 pre-install ad-hoc signature verification은
+통과했다. 그러나 Hikari를 처음 실행한 뒤 동일한 `/Applications/Hikari.app`에
+`codesign --verify --deep --strict`를 실행하면 `com.apple.FinderInfo`와 Finder의
+`Icon\r` resource fork 때문에 검증이 실패했다. 앱이 runtime custom/default Finder icon을
+갱신하는 동작이 bundle metadata를 만들기 때문이다.
+
+### 해결
+
+배포 bundle의 strict signature는 Hikari를 열기 전에 검증한다. 실행 뒤 Finder icon
+metadata를 기계적으로 지우면 사용자가 고른 icon override를 잃을 수 있으므로, Native Lock
+복구나 lock-screen renderer 진단 과정에서 그 xattr을 제거하지 않는다.
 
 ## macOS 15 ARM CodeQL runner에서 Rosetta Homebrew 실행
 

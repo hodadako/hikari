@@ -41,6 +41,7 @@ final class AppModel: ObservableObject {
     private var nativeRendererRefreshTask: Task<Void, Never>?
     private var nativeLockMaintenanceInProgress = false
     private var nativeRendererRefreshRequested = false
+    private var nativeRendererRefreshPendingFromUnlockNotification = false
     private var didPresentNativeMaintenanceError = false
     private var wasScreenLocked = false
     private var terminationToken: NSObjectProtocol?
@@ -92,10 +93,28 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             let didUnlock = self.wasScreenLocked && !self.stateMonitor.isScreenLocked
             self.wasScreenLocked = self.stateMonitor.isScreenLocked
+            if self.stateMonitor.isScreenLocked {
+                self.nativeRendererRefreshPendingFromUnlockNotification = false
+            }
             if didUnlock {
-                self.requestNativeRendererRefreshAfterUnlock()
+                // Fallback for systems where the distributed unlock
+                // notification is unavailable. The normal path below starts
+                // the timer directly from that notification instead of this
+                // debounced state callback.
+                if !self.nativeRendererRefreshPendingFromUnlockNotification {
+                    self.requestNativeRendererRefreshAfterUnlock()
+                }
+                self.nativeRendererRefreshPendingFromUnlockNotification = false
             }
             self.reconcilePlayback()
+        }
+        stateMonitor.onScreenUnlocked = { [weak self] in
+            // Do not wait for the state callback: it is intentionally
+            // debounced and can lose an intermediate locked state during
+            // quick successive lock cycles. The refresh itself still waits
+            // two seconds and never runs while the screen is locked.
+            self?.nativeRendererRefreshPendingFromUnlockNotification = true
+            self?.requestNativeRendererRefreshAfterUnlock()
         }
         stateMonitor.onDisplaysChanged = { [weak self] in
             guard let self, self.hasPlayableContent else { return }
