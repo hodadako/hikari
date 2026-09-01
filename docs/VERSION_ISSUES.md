@@ -525,6 +525,9 @@
 - 실제 macOS 15.7.9에서 Native mapping과 system asset은 정상인데도 unlock ramp-down 중
   `WallpaperVideoCore.VideoSampleReadingErrors` Code 4가 발생했다. 고착된
   `WallpaperVideoExtension`은 다음 잠금에서 frame을 enqueue하지 않아 검은 화면을 보였다.
+- 잠금/해제 상태를 120ms debounce한 뒤에만 관찰하면 빠른 반복 잠금에서 중간의 locked
+  state가 병합될 수 있다. 이 경우 unlock 뒤의 one-shot renderer refresh가 예약되지 않아
+  고착된 extension이 다음 잠금까지 남을 수 있었다.
 - macOS 26.6.1에서는 manifest schema version 1과 user index의 기본 구조가 읽혔지만,
   실제 local Apply 뒤 macOS가 새 wallpaper mapping을 유지하지 않아 Native Lock을
   활성 상태로 전환할 수 없었다.
@@ -568,6 +571,9 @@
 - active transaction이 있으면 앱 시작과 unlock 직후 `WallpaperAgent`를 한 번 재시작해
   다음 잠금 전에 system video renderer를 새로 구성한다. 주기 검사는 관리자 승인,
   privileged helper 또는 system manifest/media write를 실행하지 않는다.
+- renderer refresh 예약은 debounced playback-state callback이 아니라 실제 distributed
+  unlock notification에서 시작한다. playback policy의 debounce는 유지하고, refresh는
+  기존처럼 unlock 뒤 2초 동안 기다린 뒤에만 실행하며 잠금 중에는 실행하지 않는다.
 - 메뉴 막대 팝오버가 표시된 동안 외부 마우스 클릭을 감시해 닫되, 별도 설정 창을
   숨기던 app-deactivation 처리는 제거한다. 큰 설정 창은 빨간 닫기 버튼으로만 숨긴다.
 - Native Lock의 미완료 transaction에는 설정 화면에서 macOS major 업데이트 전 Restore를
@@ -593,6 +599,8 @@
 - 기존 v0.3.1 active journal에 새 optional 필드가 없는 상태로 새 앱을 실행해 record를
   읽고 `WallpaperAgent`/`WallpaperVideoExtension` PID가 교체되며 refresh 로그가 남는
   것을 확인했다.
+- 실제 unlock notification이 먼저 renderer refresh를 예약하고, debounced state callback은
+  notification이 없는 환경의 fallback으로만 같은 경로를 예약하는지 코드 검사를 수행한다.
 - Space 복구 스케줄은 초기 확인 두 번과 최종 표면 재생성 한 번으로 분리된다. 실제
   Mission Control·새 데스크탑 반복 전환에서의 표시 복구는 수동 확인이 필요하다.
 - 디스플레이 복구 정책과 모든 session의 playback position 복원 단위 테스트를 추가하고,

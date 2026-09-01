@@ -9,6 +9,11 @@ import HikariCore
 @MainActor
 final class SystemStateMonitor {
     var onStateChanged: (() -> Void)?
+    /// Fires from the actual distributed unlock notification, before the
+    /// debounced state callback. Consumers that must reset a process after an
+    /// unlock cannot depend only on the latter: a fast lock/unlock transition
+    /// can coalesce the intermediate locked state out of that callback.
+    var onScreenUnlocked: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
     var onDisplaysSettled: (() -> Void)?
     var onActiveSpaceChanged: (() -> Void)?
@@ -119,6 +124,11 @@ final class SystemStateMonitor {
             // to publish the stop signal.  Do not leave the wallpaper paused
             // behind a stale screen-saver reason after a successful unlock.
             isScreenSaverRunning = false
+            // Schedule lock-video renderer recovery from the authoritative
+            // unlock signal. `scheduleStateChanged()` below remains necessary
+            // for playback policy, but its debouncing must not be allowed to
+            // erase this one-shot recovery request.
+            onScreenUnlocked?()
             scheduleStateChanged()
             // WindowServer tears down the lock-screen surfaces asynchronously.
             // Re-evaluate playback after that transition, but do not treat an
