@@ -2,6 +2,23 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 제품명 migration을 저장소 전체 문자열 금지로 검증
+
+### 관찰
+
+2026-08-31 CI의 `Reject retired product naming` 단계가 tracked content와 path 전체에서
+`Lumina` 문자열을 금지했다. PR #49는 일반 앱 코드를 변경하지 않았지만, 과거 SwiftPM
+module-cache 실패 기록의 `/Users/hodako/personal/lumina` 경로 때문에 metadata job이
+즉시 실패했다.
+
+### 원인과 해결
+
+Hikari migration은 legacy archive, canonical `Lumina` storage path, bundle ID와 과거
+진단 기록의 호환성 식별자를 의도적으로 보존한다. 따라서 일반 문자열/경로 전수 검사는
+제품 표기 회귀와 호환성 데이터를 구별할 수 없다. 해당 CI 단계를 제거하고, Hikari
+bundle name·display name·executable·release asset·tag/version처럼 실제 배포 표면을
+검사하는 기존 gates를 유지한다.
+
 ## GitHub 자동 생성 CodeQL workflow를 Actions API로 비활성화
 
 ### 시도와 결과
