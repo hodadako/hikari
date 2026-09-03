@@ -2,9 +2,15 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
-[![CI](https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg)](https://github.com/hodadako/hikari/actions/workflows/ci.yml) [![CodeQL](https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg)](https://github.com/hodadako/hikari/actions/workflows/codeql.yml) [![Codecov](https://codecov.io/gh/hodadako/hikari/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/hikari)<br>
-[![Latest release](https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&sort=semver&label=latest%20release)](https://github.com/hodadako/hikari/releases/latest) [![License: MIT](https://img.shields.io/github/license/hodadako/hikari?label=license)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&label=last%20commit)](https://github.com/hodadako/hikari/commits/main/)<br>
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hodadako/hikari)
+<p align="center">
+  <a href="https://github.com/hodadako/hikari/actions/workflows/ci.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/hodadako/hikari/actions/workflows/codeql.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
+  <a href="https://codecov.io/gh/hodadako/hikari"><img src="https://codecov.io/gh/hodadako/hikari/branch/main/graph/badge.svg" alt="Codecov"></a><br>
+  <a href="https://github.com/hodadako/hikari/releases/latest"><img src="https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&amp;sort=semver&amp;label=latest%20release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/hodadako/hikari?label=license" alt="License: MIT"></a>
+  <a href="https://github.com/hodadako/hikari/commits/main/"><img src="https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&amp;label=last%20commit" alt="Last commit"></a><br>
+  <a href="https://deepwiki.com/hodadako/hikari"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+</p>
 
 **Bring your desktop to life.**
 
