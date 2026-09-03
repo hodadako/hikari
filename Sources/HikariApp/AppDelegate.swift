@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -6,6 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarStatusItemController: MenuBarStatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hikari is normally active while a newly imported video is being
+        // prepared. Opt in to foreground presentation so completion still
+        // produces the banner the user requested.
+        UNUserNotificationCenter.current().delegate = self
         menuBarStatusItemController = MenuBarStatusItemController(model: model)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -41,5 +46,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) -> NSApplication.TerminateReply {
         SettingsWindowPresenter.shared.prepareForTermination()
         return .terminateNow
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (
+            UNNotificationPresentationOptions
+        ) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }

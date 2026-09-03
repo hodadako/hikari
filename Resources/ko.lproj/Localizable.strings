@@ -197,3 +197,5 @@
 "Apply Selected Video" = "선택한 영상 적용";
 "Restore Previous Wallpaper" = "이전 배경화면 복원";
 "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update." = "새 macOS 주 버전을 설치하기 전에 이 화면에서 Hikari를 복원하세요. 미완료 잠금 화면 변경은 업데이트 뒤 복원하지 못할 수 있습니다.";
+"Lock Screen Video Ready" = "잠금 화면 영상 준비 완료";
+"%@ is ready to apply to the Lock Screen." = "%@의 잠금 화면용 영상 준비가 완료되었습니다.";

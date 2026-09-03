@@ -5,6 +5,7 @@ import Darwin
 import HikariCore
 import HikariNativeLock
 import ServiceManagement
+import UserNotifications
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -39,6 +40,7 @@ final class AppModel: ObservableObject {
     private var nativeLockMaintenanceTask: Task<Void, Never>?
     private var nativeLockAutoApplyTask: Task<Void, Never>?
     private var nativeRendererRefreshTask: Task<Void, Never>?
+    private var nativeLockPreparationTasks: [UUID: Task<Void, Never>] = [:]
     private var nativeLockMaintenanceInProgress = false
     private var nativeRendererRefreshRequested = false
     private var nativeRendererRefreshPendingFromUnlockNotification = false
@@ -275,6 +277,13 @@ final class AppModel: ObservableObject {
 
     func applySelectedVideoToNativeLock() {
         guard !isNativeLockWorking, let content = selectedContent else { return }
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+           (nativeLockRecord?.journal.phase != .active
+               || nativeLockRecord?.request.sourceContentID != content.id),
+           !nativeLockController.hasPreparedMediaForNativeLock(content: content) {
+            prepareNativeLockMediaIfNeeded(for: content)
+            return
+        }
         isNativeLockWorking = true
         Task { [weak self] in
             guard let self else { return }
@@ -407,6 +416,7 @@ final class AppModel: ObservableObject {
             settings.playbackPreference = .playing
             try persistSettings()
             reconcilePlayback()
+            prepareNativeLockMediaIfNeeded(for: content)
             scheduleNativeLockAutoApply()
         } catch {
             if error as? HikariError == .duplicateContent {
@@ -424,6 +434,7 @@ final class AppModel: ObservableObject {
         settings.selectedContentID = content.id
         settings.playbackPreference = .playing
         saveAndReconcile()
+        prepareNativeLockMediaIfNeeded(for: content)
         scheduleNativeLockAutoApply()
     }
 
@@ -667,6 +678,8 @@ final class AppModel: ObservableObject {
         nativeLockAutoApplyTask = nil
         nativeRendererRefreshTask?.cancel()
         nativeRendererRefreshTask = nil
+        nativeLockPreparationTasks.values.forEach { $0.cancel() }
+        nativeLockPreparationTasks.removeAll()
         wallpaperController.closeWindows()
     }
 
@@ -706,10 +719,17 @@ final class AppModel: ObservableObject {
     private func scheduleNativeLockAutoApply() {
         guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
               nativeLockRecord?.journal.phase != .recoveryRequired,
-              selectedContent != nil,
-              nativeLockAutoApplyTask == nil else {
+              let content = selectedContent else {
             return
         }
+        let isCurrentSelectionAlreadyApplied = nativeLockRecord?.journal.phase == .active
+            && nativeLockRecord?.request.sourceContentID == content.id
+        guard !isCurrentSelectionAlreadyApplied else { return }
+        guard nativeLockController.hasPreparedMediaForNativeLock(content: content) else {
+            prepareNativeLockMediaIfNeeded(for: content)
+            return
+        }
+        guard nativeLockAutoApplyTask == nil else { return }
         nativeLockAutoApplyTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
@@ -722,6 +742,80 @@ final class AppModel: ObservableObject {
             }
             self.applySelectedVideoToNativeLock()
         }
+    }
+
+    /// Prepares the macOS 26-only Aerial derivative outside the selection
+    /// transaction. The desktop selection stays immediate; the Lock Screen
+    /// swap waits until this cache is atomically ready.
+    private func prepareNativeLockMediaIfNeeded(for content: LiveContent) {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+              !nativeLockController.hasPreparedMediaForNativeLock(content: content),
+              nativeLockPreparationTasks[content.id] == nil else {
+            return
+        }
+        let contentID = content.id
+        nativeLockPreparationTasks[contentID] = Task(priority: .userInitiated) {
+            [weak self] in
+            guard let self else { return }
+            do {
+                try await self.nativeLockController.prepareMediaForNativeLock(
+                    content: content
+                )
+                guard !Task.isCancelled else { return }
+                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
+                guard self.contents.contains(where: { $0.id == contentID }) else {
+                    return
+                }
+                await self.postNativeLockPreparationNotification(for: content)
+                if self.settings.selectedContentID == contentID {
+                    self.scheduleNativeLockAutoApply()
+                }
+            } catch is CancellationError {
+                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
+            } catch {
+                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
+                self.presentedError = error.localizedDescription
+            }
+        }
+    }
+
+    private func postNativeLockPreparationNotification(
+        for content: LiveContent
+    ) async {
+        let notificationCenter = UNUserNotificationCenter.current()
+        let settings = await notificationCenter.notificationSettings()
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            guard (try? await notificationCenter.requestAuthorization(
+                options: [.alert, .sound]
+            )) == true else {
+                return
+            }
+        case .authorized:
+            break
+        default:
+            return
+        }
+
+        let notification = UNMutableNotificationContent()
+        notification.title = NSLocalizedString(
+            "Lock Screen Video Ready",
+            comment: "Native Lock preparation completion notification title"
+        )
+        notification.body = String(
+            format: NSLocalizedString(
+                "%@ is ready to apply to the Lock Screen.",
+                comment: "Native Lock preparation completion notification body"
+            ),
+            content.title
+        )
+        notification.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "com.hodadako.Hikari.native-lock-ready.\(content.id.uuidString)",
+            content: notification,
+            trigger: nil
+        )
+        try? await notificationCenter.add(request)
     }
 
     private func startNativeLockMaintenance() {
