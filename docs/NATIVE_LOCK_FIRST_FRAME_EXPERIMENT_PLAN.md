@@ -22,8 +22,9 @@ Lock Screen 퇴장 surface와 renderer 재시작이 겹쳐 검은 프레임이 �
 
 가장 먼저 시도할 후보다.
 
-- Native Lock 준비 단계에서만 별도 MOV를 만든다. General 라이브러리의 원본과
-  데스크톱 wallpaper 재생에는 절대 사용하지 않는다.
+- General에서 영상을 처음 선택할 때 별도 MOV를 백그라운드 준비해 private cache에
+  원자적으로 게시한다. cache가 준비된 뒤에만 Native Lock transaction이 이를 재사용한다.
+  General 라이브러리의 원본과 데스크톱 wallpaper 재생에는 절대 사용하지 않는다.
 - 1080p H.264, 낮은 비트레이트, 앞쪽 `moov`, 시작부 keyframe을 갖는 profile을
   준비한다. 정확한 bit rate·frame rate·keyframe 간격은 측정 후 결정하며, 임의의
   기본값으로 고정하지 않는다.
