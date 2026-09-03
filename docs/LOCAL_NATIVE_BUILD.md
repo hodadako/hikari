@@ -168,8 +168,12 @@ xcodebuild \
 ## 5. Use Native Lock cautiously
 
 1. Launch Hikari and import a video in **General**.
-2. On macOS 26, changing the selected video in **General** automatically
-   replaces the Hikari Lock Screen Aerial transaction after a short debounce.
+2. On macOS 26, Hikari prepares a separate Lock Screen Aerial copy when a
+   video is first selected. Preparation uses the hardware HEVC path when
+   available and does not alter desktop playback. Hikari posts a notification
+   when that copy is ready, then automatically replaces the Lock Screen Aerial
+   transaction after a short debounce. Later selections of the same prepared
+   video skip the full-video encode.
    On macOS 15, use the conditional Native Lock controls in **General** only
    after reading the safety status.
 3. macOS 15 asks for administrator authorization for each Apply and Restore.
