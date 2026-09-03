@@ -40,6 +40,22 @@ public struct SharedContainer: Sendable {
         rootURL.appendingPathComponent("Thumbnails", isDirectory: true)
     }
 
+    /// Per-library, prepared Aerial inputs. These are deliberately separate
+    /// from the original media: desktop wallpaper always keeps using the
+    /// user's imported file at its original quality.
+    public var nativeLockPreparationDirectoryURL: URL {
+        rootURL.appendingPathComponent("NativeLockPreparation", isDirectory: true)
+    }
+
+    public func nativeLockPreparationDirectoryURL(
+        for content: LiveContent
+    ) -> URL {
+        nativeLockPreparationDirectoryURL.appendingPathComponent(
+            content.id.uuidString,
+            isDirectory: true
+        )
+    }
+
     public var settingsURL: URL {
         rootURL.appendingPathComponent("settings.json")
     }
@@ -71,6 +87,10 @@ public struct SharedContainer: Sendable {
         )
         try FileManager.default.createDirectory(
             at: thumbnailsDirectoryURL,
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: nativeLockPreparationDirectoryURL,
             withIntermediateDirectories: true
         )
         // Legacy DesktopPosters files, if present, are deliberately left in

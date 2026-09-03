@@ -58,12 +58,17 @@ public final class ContentStore {
         let fileManager = FileManager.default
         let mediaURL = container.mediaURL(for: content)
         let thumbnailURL = container.thumbnailURL(for: content)
+        let nativeLockPreparationURL = container
+            .nativeLockPreparationDirectoryURL(for: content)
 
         if fileManager.fileExists(atPath: mediaURL.path) {
             try fileManager.removeItem(at: mediaURL)
         }
         if let thumbnailURL, fileManager.fileExists(atPath: thumbnailURL.path) {
             try fileManager.removeItem(at: thumbnailURL)
+        }
+        if fileManager.fileExists(atPath: nativeLockPreparationURL.path) {
+            try fileManager.removeItem(at: nativeLockPreparationURL)
         }
         try save(updated)
         return updated

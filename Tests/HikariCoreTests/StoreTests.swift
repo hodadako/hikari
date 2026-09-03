@@ -25,6 +25,11 @@ final class StoreTests: XCTestCase {
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: container.thumbnailsDirectoryURL.path)
         )
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: container.nativeLockPreparationDirectoryURL.path
+            )
+        )
         XCTAssertEqual(
             container.customAppIconURL.lastPathComponent,
             "CustomAppIcon.png"
@@ -165,6 +170,14 @@ final class StoreTests: XCTestCase {
         if let thumbnailURL = container.thumbnailURL(for: content) {
             try Data("thumbnail".utf8).write(to: thumbnailURL)
         }
+        let preparedURL = container.nativeLockPreparationDirectoryURL(for: content)
+        try FileManager.default.createDirectory(
+            at: preparedURL,
+            withIntermediateDirectories: true
+        )
+        try Data("prepared".utf8).write(
+            to: preparedURL.appendingPathComponent("media.mov")
+        )
         try store.save([content])
 
         let updated = try store.delete(content, from: [content])
@@ -174,6 +187,7 @@ final class StoreTests: XCTestCase {
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: container.mediaURL(for: content).path)
         )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: preparedURL.path))
         try? FileManager.default.removeItem(at: originalURL)
     }
 
