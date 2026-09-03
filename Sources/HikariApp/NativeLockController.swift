@@ -36,6 +36,13 @@ private enum NativeLockRuntimeBackend: Equatable {
 
 @MainActor
 final class NativeLockController {
+    private static let aerialPreparationVersion = "aerial-hevc-main10-1920x1080-v1"
+
+    private struct PreparedAerialMedia {
+        let mediaURL: URL
+        let previewURL: URL
+    }
+
     private let container: SharedContainer
     private let store: NativeLockUserTransactionStore
 
@@ -81,6 +88,90 @@ final class NativeLockController {
         } catch {
             return record
         }
+    }
+
+    /// Builds the macOS 26 Aerial input ahead of a selection.  This never
+    /// changes the wallpaper store; it only creates an atomically-published
+    /// cache in Hikari's private support directory.
+    func prepareMediaForNativeLock(content: LiveContent) async throws {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+              cachedPreparationURLs(for: content) == nil else {
+            return
+        }
+
+        let cacheURL = container.nativeLockPreparationDirectoryURL(for: content)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o700],
+            ofItemAtPath: container.nativeLockPreparationDirectoryURL.path
+        )
+        // A ready cache is directory-atomic. Any existing directory that did
+        // not pass `cachedPreparationURLs` is therefore stale or interrupted
+        // preparation output and is safe to replace before retrying.
+        if FileManager.default.fileExists(atPath: cacheURL.path) {
+            try FileManager.default.removeItem(at: cacheURL)
+        }
+        let temporaryURL = container.nativeLockPreparationDirectoryURL
+            .appendingPathComponent(
+                ".\(content.id.uuidString).preparing-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        try FileManager.default.createDirectory(
+            at: temporaryURL,
+            withIntermediateDirectories: false,
+            attributes: [.posixPermissions: 0o700]
+        )
+        do {
+            let mediaURL = temporaryURL.appendingPathComponent("media.mov")
+            let previewURL = temporaryURL.appendingPathComponent("preview.png")
+            try await prepareMedia(
+                from: container.mediaURL(for: content),
+                to: mediaURL,
+                aerialCompatible: true
+            )
+            try await generatePreview(from: mediaURL, to: previewURL)
+            guard let versionData = Self.aerialPreparationVersion.data(
+                using: .utf8
+            ) else {
+                throw HikariError.unreadableVideo
+            }
+            try versionData.write(
+                to: temporaryURL.appendingPathComponent("version"),
+                options: .atomic
+            )
+            // Do not overwrite a cache that another preparation task has
+            // already completed. Both candidates are derived from the same
+            // immutable managed media file.
+            if !FileManager.default.fileExists(atPath: cacheURL.path) {
+                try FileManager.default.moveItem(at: temporaryURL, to: cacheURL)
+            }
+            try? FileManager.default.removeItem(at: temporaryURL)
+        } catch {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            throw error
+        }
+    }
+
+    func hasPreparedMediaForNativeLock(content: LiveContent) -> Bool {
+        cachedPreparationURLs(for: content) != nil
+    }
+
+    private func cachedPreparationURLs(
+        for content: LiveContent
+    ) -> PreparedAerialMedia? {
+        let directoryURL = container.nativeLockPreparationDirectoryURL(for: content)
+        let versionURL = directoryURL.appendingPathComponent("version")
+        guard let versionData = try? Data(contentsOf: versionURL),
+              String(data: versionData, encoding: .utf8)
+                == Self.aerialPreparationVersion else {
+            return nil
+        }
+        let mediaURL = directoryURL.appendingPathComponent("media.mov")
+        let previewURL = directoryURL.appendingPathComponent("preview.png")
+        guard FileManager.default.isReadableFile(atPath: mediaURL.path),
+              FileManager.default.isReadableFile(atPath: previewURL.path) else {
+            return nil
+        }
+        return PreparedAerialMedia(mediaURL: mediaURL, previewURL: previewURL)
     }
 
     /// Clears only the known macOS 26 legacy-helper preflight failure. The
@@ -192,27 +283,43 @@ final class NativeLockController {
         } else {
             linkedInitialization = nil
         }
-        let sourceURL = container.mediaURL(for: content)
-        let workURL = container.rootURL.appendingPathComponent(
-            ".NativeLockPreparation-\(UUID().uuidString)",
-            isDirectory: true
-        )
-        try FileManager.default.createDirectory(
-            at: workURL,
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o700]
-        )
-        defer { try? FileManager.default.removeItem(at: workURL) }
-        let mediaURL = workURL.appendingPathComponent("media.mov")
-        let previewURL = workURL.appendingPathComponent(
-            usesModernAerials ? "preview.png" : "preview.jpg"
-        )
-        try await prepareMedia(
-            from: sourceURL,
-            to: mediaURL,
-            aerialCompatible: usesModernAerials
-        )
-        try await generatePreview(from: mediaURL, to: previewURL)
+        let preparedCache = usesModernAerials
+            ? cachedPreparationURLs(for: content)
+            : nil
+        let workURL: URL?
+        let mediaURL: URL
+        let previewURL: URL
+        if let preparedCache {
+            workURL = nil
+            mediaURL = preparedCache.mediaURL
+            previewURL = preparedCache.previewURL
+        } else {
+            let newWorkURL = container.rootURL.appendingPathComponent(
+                ".NativeLockPreparation-\(UUID().uuidString)",
+                isDirectory: true
+            )
+            try FileManager.default.createDirectory(
+                at: newWorkURL,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            workURL = newWorkURL
+            mediaURL = newWorkURL.appendingPathComponent("media.mov")
+            previewURL = newWorkURL.appendingPathComponent(
+                usesModernAerials ? "preview.png" : "preview.jpg"
+            )
+            try await prepareMedia(
+                from: container.mediaURL(for: content),
+                to: mediaURL,
+                aerialCompatible: usesModernAerials
+            )
+            try await generatePreview(from: mediaURL, to: previewURL)
+        }
+        defer {
+            if let workURL {
+                try? FileManager.default.removeItem(at: workURL)
+            }
+        }
 
         let prepared = try store.prepare(
             sourceContentID: content.id,
@@ -382,7 +489,11 @@ final class NativeLockController {
         aerialCompatible: Bool
     ) async throws {
         if aerialCompatible {
-            try await Task.detached(priority: .utility) {
+            // AVAssetWriter selects VideoToolbox's hardware HEVC encoder when
+            // available. User-initiated priority keeps a freshly imported
+            // selection from being delayed behind maintenance work, without
+            // adding unsupported renderer prewarming.
+            try await Task.detached(priority: .userInitiated) {
                 try Self.transcodeForAerial(
                     sourceURL: sourceURL,
                     destinationURL: destinationURL
@@ -530,6 +641,10 @@ final class NativeLockController {
         reader.add(readerOutput)
 
         let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mov)
+        let encoderSpecification: [String: Any] = [
+            kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder
+                as String: true
+        ]
         let compression: [String: Any] = [
             AVVideoAverageBitRateKey: 12_000_000,
             AVVideoMaxKeyFrameIntervalKey: frameRate,
@@ -543,6 +658,7 @@ final class NativeLockController {
                 AVVideoCodecKey: AVVideoCodecType.hevc,
                 AVVideoWidthKey: outputWidth,
                 AVVideoHeightKey: outputHeight,
+                AVVideoEncoderSpecificationKey: encoderSpecification,
                 AVVideoCompressionPropertiesKey: compression
             ]
         )

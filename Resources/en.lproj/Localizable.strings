@@ -197,3 +197,5 @@
 "Apply Selected Video" = "Apply Selected Video";
 "Restore Previous Wallpaper" = "Restore Previous Wallpaper";
 "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update." = "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update.";
+"Lock Screen Video Ready" = "Lock Screen Video Ready";
+"%@ is ready to apply to the Lock Screen." = "%@ is ready to apply to the Lock Screen.";
