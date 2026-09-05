@@ -2,6 +2,22 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 구형 실행본의 메모리 진단에서 메뉴 자동화 및 제한된 leaks 결과 사용
+
+2026-09-05 설치된 Hikari 0.3.2 (12)의 상태 항목은 System Events에서 Hikari로
+식별됐지만 AXPress·click 및 관측된 위치의 마우스 이벤트로 팝오버를 열지 못했다.
+앱에 초점을 둔 Space 입력도 playbackPreference를 바꾸지 않았다. 도구가 성공을
+반환했다는 이유만으로 일시정지됐다고 간주하지 않는다. 사용자가 요청한 비교에서는
+앱을 정상 종료한 뒤 playbackPreference만 임시로 paused로 바꿔 재실행하고,
+측정 후 playing 및 원본 settings bytes를 복구했다. 이 결과는 동일 프로세스에서
+Pause 직후 반환되는 메모리를 측정한 것이 아니다.
+
+같은 진단의 leaks는 non-debuggable process 접근 제한을 경고했고, 재시작한
+프로세스에서 14,000 bytes만 보고했다. 이것으로 재시작 전 약 240MiB의 추가 보유를
+설명하거나 누수가 없다고 확정하지 않는다. vmmap의 allocated bytes와 재시작 전후
+footprint를 비교하고, 정확한 원인은 debuggable 빌드의 장시간 allocation 추적으로
+분리한다. 상세 조건과 측정값은 RESOURCE_USAGE_AUDIT_2026-09-05.md에 기록했다.
+
 ## 제품명 migration을 저장소 전체 문자열 금지로 검증
 
 ### 관찰
