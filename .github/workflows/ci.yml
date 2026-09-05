@@ -4,13 +4,7 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
   workflow_dispatch:
 
 concurrency:
@@ -27,20 +21,56 @@ jobs:
     outputs:
       is_tag: ${{ steps.version.outputs.is_tag }}
       tag_version: ${{ steps.version.outputs.tag_version }}
+      docs_only: ${{ steps.version.outputs.docs_only }}
       build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - id: version
-        name: Validate Hikari tag and marketing version
+        name: Classify changes and validate Hikari tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
           set -euo pipefail
           is_tag=false
           tag_version=""
-          build_matrix='{"runner":["macos-15","macos-15-intel","macos-26","macos-26-intel"]}'
+          docs_only=false
+          build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"},{"runner":"macos-15-intel","codecov_flag":"macos-15-intel"}]}'
 
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            build_matrix='{"runner":["macos-15"]}'
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            if [[ -z "${PR_BASE_SHA}" || -z "${PR_HEAD_SHA}" ]]; then
+              echo "Pull request base/head SHA is unavailable" >&2
+              exit 1
+            fi
+            if ! git cat-file -e "${PR_BASE_SHA}^{commit}" ||
+               ! git cat-file -e "${PR_HEAD_SHA}^{commit}"; then
+              echo "Unable to resolve pull request base/head commit" >&2
+              exit 1
+            fi
+
+            docs_only=true
+            changed_files=false
+            while IFS= read -r changed_path; do
+              [[ -z "${changed_path}" ]] && continue
+              changed_files=true
+              case "${changed_path}" in
+                docs/*|*.md) ;;
+                *)
+                  docs_only=false
+                  break
+                  ;;
+              esac
+            done < <(git diff --name-only "${PR_BASE_SHA}" "${PR_HEAD_SHA}")
+
+            if [[ "${changed_files}" != "true" ]]; then
+              docs_only=false
+            fi
+
+            build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"}]}'
           fi
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
@@ -55,22 +85,25 @@ jobs:
               echo "Tag ${tag_version} does not match MARKETING_VERSION ${marketing_version}" >&2
               exit 1
             fi
+            build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"},{"runner":"macos-15-intel","codecov_flag":"macos-15-intel"},{"runner":"macos-26","codecov_flag":"macos-26-arm64"},{"runner":"macos-26-intel","codecov_flag":"macos-26-intel"}]}'
           fi
 
           {
             echo "is_tag=${is_tag}"
             echo "tag_version=${tag_version}"
+            echo "docs_only=${docs_only}"
             echo "build_matrix=${build_matrix}"
           } >> "${GITHUB_OUTPUT}"
 
   build-and-test:
     name: Build and test (${{ matrix.runner }})
     needs: metadata
+    if: needs.metadata.result == 'success' && needs.metadata.outputs.docs_only != 'true'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.metadata.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - name: Install XcodeGen
@@ -88,6 +121,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
       - name: Unit test
+        if: needs.metadata.outputs.is_tag != 'true'
         run: |
           set -o pipefail
           xcodebuild \
@@ -97,8 +131,32 @@ jobs:
             -destination 'platform=macOS' \
             CODE_SIGNING_ALLOWED=NO \
             test
-      - name: Release build and bundle checks
-        if: github.event_name != 'pull_request'
+      - name: Unit test with coverage
+        if: needs.metadata.outputs.is_tag == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -enableCodeCoverage YES \
+            -resultBundlePath "${RUNNER_TEMP}/Hikari-${{ matrix.codecov_flag }}.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Upload Hikari coverage to Codecov
+        if: needs.metadata.outputs.is_tag == 'true'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: hodadako/hikari
+          plugins: xcode
+          swift_project: Hikari
+          flags: ${{ matrix.codecov_flag }}
+          name: hikari-${{ matrix.codecov_flag }}
+          fail_ci_if_error: true
+      - name: Build, sign, and package Hikari release artifact
+        if: needs.metadata.outputs.is_tag == 'true' && matrix.runner == 'macos-15'
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
         run: |
@@ -118,89 +176,6 @@ jobs:
           test ! -d "${app_path}/Contents/PlugIns"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${app_path}/Contents/Info.plist")" = "Hikari"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Hikari.NativeLocal"
-
-  release-coverage:
-    name: Hikari release coverage (${{ matrix.runner }})
-    needs: metadata
-    if: needs.metadata.outputs.is_tag == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-            codecov_flag: macos-15-arm64
-          - runner: macos-15-intel
-            codecov_flag: macos-15-intel
-          - runner: macos-26
-            codecov_flag: macos-26-arm64
-          - runner: macos-26-intel
-            codecov_flag: macos-26-intel
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate Hikari Xcode project
-        run: xcodegen generate
-      - name: Run Hikari tests with coverage
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Hikari.xcodeproj \
-            -scheme Hikari \
-            -configuration Debug \
-            -destination 'platform=macOS' \
-            -enableCodeCoverage YES \
-            -resultBundlePath "${RUNNER_TEMP}/Hikari-${{ matrix.codecov_flag }}.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
-            test
-      - name: Upload Hikari coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: hodadako/hikari
-          plugins: xcode
-          swift_project: Hikari
-          flags: ${{ matrix.codecov_flag }}
-          name: hikari-${{ matrix.codecov_flag }}
-          fail_ci_if_error: true
-
-  package:
-    name: Package Hikari release artifact
-    needs: [metadata, build-and-test, release-coverage]
-    if: >-
-      always() &&
-      needs.metadata.outputs.is_tag == 'true' &&
-      needs.build-and-test.result == 'success' &&
-      needs.release-coverage.result == 'success'
-    runs-on: macos-15
-    permissions:
-      contents: read
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate Hikari Xcode project
-        run: xcodegen generate
-      - name: Build and sign Hikari for release
-        env:
-          DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Hikari.xcodeproj \
-            -scheme Hikari \
-            -configuration Release \
-            -destination 'platform=macOS' \
-            -derivedDataPath "${DERIVED_DATA_PATH}" \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-          app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
-          test -d "${app_path}"
-          test -x "${app_path}/Contents/MacOS/Hikari"
-          test -x "${app_path}/Contents/MacOS/hikari-native-tool"
           codesign --force --deep --sign - "${app_path}"
           codesign --verify --deep --strict "${app_path}"
           mkdir -p dist
@@ -214,6 +189,7 @@ jobs:
             shasum -a 256 -c "Hikari-macOS-portable.zip.sha256"
           )
       - name: Upload Hikari artifact
+        if: needs.metadata.outputs.is_tag == 'true' && matrix.runner == 'macos-15'
         uses: actions/upload-artifact@v7
         with:
           name: Hikari-macOS-portable
@@ -225,8 +201,12 @@ jobs:
 
   release:
     name: Publish Hikari tagged release
-    needs: [metadata, package]
-    if: always() && needs.metadata.outputs.is_tag == 'true' && needs.package.result == 'success'
+    needs: [metadata, build-and-test]
+    if: >-
+      always() &&
+      needs.metadata.result == 'success' &&
+      needs.metadata.outputs.is_tag == 'true' &&
+      needs.build-and-test.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -253,3 +233,39 @@ jobs:
               --repo "${GITHUB_REPOSITORY}" \
               --generate-notes
           fi
+
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [metadata, build-and-test, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate required CI results
+        env:
+          METADATA_RESULT: ${{ needs.metadata.result }}
+          DOCS_ONLY: ${{ needs.metadata.outputs.docs_only }}
+          IS_TAG: ${{ needs.metadata.outputs.is_tag }}
+          BUILD_RESULT: ${{ needs.build-and-test.result }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${METADATA_RESULT}" != "success" ]]; then
+            echo "Metadata and change classification did not succeed: ${METADATA_RESULT}" >&2
+            exit 1
+          fi
+
+          if [[ "${DOCS_ONLY}" == "true" ]]; then
+            echo "Documentation-only pull request: macOS build and test were intentionally skipped."
+          elif [[ "${BUILD_RESULT}" != "success" ]]; then
+            echo "Build and test did not succeed: ${BUILD_RESULT}" >&2
+            exit 1
+          fi
+
+          if [[ "${IS_TAG}" == "true" && "${RELEASE_RESULT}" != "success" ]]; then
+            echo "Tagged release publication did not succeed: ${RELEASE_RESULT}" >&2
+            exit 1
+          fi
+
+          echo "CI Gate passed."
