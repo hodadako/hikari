@@ -2,6 +2,39 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.3.2 (12) — 2026-09-06
+
+### 이슈와 영향
+
+- Hikari main migration 이후의 Native Lock 준비 cache·background preparation과 steady-state
+  footprint 개선을 normal Hikari release에 포함한다. 배포 asset은 기존 정책대로 ad-hoc 서명·비공증이다.
+- macOS 15 root catalog와 macOS 26 user Aerial catalog는 서로 다른 안전 경로를 유지하며,
+  실제 Native Lock Apply·Restore와 lock/unlock 왕복은 이 빌드 설치만으로 자동 수행하지 않는다.
+
+### 조치
+
+- 최신 `main`의 Hikari 이름·canonical 저장소·Native Lock transaction guard와 background
+  preparation 변경을 v0.3.2 (build 12) 기준으로 묶었다.
+- 2026-09-05 구형 설치본의 CPU·메모리 실측과 자동화 한계를 문서화하고, 릴리스 전 검증에서
+  실제 소스 빌드와 설치본을 혼동하지 않도록 했다.
+
+### 검증
+
+- `swift test --parallel`: 81개 테스트 통과.
+- `xcodegen generate` 및 Xcode 26.6 `xcodebuild ... test`: HikariCoreTests 36개와
+  HikariNativeLockTests 45개, 총 81개 통과.
+- `scripts/build-hikari.sh` 구문 검사, Native Local ad-hoc 서명과
+  `codesign --verify --deep --strict` 통과.
+- `/Applications/Hikari.app` 설치본의 bundle version `0.3.2 (12)`과
+  `com.hodadako.Hikari.NativeLocal` 식별자를 확인했다.
+
+### 남은 제약
+
+- 정상 release tag는 `MARKETING_VERSION`과 일치하는 `v0.3.2`만 사용한다. literal `hikari` 또는
+  별도 `hikari-v*` channel은 이 저장소의 release workflow 대상이 아니다.
+- macOS 15/26 실제 장비에서 Native Lock Apply → lock → unlock → Restore와 첫 실행 migration은
+  여전히 수동 검증 범위이며, 이번 설치에서는 system/user wallpaper store를 쓰지 않았다.
+
 ## Unreleased — Hikari naming consolidation
 
 ### 이슈와 영향
