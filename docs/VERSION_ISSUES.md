@@ -27,6 +27,11 @@
   `codesign --verify --deep --strict` 통과.
 - `/Applications/Hikari.app` 설치본의 bundle version `0.3.2 (12)`과
   `com.hodadako.Hikari.NativeLocal` 식별자를 확인했다.
+- GitHub Actions tag run `33985424152`에서 metadata gate, macOS 15/26 ARM64·Intel
+  build/test, Codecov, release package와 publish, CI gate가 모두 성공했다.
+- GitHub Release asset을 내려받아 `shasum -a 256 -c`와 strict 서명을 확인한 뒤 설치했다.
+  `Hikari-macOS-portable.zip` SHA-256은
+  `381d41de3c5e63750448bb462b2f61b02454dfa4a5ea6c3a5419223ba369868c`이다.
 
 ### 남은 제약
 
