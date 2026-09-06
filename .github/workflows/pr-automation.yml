@@ -19,7 +19,7 @@ jobs:
     steps:
       # This workflow never checks out or executes pull request code.
       - name: Apply labels from changed paths
-        uses: actions/labeler@v6
+        uses: actions/labeler@v7
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
