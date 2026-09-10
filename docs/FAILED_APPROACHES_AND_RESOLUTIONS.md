@@ -2,6 +2,15 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## Pause 직후 raw CMTime의 완전 동일성을 요구한 테스트
+
+v0.3.3 tag CI `34537513600`의 macOS 15 Intel에서 `AVPlayer.pause()` 직후 측정한
+765325ns가 surface 교체 뒤 921361ns가 되어 equality 테스트가 실패했다. 약 0.156ms의
+clock settling은 30fps 영상 한 프레임보다 작고, 이것만으로 seek나 재생 재개를 뜻하지
+않는다. v0.3.4에서는 한 프레임 이내의 시간 보존과 rate 0을 검사하고,
+`AVPlayerItem.timeJumpedNotification`에 inverted expectation을 걸어 실제 seek도
+별도로 배제한다. 실패한 태그는 재사용하지 않고 후속 버전을 올린다.
+
 ## Space 복구에서 기존 창을 먼저 닫고 공유 player를 seek
 
 ### 관찰과 원인

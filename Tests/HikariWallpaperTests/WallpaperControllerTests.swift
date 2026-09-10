@@ -54,11 +54,21 @@ final class WallpaperControllerTests: XCTestCase {
         let player = try await preparePlayback()
         controller.pause()
         let position = player.currentTime()
+        let noSeek = XCTNSNotificationExpectation(
+            name: AVPlayerItem.timeJumpedNotification,
+            object: player.currentItem
+        )
+        noSeek.isInverted = true
         let previousWindows = Set(windows.map(\.windowNumber))
         controller.rebuildWindowsIfContentAvailable(true)
         try await waitForHandoff(replacing: previousWindows, count: NSScreen.screens.count)
         XCTAssertEqual(player.rate, 0)
-        XCTAssertEqual(player.currentTime(), position)
+        // AVPlayer's pause can settle a fraction of a millisecond after the
+        // call on macOS 15 Intel. Preserve the displayed 30fps source frame,
+        // and separately reject actual time jumps rather than comparing raw
+        // nanosecond clocks for exact equality.
+        XCTAssertEqual(player.currentTime().seconds, position.seconds, accuracy: 1.0 / 30)
+        await fulfillment(of: [noSeek], timeout: 0.1)
         XCTAssertFalse(controller.isPlaying)
     }
 

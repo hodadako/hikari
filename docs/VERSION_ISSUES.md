@@ -2,7 +2,7 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Hikari v0.3.3 (13) — Space 전환의 일시적인 검은 프레임 수정 (2026-09-11)
+## Hikari v0.3.4 (14) — Space 전환의 일시적인 검은 프레임 수정 (2026-09-11)
 
 ### 이슈와 조치
 
@@ -37,8 +37,10 @@
   연결된 내장 화면의 desktop-level window 1개를 확인했다. 사용자는 수정본의 실제
   데스크톱 전환에서 검은 화면이 없는 것 같다고 보고했다. 이는 실사용 확인이며,
   자동화된 실제 Space 왕복 20회 또는 모든 다중 디스플레이 조합의 검증은 아니다.
-- v0.3.3 Release 앱 빌드, bundle version `0.3.3 (13)`, ad-hoc 서명 및
+- 첫 v0.3.3 후보의 Release 앱 빌드, bundle version `0.3.3 (13)`, ad-hoc 서명 및
   `codesign --verify --deep --strict` 로컬 검증을 통과했다.
+- v0.3.4의 보완한 wallpaper 테스트 6개, Release 빌드, bundle version `0.3.4 (14)`,
+  ad-hoc 서명 및 strict verification도 로컬에서 통과했다.
 
 ### 검증 범위
 
@@ -46,11 +48,20 @@
   이번 실제 전환의 최종 화면은 사용자의 실사용 보고로 확인했다. 자동 입력을 통한
   Space 전환 알림 검증은 통과로 기록하지 않는다.
 - 사용자 실사용 확인에 사용한 로컬 수정본은 0.3.2 (12)였다. 후속 배포는
-  `MARKETING_VERSION=0.3.3`, `CURRENT_PROJECT_VERSION=13`, 새 태그 `v0.3.3`으로
-  구분한다. 기존 `v0.3.2` 태그는 유지한다.
+  `MARKETING_VERSION=0.3.4`, `CURRENT_PROJECT_VERSION=14`, 새 태그 `v0.3.4`로
+  구분한다. 기존 `v0.3.2`와 실패한 후보 `v0.3.3` 태그는 유지한다.
 - macOS 15/26 ARM64·Intel release CI와 GitHub ZIP/checksum 검증은 태그 푸시 후
   확인한다. 배포 asset은 기존과 같이 ad-hoc 서명·비공증이며, Native Lock의 macOS
   15 root catalog / macOS 26 user Aerial 지원 범위를 유지한다.
+
+## Hikari v0.3.3 (13) — 릴리스 CI 실패로 미게시 (2026-09-11)
+
+- tag CI `34537513600`의 macOS 15 Intel에서 Pause 직후 시간이 765325ns에서
+  921361ns로 약 0.156ms 더 진행되어 raw `CMTime` equality 테스트가 실패했다.
+  macOS 26 ARM64·Intel은 통과했지만 전체 gate가 실패해 GitHub Release는 게시하지 않는다.
+- v0.3.4 테스트는 30fps 원본 한 프레임 이내의 시간 보존을 검사하고,
+  `AVPlayerItem.timeJumpedNotification`이 발생하지 않는지도 별도로 검사한다.
+  제품의 표면 교체 구현은 동일하며, 이미 push한 v0.3.3 태그를 이동하지 않는다.
 
 ## Hikari v0.3.2 (12) — 2026-09-06
 
