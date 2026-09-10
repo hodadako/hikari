@@ -2,8 +2,9 @@ import AppKit
 import AVFoundation
 import HikariCore
 
-/// Creates exactly one desktop-level window per connected display. Every
-/// window presents the same AVPlayer so multi-display wallpaper playback uses
+/// Maintains one desktop-level window per connected display, with a temporary
+/// replacement behind it during surface recovery. Every window presents the
+/// same AVPlayer so multi-display wallpaper playback uses
 /// one decoder and one local buffer instead of multiplying both per display.
 /// Display IDs come from NSScreenNumber instead of relying on the mutable
 /// order of `NSScreen.screens`.
@@ -21,6 +22,8 @@ final class WallpaperController {
     }
 
     private var sessions: [UInt32: DisplaySession] = [:]
+    private var replacementSessions: [UInt32: DisplaySession] = [:]
+    private var surfaceRecoveryTask: Task<Void, Never>?
     private var plans: [WallpaperWindowPlan] = []
     private let renderer = VideoRenderer()
     private var maintenanceTask: Task<Void, Never>?
@@ -49,26 +52,22 @@ final class WallpaperController {
             return
         }
 
-        // A wake can leave a desktop-level NSWindow alive while its
-        // AVPlayerLayer surface is no longer backed by WindowServer. A
-        // topology-only update cannot detect that case when the connected
-        // displays have not changed, so recreate every session. This restores
-        // the pre-v0.1.15 wake behavior while retaining the current
-        // shared-player playback architecture. Preserve the playback position
-        // so a surface recovery does not restart the video.
-        let playbackPosition = renderer.currentTime
-        let shouldPlay = wantsPlayback
-        removeAllWindows()
+        // Mission Control can invalidate a window's presentation surface even
+        // though its player is healthy. Prepare replacements behind the live
+        // windows, then hand off each display only when it has a video frame.
+        // Closing all windows first exposes black while AVFoundation prepares
+        // the new layers. Seeking the shared player also flushes healthy layers
+        // and is unnecessary: replacement layers use the same running clock.
         synchronizeDisplayTopology()
-
         guard renderer.currentURL != nil else { return }
-        renderer.seek(to: playbackPosition)
-        if shouldPlay {
-            renderer.play()
-            startMaintenanceMonitoring()
-        } else {
-            renderer.pause()
+
+        for plan in plans where replacementSessions[plan.displayID] == nil {
+            guard let current = sessions[plan.displayID] else { continue }
+            let replacement = makeSession(for: plan)
+            replacementSessions[plan.displayID] = replacement
+            replacement.window.order(.below, relativeTo: current.window.windowNumber)
         }
+        startSurfaceRecovery()
     }
 
     /// Finalizes a display transition without discarding healthy players.
@@ -117,6 +116,7 @@ final class WallpaperController {
             removeSession(displayID: displayID)
         }
         for plan in diff.updated {
+            discardReplacement(displayID: plan.displayID)
             guard let session = sessions[plan.displayID] else { continue }
             session.window.setFrame(plan.frame, display: true, animate: false)
             session.window.collectionBehavior = Self.wallpaperCollectionBehavior
@@ -139,6 +139,9 @@ final class WallpaperController {
     }
 
     func setContent(url: URL?, muted: Bool) {
+        if renderer.currentURL != url {
+            cancelSurfaceRecovery()
+        }
         guard let url else {
             renderer.stopAndRelease()
             wantsPlayback = false
@@ -172,6 +175,9 @@ final class WallpaperController {
         for session in sessions.values {
             session.view.scalingMode = mode
         }
+        for session in replacementSessions.values {
+            session.view.scalingMode = mode
+        }
     }
 
     func closeWindows() {
@@ -182,11 +188,9 @@ final class WallpaperController {
     }
 
     private func removeAllWindows() {
+        cancelSurfaceRecovery()
         for session in sessions.values {
-            session.view.detachPlayer()
-            session.window.contentView = nil
-            session.window.orderOut(nil)
-            session.window.close()
+            close(session)
         }
         sessions.removeAll()
         plans.removeAll()
@@ -194,7 +198,12 @@ final class WallpaperController {
 
     private func createSession(for plan: WallpaperWindowPlan) {
         guard sessions[plan.displayID] == nil else { return }
+        let session = makeSession(for: plan)
+        sessions[plan.displayID] = session
+        session.window.orderFront(nil)
+    }
 
+    private func makeSession(for plan: WallpaperWindowPlan) -> DisplaySession {
         let window = NSWindow(
             contentRect: plan.frame,
             styleMask: .borderless,
@@ -224,21 +233,63 @@ final class WallpaperController {
         playerView.scalingMode = scalingMode
         window.contentView = playerView
 
-        sessions[plan.displayID] = DisplaySession(
-            window: window,
-            view: playerView
-        )
-        window.orderFront(nil)
         playerView.needsLayout = true
         playerView.layoutSubtreeIfNeeded()
+        return DisplaySession(window: window, view: playerView)
     }
 
     private func removeSession(displayID: UInt32) {
+        discardReplacement(displayID: displayID)
         guard let session = sessions.removeValue(forKey: displayID) else { return }
+        close(session)
+    }
+
+    private func close(_ session: DisplaySession) {
         session.view.detachPlayer()
         session.window.contentView = nil
         session.window.orderOut(nil)
         session.window.close()
+    }
+
+    private func discardReplacement(displayID: UInt32) {
+        guard let session = replacementSessions.removeValue(forKey: displayID) else { return }
+        close(session)
+    }
+
+    private func cancelSurfaceRecovery() {
+        surfaceRecoveryTask?.cancel()
+        surfaceRecoveryTask = nil
+        for displayID in Array(replacementSessions.keys) {
+            discardReplacement(displayID: displayID)
+        }
+    }
+
+    private func startSurfaceRecovery() {
+        guard surfaceRecoveryTask == nil, !replacementSessions.isEmpty else { return }
+        surfaceRecoveryTask = Task { @MainActor [weak self] in
+            // Readiness, not this deadline, permits the handoff. A stalled or
+            // non-video item must never replace a visible window with black,
+            // nor retain a second set of surfaces indefinitely.
+            let clock = ContinuousClock()
+            let deadline = clock.now.advanced(by: .seconds(3))
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 16_000_000)
+                guard !Task.isCancelled, let self else { return }
+                for displayID in Array(self.replacementSessions.keys) {
+                    guard let replacement = self.replacementSessions[displayID],
+                          replacement.view.isReadyForDisplay,
+                          let current = self.sessions[displayID] else { continue }
+                    replacement.window.order(.above, relativeTo: current.window.windowNumber)
+                    self.sessions[displayID] = replacement
+                    self.replacementSessions.removeValue(forKey: displayID)
+                    self.close(current)
+                }
+                if self.replacementSessions.isEmpty || clock.now >= deadline {
+                    self.cancelSurfaceRecovery()
+                    return
+                }
+            }
+        }
     }
 
     private func currentDisplayDescriptors() -> [DisplayDescriptor] {
@@ -307,6 +358,8 @@ final class WallpaperController {
 
 private final class WallpaperPlayerView: NSView {
     private let playerLayer = AVPlayerLayer()
+
+    var isReadyForDisplay: Bool { playerLayer.isReadyForDisplay }
 
     var scalingMode: ScalingMode = .fill {
         didSet {

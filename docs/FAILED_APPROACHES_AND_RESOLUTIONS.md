@@ -2,6 +2,40 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## Space 복구에서 기존 창을 먼저 닫고 공유 player를 seek
+
+### 관찰과 원인
+
+2026-09-09~10 조사에서 독립 Space 전환의 80/220/400ms 순차 확인 뒤
+`rebuildWindowsIfContentAvailable`이 모든 기존 `AVPlayerLayer`를 분리하고 검은 배경의
+새 창을 즉시 표시했다. 새 레이어의 첫 프레임 준비를 기다리지 않았으며, 같은 공유
+player를 유지하면서도 seek를 실행했다. 동일한 밝은 H.264 테스트 영상의 복구 20회를
+60fps ScreenCaptureKit으로 비교했을 때 수정 전에는 498개 complete sample 중 화면
+중앙 영역이 검은 sample 1개, 수정 후에는 496개 중 0개였다.
+
+### 해결
+
+기존 window/surface를 유지한 채 같은 player의 replacement를 그 뒤에 준비한다.
+`AVPlayerLayer.isReadyForDisplay`가 true인 display만 새 창을 위로 올린 뒤 기존 창을
+닫는다. player item·clock을 유지하므로 surface 교체를 위한 seek·play·pause는 하지
+않는다. Space settled 복구 자체와 display-derived 알림의 surface 보존 정책은 유지한다.
+중복 요청은 준비 중인 replacement를 재사용하고, 3초 안에 준비되지 않으면 기존 창을
+보존하면서 replacement만 정리한다. 콘텐츠 교체·종료·display 제거/geometry 변경도
+pending replacement를 정리한다.
+
+### 실제 전환 자동화의 한계
+
+CGEvent와 System Events의 Control+방향키 입력은 권한 사전 검사가 true이고 명령이
+성공해도 `activeSpaceDidChange`가 관측되지 않았다. AppKit run loop를 추가해도 같았다.
+Mission Control의 AX button click 역시 성공 응답만으로 실제 Space 전환을 입증하지
+못했다. `tell application "Mission Control" to activate`는 응답을 기다리며 멈춰 해당
+진단 프로세스를 종료했다. `open -a 'Mission Control'`은 UI를 열 수 있지만, 이미 열린
+상태에서 다시 실행하면 닫힐 수 있다. UI 상태와 실제 Space 알림을 함께 확인하며,
+키 입력·AX 성공 응답을 전환 성공으로 기록하지 않는다. 위 20회 수치는 복구 함수를
+직접 실행한 비교이고, 실제 데스크톱 왕복 20회 성공을 뜻하지 않는다.
+이 환경의 zsh `log` 함수는 `log stream`을 `too many arguments`로 거절하므로,
+unified log 수집은 `/usr/bin/log stream`의 절대 경로로 실행한다.
+
 ## 구형 실행본의 메모리 진단에서 메뉴 자동화 및 제한된 leaks 결과 사용
 
 2026-09-05 설치된 Hikari 0.3.2 (12)의 상태 항목은 System Events에서 Hikari로

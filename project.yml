@@ -12,8 +12,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    CURRENT_PROJECT_VERSION: 12
-    MARKETING_VERSION: 0.3.2
+    CURRENT_PROJECT_VERSION: 13
+    MARKETING_VERSION: 0.3.3
 targets:
   HikariCore:
     type: framework.static
@@ -120,6 +120,18 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariNativeLockTests
+  HikariWallpaperTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - Tests/HikariWallpaperTests
+      - Sources/HikariApp/WallpaperController.swift
+    dependencies:
+      - target: HikariCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariWallpaperTests
 schemes:
   Hikari:
     build:
@@ -128,8 +140,10 @@ schemes:
         HikariNativeTool: all
         HikariCoreTests: [test]
         HikariNativeLockTests: [test]
+        HikariWallpaperTests: [test]
     test:
       targets:
         - HikariCoreTests
         - HikariNativeLockTests
+        - HikariWallpaperTests
       gatherCoverageData: true

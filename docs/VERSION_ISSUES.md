@@ -2,6 +2,56 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.3.3 (13) — Space 전환의 일시적인 검은 프레임 수정 (2026-09-11)
+
+### 이슈와 조치
+
+- 독립 Space 전환의 settled 복구가 표시 중인 모든 창을 먼저 닫고 새 검은 창을
+  표시했다. 첫 영상 프레임까지 공백이 생겼고, 공유 player의 불필요한 seek도 발생했다.
+- 기존 창 뒤에서 새 surface를 준비하고 첫 프레임이 준비된 display부터 교체한다.
+  같은 player/item/재생 위치·음소거·Pause 의도를 유지한다. Space 복구를 제거하거나
+  모든 화면에 독립 player를 도입하지 않는다.
+- 중복 요청, 준비 실패의 3초 timeout, 콘텐츠 교체·종료·display 변경에서 pending
+  surface가 누적되거나 뒤늦게 표시되지 않도록 정리한다.
+
+### 검증
+
+- `swift test --parallel`: 기존 core/native 81개 통과.
+- `xcodegen generate` 및 Hikari Debug `xcodebuild ... test`: 기존 81개와 새
+  `HikariWallpaperTests` 6개, 총 87개 통과. 새 target은 실제 AppKit 창과
+  AVPlayerLayer를 사용하는 Xcode 전용 테스트이며 SwiftPM 검사에는 포함되지 않는다.
+- 새 테스트는 20회 surface 교체 중 준비된 창의 연속성·공유 player/item 유지,
+  Pause 상태의 시간·rate 보존, 30회 중첩 요청과 Fill/Fit 변경, 종료, 콘텐츠 제거,
+  첫 프레임 미준비 timeout에서 기존 창 보존을 검사한다.
+- macOS 26 로컬의 밝은 H.264 영상과 ScreenCaptureKit 60fps 캡처로 복구 함수
+  20회를 비교했다. 수정 전 498개 sample 중 검은 중앙 영역 1개, 수정 후 496개 중
+  0개였다. 이 비교는 Native Lock transaction을 적용하거나 복원하지 않는다.
+- Debug 앱 빌드와 `git diff --check` 통과. 원시 진단 코드·CSV·로그는
+  `/tmp/hikari-space-validation/`에 있으며 임시 파일의 영구 보관은 보장하지 않는다.
+- 직접 빌드·ad-hoc 서명 검사를 통과한 수정본을 `/Applications/Hikari.app`에 설치하고
+  절대 경로로 재실행했다. 설치본과 빌드 산출물의 executable SHA-256이
+  `7ff09f960b3492e6b2339cc9f0874d36c0585964123b27a423bcfc246c9aec0d`로 일치한다.
+  재시작 뒤 settings·active marker·13개 journal·Aerial manifest의 총 16개 hash가
+  모두 이전과 같고, 기존 transaction은 active, 재생 설정은 playing·muted·Fill이다.
+- 2026-09-11 설치본의 동일 executable hash와 실행 PID 유지(약 11시간 경과),
+  연결된 내장 화면의 desktop-level window 1개를 확인했다. 사용자는 수정본의 실제
+  데스크톱 전환에서 검은 화면이 없는 것 같다고 보고했다. 이는 실사용 확인이며,
+  자동화된 실제 Space 왕복 20회 또는 모든 다중 디스플레이 조합의 검증은 아니다.
+- v0.3.3 Release 앱 빌드, bundle version `0.3.3 (13)`, ad-hoc 서명 및
+  `codesign --verify --deep --strict` 로컬 검증을 통과했다.
+
+### 검증 범위
+
+- 실제 Mission Control·데스크톱 왕복은 자동 입력의 성공 응답만으로 확인하지 않는다.
+  이번 실제 전환의 최종 화면은 사용자의 실사용 보고로 확인했다. 자동 입력을 통한
+  Space 전환 알림 검증은 통과로 기록하지 않는다.
+- 사용자 실사용 확인에 사용한 로컬 수정본은 0.3.2 (12)였다. 후속 배포는
+  `MARKETING_VERSION=0.3.3`, `CURRENT_PROJECT_VERSION=13`, 새 태그 `v0.3.3`으로
+  구분한다. 기존 `v0.3.2` 태그는 유지한다.
+- macOS 15/26 ARM64·Intel release CI와 GitHub ZIP/checksum 검증은 태그 푸시 후
+  확인한다. 배포 asset은 기존과 같이 ad-hoc 서명·비공증이며, Native Lock의 macOS
+  15 root catalog / macOS 26 user Aerial 지원 범위를 유지한다.
+
 ## Hikari v0.3.2 (12) — 2026-09-06
 
 ### 이슈와 영향
