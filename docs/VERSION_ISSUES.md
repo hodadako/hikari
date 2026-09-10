@@ -41,6 +41,12 @@
   `codesign --verify --deep --strict` 로컬 검증을 통과했다.
 - v0.3.4의 보완한 wallpaper 테스트 6개, Release 빌드, bundle version `0.3.4 (14)`,
   ad-hoc 서명 및 strict verification도 로컬에서 통과했다.
+- v0.3.4 tag CI `34537904150`에서 macOS 15/26 ARM64·Intel 네 환경의 build/test,
+  Codecov upload, package, release publish, CI Gate가 모두 통과했다. 각 환경의
+  wallpaper 테스트 6개도 실패 없이 실제 실행된 것을 job log로 확인했다.
+- 게시된 GitHub Release ZIP을 내려받아 checksum, strict signature 및 bundle version
+  `0.3.4 (14)`를 확인했다. ZIP SHA-256은
+  `57239dc379f031b4443f1dbba3a9dac9a95e936fdd376435ee2387d583765117`이다.
 
 ### 검증 범위
 
@@ -50,8 +56,7 @@
 - 사용자 실사용 확인에 사용한 로컬 수정본은 0.3.2 (12)였다. 후속 배포는
   `MARKETING_VERSION=0.3.4`, `CURRENT_PROJECT_VERSION=14`, 새 태그 `v0.3.4`로
   구분한다. 기존 `v0.3.2`와 실패한 후보 `v0.3.3` 태그는 유지한다.
-- macOS 15/26 ARM64·Intel release CI와 GitHub ZIP/checksum 검증은 태그 푸시 후
-  확인한다. 배포 asset은 기존과 같이 ad-hoc 서명·비공증이며, Native Lock의 macOS
+- 배포 asset은 기존과 같이 ad-hoc 서명·비공증이며, Native Lock의 macOS
   15 root catalog / macOS 26 user Aerial 지원 범위를 유지한다.
 
 ## Hikari v0.3.3 (13) — 릴리스 CI 실패로 미게시 (2026-09-11)
