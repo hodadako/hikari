@@ -2,6 +2,18 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-20 PR #57 CI의 empty queue 복구 테스트 실패
+
+- macOS 15 CI에서 `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`
+  가 queue 제거 직후 복구를 기대해 실패했다. 구현은 일시적인 item 부재를 허용하며,
+  최초 감지부터 5초가 지나야 복구를 요청한다.
+- 즉시 복구 assertion을 최초 감지 시 `false`, 이후 최대 7초 동안 상태를 기다려
+  `true`를 확인하는 방식으로 수정했다. reload 뒤 item 준비·음소거·Pause 검증은 유지한다.
+- 정확한 5초 경계는 기존 `PlaybackItemHealthTests`가 주입한 시각으로 검증한다.
+- 전체 Xcode toolchain의 `swift test --filter VideoRendererTests`로 3개 테스트가
+  통과했다. sandbox 내 실행은 기존에 기록된 module-cache 쓰기 제한으로 실패해
+  sandbox 밖에서 검증했다. macOS 15 GitHub CI 결과는 별도 확인 대상이다.
+
 ## 2026-10-09 장시간 잠자기 뒤 검은 데스크톱 복구 보완
 
 ### 원인과 해결
