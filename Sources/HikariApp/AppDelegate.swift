@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // produces the banner the user requested.
         UNUserNotificationCenter.current().delegate = self
         menuBarStatusItemController = MenuBarStatusItemController(model: model)
+        model.startUpdateMonitoring()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             SettingsWindowPresenter.shared.showOnLaunch(model: self.model)
@@ -50,6 +51,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 extension AppDelegate: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let identifier = response.notification.request.identifier
+        let actionIdentifier = response.actionIdentifier
+        Task { @MainActor [weak self] in
+            if UpdateNotificationService.opensUpdates(
+                identifier: identifier, actionIdentifier: actionIdentifier
+            ) {
+                self?.menuBarStatusItemController?.showUpdates()
+            }
+            completionHandler()
+        }
+    }
+
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,

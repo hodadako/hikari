@@ -132,6 +132,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariWallpaperTests
+  HikariUpdateTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - Tests/HikariUpdateTests
+      - Sources/HikariApp/ReleaseUpdateService.swift
+      - Sources/HikariApp/AppUpdateMonitor.swift
+      - Sources/HikariApp/UpdateNotificationService.swift
+    dependencies:
+      - target: HikariCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hodadako.HikariUpdateTests
 schemes:
   Hikari:
     build:
@@ -141,9 +155,11 @@ schemes:
         HikariCoreTests: [test]
         HikariNativeLockTests: [test]
         HikariWallpaperTests: [test]
+        HikariUpdateTests: [test]
     test:
       targets:
         - HikariCoreTests
         - HikariNativeLockTests
         - HikariWallpaperTests
+        - HikariUpdateTests
       gatherCoverageData: true

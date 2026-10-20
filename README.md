@@ -30,7 +30,8 @@ macOS Native Lock Screen path.
 - Automatic macOS 26 Native Lock Screen updates when the selected video changes,
   plus transaction recovery and Restore
 - Built-in and custom app/menu bar icons
-- Checksum-verified Hikari updates from the normal `vX.Y.Z` release channel
+- Daily update checks with a menu reminder and a notification for each new version;
+  checksum-verified installation from the normal `vX.Y.Z` release channel
 
 ## Requirements
 

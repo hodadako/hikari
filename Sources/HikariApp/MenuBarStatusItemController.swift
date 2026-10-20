@@ -63,6 +63,9 @@ final class MenuBarStatusItemController: NSObject {
                 model: model,
                 onShowSettings: { [weak self] in
                     self?.showSettings()
+                },
+                onShowUpdates: { [weak self] in
+                    self?.showUpdates()
                 }
             )
         )
@@ -73,6 +76,11 @@ final class MenuBarStatusItemController: NSObject {
         // while its independent window becomes key.
         popover.performClose(nil)
         SettingsWindowPresenter.shared.show(model: model)
+    }
+
+    func showUpdates() {
+        popover.performClose(nil)
+        SettingsWindowPresenter.shared.show(model: model, section: .about)
     }
 
     @objc

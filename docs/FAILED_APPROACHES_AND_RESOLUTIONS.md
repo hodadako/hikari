@@ -2,6 +2,16 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-20 업데이트 안내 구현의 Xcode 검증
+
+- 초기 Xcode 테스트 컴파일에서 테스트 내부의 `makeMonitor()` 지역 함수가 main actor
+  문맥을 상속하지 않아 `AppUpdateMonitor` 생성이 거부됐다. helper에 `@MainActor`를
+  명시해 수정했다. 제품 코드의 actor 격리를 낮추지 않았다.
+- sandbox 내부 Xcode 실행은 macOS 서비스와 테스트 완료 distributed notification
+  접근도 거부했다. 시스템 developer directory를 변경하지 않고 `DEVELOPER_DIR`로
+  설치된 전체 Xcode를 지정한 뒤, 승인된 sandbox 밖에서 빌드·테스트했다.
+
+
 ## 2026-10-01 데스크톱 검은 화면: 재생 item 없는 상태의 복구 누락
 
 ### 관찰과 원인 범위

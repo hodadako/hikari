@@ -13,10 +13,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var settings: HikariSettings
     @Published private(set) var pauseReasons: Set<PlaybackPauseReason> = []
     @Published private(set) var isImporting = false
-    @Published private(set) var latestRelease: LatestRelease?
-    @Published private(set) var updateCheckState: UpdateCheckState = .idle
     @Published private(set) var isApplyingUpdate = false
-    @Published private(set) var updateErrorMessage: String?
+    @Published var settingsSection: SettingsSection = .general
     @Published private(set) var nativeLockRecord: NativeLockTransactionRecord? = nil
     @Published private(set) var isNativeLockWorking = false
     @Published private(set) var nativeStorageMigrationReport =
@@ -33,7 +31,11 @@ final class AppModel: ObservableObject {
     private let stateMonitor = SystemStateMonitor()
     private lazy var customAppIconStore = CustomAppIconStore(container: container)
     private lazy var customMenuBarIconStore = CustomMenuBarIconStore(container: container)
-    private let releaseUpdateService = ReleaseUpdateService()
+    private let updateMonitor = AppUpdateMonitor(
+        currentVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+            as? String ?? "Development"
+    )
+    private var updateObservation: AnyCancellable?
     private lazy var appUpdateInstaller = AppUpdateInstaller()
     private lazy var wallpaperController = WallpaperController()
     private lazy var nativeLockController = NativeLockController(container: container)
@@ -51,6 +53,7 @@ final class AppModel: ObservableObject {
     private var normalizedMenuBarIconCache: [String: NSImage] = [:]
     private var normalizedMenuBarHeartbeatCache: NSImage?
     private var hasStartedInitialPlayback = false
+    private var isShuttingDown = false
     init() {
         do {
             let canonicalURL = try SharedContainer.applicationSupportRootURL(
@@ -176,10 +179,9 @@ final class AppModel: ObservableObject {
         }
         if let storageMigrationErrorMessage {
             presentedError = storageMigrationErrorMessage
-        } else if let updateBlockedReason {
-            updateErrorMessage = updateBlockedReason
-        } else if variant.supportsAutomaticUpdates {
-            checkForUpdates()
+        }
+        updateObservation = updateMonitor.objectWillChange.sink { [weak self] in
+            self?.objectWillChange.send()
         }
     }
 
@@ -568,41 +570,18 @@ final class AppModel: ObservableObject {
     }
 
     func checkForUpdates() {
-        guard variant.supportsAutomaticUpdates else { return }
-        guard updateBlockedReason == nil else {
-            updateCheckState = .failed
-            updateErrorMessage = updateBlockedReason
-            return
-        }
-        guard updateCheckState != .checking else { return }
-        updateTask?.cancel()
-        updateCheckState = .checking
-        latestRelease = nil
-        updateErrorMessage = nil
-        updateTask = Task { [weak self] in
-            do {
-                let release = try await self?.releaseUpdateService.fetchLatestRelease()
-                guard let self, let release, !Task.isCancelled else { return }
-                guard let latestVersion = release.version,
-                      let currentVersion = HikariVersion(self.currentAppVersion) else {
-                    self.latestRelease = nil
-                    self.updateCheckState = .failed
-                    self.updateErrorMessage = ReleaseUpdateError.invalidReleaseVersion.localizedDescription
-                    return
-                }
-                self.latestRelease = release
-                self.updateCheckState = latestVersion > currentVersion
-                    ? .updateAvailable
-                    : .upToDate
-            } catch is CancellationError {
-                return
-            } catch {
-                guard let self, !Task.isCancelled else { return }
-                self.latestRelease = nil
-                self.updateCheckState = .failed
-                self.updateErrorMessage = error.localizedDescription
-            }
-        }
+        guard variant.supportsAutomaticUpdates, !isApplyingUpdate else { return }
+        updateMonitor.checkForUpdates()
+    }
+
+    var latestRelease: LatestRelease? { updateMonitor.latestRelease }
+    var updateCheckState: UpdateCheckState { updateMonitor.state }
+    var updateErrorMessage: String? { updateMonitor.errorMessage }
+    var hasUpdateAvailable: Bool { updateMonitor.hasUpdateAvailable }
+
+    func startUpdateMonitoring() {
+        guard variant.supportsAutomaticUpdates, !isApplyingUpdate, !isShuttingDown else { return }
+        updateMonitor.start()
     }
 
     func applyLatestUpdate() {
@@ -618,6 +597,7 @@ final class AppModel: ObservableObject {
             return
         }
         isApplyingUpdate = true
+        updateMonitor.stop()
         let installer = appUpdateInstaller
         updateTask?.cancel()
         updateTask = Task { [weak self, installer] in
@@ -626,9 +606,11 @@ final class AppModel: ObservableObject {
             } catch is CancellationError {
                 guard let self else { return }
                 self.isApplyingUpdate = false
+                self.startUpdateMonitoring()
             } catch {
                 guard let self else { return }
                 self.isApplyingUpdate = false
+                self.startUpdateMonitoring()
                 self.presentedError = error.localizedDescription
             }
         }
@@ -670,8 +652,10 @@ final class AppModel: ObservableObject {
     }
 
     func shutdown() {
+        isShuttingDown = true
         stateMonitor.stop()
         updateTask?.cancel()
+        updateMonitor.stop()
         nativeLockMaintenanceTask?.cancel()
         nativeLockMaintenanceTask = nil
         nativeLockAutoApplyTask?.cancel()

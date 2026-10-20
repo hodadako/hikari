@@ -19,7 +19,8 @@ final class SettingsWindowPresenter: NSObject {
         show(model: model)
     }
 
-    func show(model: AppModel) {
+    func show(model: AppModel, section: SettingsSection? = nil) {
+        if let section { model.settingsSection = section }
         if let window = windowController?.window {
             installContentIfNeeded(in: window, model: model)
             configureTitle(of: window, model: model)

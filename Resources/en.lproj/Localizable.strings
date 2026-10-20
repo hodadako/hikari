@@ -199,3 +199,5 @@
 "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update." = "Before installing a new macOS major version, restore Hikari from this screen. An unfinished Lock Screen change may not be recoverable after the update.";
 "Lock Screen Video Ready" = "Lock Screen Video Ready";
 "%@ is ready to apply to the Lock Screen." = "%@ is ready to apply to the Lock Screen.";
+"Hikari Update Available" = "Hikari Update Available";
+"Version %@ is available. Open Hikari to review the update." = "Version %@ is available. Open Hikari to review the update.";

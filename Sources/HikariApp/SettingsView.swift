@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
-    @State private var selection: SettingsSection = .general
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,10 +28,10 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var settingsContent: some View {
-        if model.contents.isEmpty {
+        if model.contents.isEmpty && model.settingsSection != .about {
             WelcomeView(model: model)
         } else {
-            TabView(selection: $selection) {
+            TabView(selection: $model.settingsSection) {
                 GeneralSettingsView(model: model)
                     .tabItem { Label("General", systemImage: "gearshape") }
                     .tag(SettingsSection.general)
@@ -45,7 +44,7 @@ struct SettingsView: View {
     }
 }
 
-private enum SettingsSection: Hashable {
+enum SettingsSection: Hashable {
     case general
     case about
 }
@@ -487,9 +486,8 @@ private struct AboutView: View {
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.orange)
-            } else {
-                updateControls
             }
+            updateControls
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -537,7 +535,7 @@ private struct AboutView: View {
                         showingUpdateConfirmation = true
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.isApplyingUpdate)
+                    .disabled(model.isApplyingUpdate || model.updateBlockedReason != nil)
                 }
             case .upToDate:
                 Text("Hikari is up to date.").foregroundStyle(.secondary)
