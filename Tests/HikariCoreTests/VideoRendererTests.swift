@@ -28,7 +28,14 @@ final class VideoRendererTests: XCTestCase {
         renderer.player.removeAllItems()
 
         XCTAssertNil(renderer.player.currentItem)
-        XCTAssertTrue(renderer.requiresPlaybackRecovery)
+        XCTAssertFalse(renderer.requiresPlaybackRecovery,
+                       "A transient empty queue must not trigger immediate recovery")
+        let recoveryDeadline = ContinuousClock.now.advanced(by: .seconds(7))
+        while !renderer.requiresPlaybackRecovery && ContinuousClock.now < recoveryDeadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertTrue(renderer.requiresPlaybackRecovery,
+                      "A persistently empty queue must trigger recovery after the grace period")
 
         renderer.reloadCurrentItem()
         try await waitForItem(renderer)
