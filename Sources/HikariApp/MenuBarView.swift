@@ -6,12 +6,29 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var model: AppModel
     let onShowSettings: () -> Void
+    let onShowUpdates: () -> Void
     @State private var showingImporter = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             currentContentHeader
             Divider()
+
+            if model.hasUpdateAvailable, let release = model.latestRelease {
+                Button(action: onShowUpdates) {
+                    Label(
+                        String(
+                            format: NSLocalizedString(
+                                "Version %@ is available.", comment: "Menu update available"
+                            ),
+                            release.displayVersion
+                        ),
+                        systemImage: "arrow.down.circle"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .foregroundStyle(.tint)
+            }
 
             Button {
                 model.togglePlayback()
