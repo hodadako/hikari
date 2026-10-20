@@ -9,7 +9,7 @@
   <a href="https://github.com/hodadako/hikari/releases/latest"><img src="https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&amp;sort=semver&amp;label=latest%20release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/hodadako/hikari?label=license" alt="License: MIT"></a>
   <a href="https://github.com/hodadako/hikari/commits/main/"><img src="https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&amp;label=last%20commit" alt="Last commit"></a><br>
-  <a href="https://deepwiki.com/hodadako/hikari"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://deepwiki.com/hodadako/hikari"><img src="https://img.shields.io/badge/Ask-DeepWiki-blue" alt="Ask DeepWiki"></a>
 </p>
 
 **Bring your desktop to life.**
@@ -20,7 +20,7 @@ macOS Native Lock Screen path.
 
 > Hikari release builds are ad-hoc signed and are not Apple-notarized.
 
-## What works
+## Features
 
 - AVFoundation video validation, managed copying, metadata, duplicate checks,
   and thumbnails
@@ -66,6 +66,10 @@ The app is ad-hoc signed, not notarized. On first launch, Control-click
 ```sh
 shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 ```
+
+To have an AI agent install and set up Hikari, paste this prompt:
+
+> Install Hikari from the latest release on this Mac and complete the initial setup. Ask me to choose a video if needed. On macOS 26, explain that choosing a video also applies it to the Native Lock Screen, and get my approval before selecting one.
 
 ## Storage migration
 

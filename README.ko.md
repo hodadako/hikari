@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg)](https://github.com/hodadako/hikari/actions/workflows/ci.yml) [![CodeQL](https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg)](https://github.com/hodadako/hikari/actions/workflows/codeql.yml) [![Codecov](https://codecov.io/gh/hodadako/hikari/branch/main/graph/badge.svg)](https://codecov.io/gh/hodadako/hikari)<br>
 [![Latest release](https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&sort=semver&label=latest%20release)](https://github.com/hodadako/hikari/releases/latest) [![License: MIT](https://img.shields.io/github/license/hodadako/hikari?label=license)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&label=last%20commit)](https://github.com/hodadako/hikari/commits/main/)<br>
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hodadako/hikari)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue)](https://deepwiki.com/hodadako/hikari)
 
 **데스크톱에 생동감을 더하세요.**
 
@@ -58,6 +58,10 @@ Control-클릭하고 **열기**를 선택해 확인하세요. 실행 전에 chec
 ```sh
 shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 ```
+
+AI 에이전트에게 아래 문장을 붙여넣으면 설치와 초기 설정을 맡길 수 있습니다.
+
+> 이 Mac에 최신 Hikari 릴리스를 설치하고 실행해 초기 설정을 마쳐 줘. 영상 선택이 필요하면 나에게 선택할 파일을 물어봐. macOS 26에서는 영상을 고르면 Native Lock Screen에도 자동 적용되니, 이 점을 설명하고 선택 전에 확인을 받아.
 
 ## 저장소 마이그레이션
 
