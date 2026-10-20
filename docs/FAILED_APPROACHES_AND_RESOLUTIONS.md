@@ -2,6 +2,49 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-09 장시간 잠자기 뒤 검은 데스크톱 복구 보완
+
+### 원인과 해결
+
+- 2026-10-01의 `WaitingForPlaybackItem` 로그에 대응해 template의 실패 알림뿐 아니라
+  current item 부재·실패 및 looper 실패를 확인한다. 동일 URL이라도 고장난 queue는
+  다시 준비하고 공유 player·음소거·사용자 Pause 의도를 유지한다.
+- wake 알림은 기존 `scheduleRecovery`에서 일반 display topology 확인으로만 연결됐다.
+  topology가 그대로이고 item은 건강한데 표시 surface만 손실된 경우에도 복구가 필요하다.
+  실제 wake 요청을 display task와 별도로 보존하고 settled pass 뒤 기존 창 내부의
+  replacement layer를 준비한다. 중간 display 알림이 task를 취소해도 wake 요청은 유지된다.
+- 재생 중·일시정지 중 모두 5초 maintenance가 queue 상태를 검사한다. 일반 display
+  연결·해제만으로 건강한 surface를 다시 만들지 않는 기존 정책은 유지한다.
+
+### 실패한 검증 접근과 보완
+
+- 초기 renderer 테스트가 존재하지 않는 `/tmp/ocean.mp4`를 사용하고 load/reload 직후
+  item의 즉시 존재를 요구해 실패했다. 실제 H.264 영상을 테스트에서 생성하고
+  AVFoundation의 비동기 준비 완료를 기다리도록 수정했다.
+- wake 통합 테스트도 reload 직후의 item 존재 assertion만 실패했고 이후 실제 재생은
+  복구됐다. 첫 프레임·재생 준비를 기다린 뒤 검사하도록 보완했다.
+- 초기 준비 중 `.unknown` looper의 빈 queue를 고장으로 오인해 반복 reload하지 않도록
+  5초 준비 유예를 적용한다. 계속 준비되지 않는 queue는 이후 maintenance에서 재시도한다.
+- sandbox 내부 SwiftPM 실행은 사용자 module-cache 쓰기 권한으로 실패했다. 전체 Xcode를
+  명시하고 승인된 sandbox 밖 실행에서 검증했다.
+
+### 검증 범위
+
+- `swift test --parallel` 84개 통과: 실제 영상 queue 제거 → 같은 URL reload,
+  실패 media 감지, 초기 준비와 콘텐츠 해제 시 불필요한 복구 방지를 검사한다.
+- Xcode의 실제 WindowServer/영상 테스트는 queue 제거 뒤 같은 player와 창으로
+  첫 프레임·재생 복구, Pause 중 maintenance 복구와 Pause 유지, 기존 surface 회귀를 검사한다.
+- 최종 Xcode 전체 94개 테스트가 실패·skip 없이 통과했다. wake 알림 두 종류 뒤
+  display task가 재시작돼도 settled 후 wake callback은 한 번 발생하며, 일반 display
+  변경만으로 wake surface rebuild가 발생하지 않는 것을 검사했다.
+- wake와 display 알림을 NotificationCenter에 주입하는 테스트는 실제 하드웨어 잠자기
+  또는 장시간 sleep 자체의 재현을 뜻하지 않는다. 원래 item이 사라진 macOS 내부 원인도
+  기존 로그만으로 확정하지 않는다.
+- 실제 장시간 잠자기와 다중 physical display 복귀, 설치본의 재발 여부는 별도 실사용
+  검증이 필요하다. 이후 2026-10-09 수정본을 빌드·서명 검증 후 설치·실행했다.
+  settings와 active marker는 실행 전후 hash가 같고 기존 transaction은 active다.
+  Native Apply/Restore는 수행하지 않았다. 설치와 실제 장시간 sleep 검증을 혼동하지 않는다.
+
 ## 2026-10-01 데스크톱 검은 화면: 재생 item 없는 상태의 복구 누락
 
 ### 관찰과 원인 범위

@@ -16,6 +16,7 @@ final class SystemStateMonitor {
     var onScreenUnlocked: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
     var onDisplaysSettled: (() -> Void)?
+    var onWakeSettled: (() -> Void)?
     var onActiveSpaceChanged: (() -> Void)?
     var onActiveSpaceSettled: (() -> Void)?
 
@@ -28,6 +29,7 @@ final class SystemStateMonitor {
     private var stateTask: Task<Void, Never>?
     private var displayTask: Task<Void, Never>?
     private var spaceTask: Task<Void, Never>?
+    private var wakeSurfaceRecoveryPending = false
     private var displaySpaceRecoveryState = DisplaySpaceRecoveryState()
 
     // WindowServer can publish the screen-parameter notification before the
@@ -249,6 +251,10 @@ final class SystemStateMonitor {
                         self.displaySpaceRecoveryState.displayRecoveryDidSettle()
                         self.displayTask = nil
                         self.onDisplaysSettled?()
+                        if self.wakeSurfaceRecoveryPending && !self.isSleeping {
+                            self.wakeSurfaceRecoveryPending = false
+                            self.onWakeSettled?()
+                        }
                     }
                 }
             }
@@ -284,6 +290,10 @@ final class SystemStateMonitor {
     }
 
     private func scheduleRecovery(after delay: UInt64) {
+        // Retain the wake request across intervening display notifications,
+        // which cancel and restart the topology task. Only a real wake asks
+        // for a surface replacement; display attachment alone does not.
+        wakeSurfaceRecoveryPending = true
         scheduleDisplaysChanged(after: delay)
         scheduleStateChanged(after: delay)
     }

@@ -78,6 +78,49 @@ final class WallpaperControllerTests: XCTestCase {
         XCTAssertFalse(controller.isPlaying)
     }
 
+    func testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows() async throws {
+        let player = try await preparePlayback()
+        let queue = try XCTUnwrap(player as? AVQueuePlayer)
+        let originalWindows = Set(windows.map(\.windowNumber))
+        queue.removeAllItems()
+        XCTAssertNil(player.currentItem)
+
+        controller.rebuildWindowsIfContentAvailable(true)
+
+        try await waitForPlayback()
+        XCTAssertNotNil(player.currentItem)
+        XCTAssertEqual(Set(windows.map(\.windowNumber)), originalWindows)
+        XCTAssertTrue(layers.allSatisfy { $0.player === player })
+        XCTAssertTrue(player.isMuted)
+    }
+
+    func testMaintenanceRecoversEmptyQueueWhilePausedWithoutResuming() async throws {
+        let player = try await preparePlayback()
+        controller.pause()
+        let queue = try XCTUnwrap(player as? AVQueuePlayer)
+        queue.removeAllItems()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(7))
+        while player.currentItem == nil && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertNotNil(player.currentItem)
+        XCTAssertEqual(player.rate, 0)
+        XCTAssertFalse(controller.isPlaying)
+        controller.play()
+        try await waitForPlayback()
+    }
+
+    private func waitForPlayback() async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !controller.isPlaying || readyWindows.count != NSScreen.screens.count {
+            guard ContinuousClock.now < deadline else {
+                XCTFail("Recovered queue did not display video and resume playback")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     func testOverlappingRecoveryIsBoundedAndScalingStaysCurrent() async throws {
         let player = try await preparePlayback()
         let previousWindows = Set(windows.map(\.windowNumber))
