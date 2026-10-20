@@ -60,6 +60,7 @@ final class WallpaperController {
         // player would flush healthy layers and is unnecessary: replacement
         // layers use the same running clock.
         guard renderer.currentURL != nil else { return }
+        recoverFailedPlayer()
 
         for plan in plans where replacementLayers[plan.displayID] == nil {
             guard let current = sessions[plan.displayID] else { continue }
@@ -160,6 +161,7 @@ final class WallpaperController {
     func play() {
         wantsPlayback = true
         renderer.play()
+        recoverFailedPlayer()
         startMaintenanceMonitoring()
     }
 
@@ -349,7 +351,7 @@ final class WallpaperController {
     }
 
     private func recoverFailedPlayer() {
-        guard renderer.needsPlaybackRecovery() else { return }
+        guard renderer.requiresPlaybackRecovery else { return }
         renderer.reloadCurrentItem()
         if wantsPlayback {
             renderer.play()
