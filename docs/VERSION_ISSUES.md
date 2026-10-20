@@ -2,57 +2,35 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — 새 버전 자동 확인과 안내 (#56, 2026-10-20)
+## Hikari v0.3.6 (16) — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
 
-- 기존에는 매 실행마다 릴리스를 확인하고 About 안에서만 결과를 표시했다. 자동 확인은
-  마지막 조회 시도로부터 24시간 뒤에만 실행하며, 앱 시작·시간별 확인·wake에서 같은
-  제한을 적용한다. 수동 확인은 이 제한을 우회한다. 오프라인 실패도 다음 날까지
-  자동 재시도를 제한하고, 자동 실패는 오류 대화상자를 띄우지 않는다.
-- 마지막 유효 릴리스와 조회 시각을 앱의 UserDefaults에 저장한다. 재실행 또는
-  일시적인 통신 실패에도 알려진 새 버전의 메뉴 항목을 유지한다. 설치 가능한 ZIP과
-  checksum이 모두 있는 릴리스만 새 버전으로 안내한다.
-- 새 버전은 메뉴 팝오버와 macOS 알림으로 안내한다. 알림 권한은 새 버전을 발견한
-  뒤 요청하며, 거부해도 메뉴 안내는 유지한다. 알림 등록에 성공한 버전은 재알림하지
-  않고 다음 새 버전에서 다시 안내한다. 수동 확인은 배너를 보내지 않는다.
-- 메뉴의 업데이트 항목 또는 업데이트 알림 클릭은 팝오버를 닫고 About을 연다.
-  라이브러리가 비어 있거나 설정 UI를 닫았다가 다시 열어도 About으로 이동할 수 있다.
-  알림 콜백의 UI 변경은 MainActor에서 수행한다.
-- 미완료 Native Lock transaction·storage migration 오류가 있어도 버전 조회와 안내는
-  가능하다. 실제 설치 버튼과 `applyLatestUpdate()`는 기존 차단 조건을 유지한다.
-  설치 중에는 자동 확인을 멈추며, 설치 실패 시 확인을 재개한다.
-- `xcodegen generate`와 전체 Xcode 빌드·테스트에서 기존 90개와 새 업데이트 테스트
-  10개, 총 100개가 실패 없이 통과했다. 알림 클릭 MainActor 처리와 종료 시 재시작
-  방지 보완 뒤 앱을 다시 빌드하고, wake 확인 테스트를 포함한 업데이트 테스트 11개도
-  실패 없이 통과했다. 전체 실행 결과는
-  `/tmp/hikari-update-notifications-build/Logs/Test/Test-Hikari-2026.10.20_22-47-53-+0900.xcresult`,
-  업데이트 최종 실행은 같은 디렉터리의 `Test-Hikari-2026.10.20_22-50-42-+0900.xcresult`다.
-- 영어·한국어 localization plist 검사와 `git diff --check`를 통과했다.
-- 버전·태그는 변경하지 않는다. 알림 권한과 시스템 배너 표시, 실제 클릭에서의 창
-  이동은 설치본 수동 확인 범위다. 자동 테스트는 격리된 UserDefaults와 가짜 조회·알림을
-  사용하며 실제 업데이트 설치나 Native Apply/Restore를 실행하지 않는다.
+### 이슈와 영향
 
-## Unreleased — 잠자기 복귀의 빈 재생 queue 및 손실 surface 복구 (2026-10-09)
+- v0.3.5에서는 잠자기 복귀 뒤 재생 queue의 항목이 사라지면 선택한 영상이 검은 화면으로
+  남을 수 있었다. 건강한 queue와 표시 surface를 보존하면서 고장 난 재생만 복구해야 했다.
+- 새 버전을 About에서 직접 확인해야 했고, 새 릴리스가 있어도 사용자가 놓칠 수 있었다.
 
-- 현재 0.3.5의 wake/display 전환 후 `WaitingForPlaybackItem` 상태는 template 실패
-  알림을 받지 않아 자동 복구에서 누락될 수 있었다. current item 부재·실패 및 looper
-  실패를 감지하고 선택 영상의 queue를 공유 player 안에서 다시 준비한다.
-- 실제 wake는 topology settled 뒤 표시 surface도 복구한다. 건강한 display 연결·해제는
-  기존 surface를 보존하고, wake 복구는 같은 창 내부에서 ready layer로만 교체한다.
-- 초기 비동기 looper 준비는 5초 동안 기다리며, Pause·음소거 의도를 유지한다.
-- SwiftPM core/native 84개 테스트 통과. 실제 영상과 WindowServer를 사용하는 queue 복구,
-  Pause 중 maintenance 및 기존 surface 회귀 테스트도 통과했다.
-- 최종 Xcode 앱 빌드와 전체 테스트 94개 통과(실패·skip 0). wake/display 알림 중첩과
-  일반 display 변경의 wake surface 복구 금지 테스트를 포함한다. 결과는
-  `/tmp/hikari-sleep-recovery-build/Logs/Test/Test-Hikari-2026.10.09_02-10-44-+0900.xcresult`다.
-- 실제 장시간 sleep/wake 및 다중 physical display 검증은 아직 완료되지 않았다.
-  마케팅 버전·태그는 변경하지 않았으며 Native Apply/Restore도 수행하지 않았다.
-- 2026-10-09 수정본을 직접 빌드·ad-hoc 서명·strict verification 후
-  `/Applications/Hikari.app`에 설치하고 실행했다(PID 56172). 설치본과 빌드 산출물의
-  executable SHA-256은 `63e5d4a1b094e11cd2fb4e2e5574517852156b348a4e05c02ac8ff7bf0e3afca`로
-  일치한다. 기존 앱은 `/tmp/hikari-sleep-install.7A74Tm/Original-Hikari.app`에 보존했다.
-  실행 전후 settings와 active marker hash가 같고 기존 transaction
-  `3EAA8C31-5F36-4A53-9C08-40C4E644EDF5`는 active다. 앱 시작의 기존 one-shot native
-  renderer refresh 로그를 확인했다. 실제 장시간 잠자기 복귀 결과는 아직 확인하지 않았다.
+### 조치
+
+- 잠자기 복귀 뒤 current item·looper 상태를 확인하고 선택 영상의 queue를 공유 player 안에서
+  다시 준비한다. 표시 surface는 topology 안정화 뒤 복구하며, Pause·음소거 의도와 기존 창을
+  유지한다. 초기 비동기 queue에는 5초 준비 유예를 둔다.
+- 새 릴리스를 24시간 간격으로 자동 확인하고, 설치 가능한 ZIP과 checksum이 함께 있는
+  버전만 메뉴와 macOS 알림으로 안내한다. 마지막 유효 결과를 저장하며 수동 확인은 주기를
+  우회한다. 미완료 Native Lock transaction 또는 storage migration 오류가 있으면 실제
+  업데이트 설치는 계속 차단한다.
+- 메뉴의 업데이트 항목과 알림은 About으로 이동한다. 사용자에게 붙여넣기용 설치·초기 설정
+  안내를 README에 추가했다.
+
+### 검증
+
+- 업데이트 기능 추가 후 전체 Xcode 테스트 100개, 보완 후 업데이트 테스트 11개가 실패 없이
+  통과했다. wake 복구의 5초 대기를 반영해 통합 테스트 제한 시간을 15초로 늘린 수정은
+  PR #62에서 macOS 15 CI와 CodeQL(actions·Swift)을 통과했다.
+- `main`의 macOS 15 ARM64/Intel CI와 v0.3.6 태그의 macOS 15/26 네 runner 전체 CI·패키징은
+  릴리스 확인 후 결과를 추가한다.
+- 알림 권한·시스템 배너·실제 클릭 동작과 장시간 잠자기/다중 디스플레이 복귀는 설치본에서
+  수동 확인이 필요하다. 이번 릴리스에서는 Native Apply/Restore를 실행하지 않는다.
 
 ## Hikari v0.3.5 (15) — Space 전환 중 화면 크기 변동 수정 (2026-09-19)
 

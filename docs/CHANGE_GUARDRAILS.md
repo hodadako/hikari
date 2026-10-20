@@ -48,7 +48,7 @@
 - Native Local의 user support root와 transaction staging은 현재 사용자 전용 권한으로 유지한다. system playback copy는 macOS 서비스 접근 때문에 root 소유 0644이며 활성 중 같은 Mac의 다른 로컬 계정이 읽을 수 있다는 고지를 유지한다. 복원은 hash가 일치하는 system copy만 제거한다.
 - Hikari의 canonical 사용자 저장소는 `~/Library/Application Support/Hikari`다. pre-Hikari 일반·Native Local 저장소는 런타임 compatibility table로만 찾고, 첫 실행에 콘텐츠·설정·아이콘·transaction을 idempotent하게 병합한 뒤 원본을 삭제하지 않고 `.archived` 인접 경로로 이동한다. canonical 파일과 충돌하는 경우 canonical 파일을 보존한다.
 - 신규 제품·모듈·타깃·타입·bundle·저장소·문서·archive 이름에는 Hikari casing만 사용한다. pre-Hikari 데이터 식별자는 마이그레이션과 기존 macOS 15 transaction Restore에 필요한 runtime-only 호환 값으로만 유지한다.
-- 일반 CI는 Hikari만 빌드·테스트한다. PR에서는 대표 macOS 15 runner에서 Debug build/test만 실행하고, `main` push와 정상 `vX.Y.Z` tag에서는 macOS 15/26 ARM64·Intel 전체 build/test와 bundle 검사를 실행한다. 정상 `vX.Y.Z` tag에서만 Hikari ad-hoc asset과 checksum을 패키징·업로드·릴리스하며, 별도 `hikari-v*` release channel은 만들지 않는다. release coverage는 macOS 15/26의 ARM64·Intel 결과를 Codecov flag로 올린다.
+- 일반 CI는 Hikari만 빌드·테스트한다. PR에서는 대표 `macos-15` runner에서 Debug build/test만 실행한다. `main` push는 `macos-15`와 `macos-15-intel`, 정상 `vX.Y.Z` tag는 여기에 `macos-26`과 `macos-26-intel`을 더해 전체 build/test를 실행한다. tag에서는 Hikari bundle 검사도 실행한다. 정상 tag에서만 Hikari ad-hoc asset과 checksum을 패키징·업로드·릴리스하며, 별도 `hikari-v*` release channel은 만들지 않는다. release coverage는 네 runner 결과를 각각 Codecov flag로 올린다.
 - 같은 system wallpaper/aerial 저장소를 수정하는 다른 도구와 native 잠금 화면 실험을 동시에 실행하지 않는다.
 
 ## 릴리스
