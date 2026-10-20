@@ -2,6 +2,13 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-20 main CI의 wake queue 복구 테스트 timeout
+
+- PR 검사에서는 통과한 `WallpaperControllerTests.testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 main push CI의 macOS 15 ARM64와 Intel에서 실패했다. Actions run `39441509851`과 `39445579260` 모두 `Recovered queue did not display video and resume playback`을 보고했다.
+- 로그에는 테스트 deadline 직전에 `Rebuilding selected video's playback queue`가 기록됐다. 제품은 일시적인 빈 queue를 5초간 허용하고, 그 뒤 AVPlayer item과 표시 surface가 준비될 시간이 추가로 필요하다. 기존 테스트 timeout 5초는 이 두 구간을 모두 포함하기에 짧았다.
+- 제품 복구 grace period는 줄이거나 제거하지 않는다. wake 통합 테스트의 playback 대기만 15초로 늘려 queue 복구와 WindowServer 첫 프레임 준비를 모두 기다린다.
+- 수정 후 macOS 15 PR CI와 main push CI 결과를 확인한다.
+
 ## 2026-10-20 업데이트 안내 구현의 Xcode 검증
 
 - 초기 Xcode 테스트 컴파일에서 테스트 내부의 `makeMonitor()` 지역 함수가 main actor
