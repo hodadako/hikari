@@ -127,6 +127,7 @@ targets:
     sources:
       - Tests/HikariWallpaperTests
       - Sources/HikariApp/WallpaperController.swift
+      - Sources/HikariApp/SystemStateMonitor.swift
     dependencies:
       - target: HikariCore
     settings:

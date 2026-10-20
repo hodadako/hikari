@@ -143,6 +143,13 @@ final class AppModel: ObservableObject {
             )
             self.reconcilePlayback()
         }
+        stateMonitor.onWakeSettled = { [weak self] in
+            guard let self else { return }
+            self.wallpaperController.rebuildWindowsIfContentAvailable(
+                self.hasPlayableContent
+            )
+            self.reconcilePlayback()
+        }
         stateMonitor.onActiveSpaceSettled = { [weak self] in
             guard let self else { return }
             // A desktop-level window can remain alive while Mission Control

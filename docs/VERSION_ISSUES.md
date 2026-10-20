@@ -31,6 +31,28 @@
   이동은 설치본 수동 확인 범위다. 자동 테스트는 격리된 UserDefaults와 가짜 조회·알림을
   사용하며 실제 업데이트 설치나 Native Apply/Restore를 실행하지 않는다.
 
+## Unreleased — 잠자기 복귀의 빈 재생 queue 및 손실 surface 복구 (2026-10-09)
+
+- 현재 0.3.5의 wake/display 전환 후 `WaitingForPlaybackItem` 상태는 template 실패
+  알림을 받지 않아 자동 복구에서 누락될 수 있었다. current item 부재·실패 및 looper
+  실패를 감지하고 선택 영상의 queue를 공유 player 안에서 다시 준비한다.
+- 실제 wake는 topology settled 뒤 표시 surface도 복구한다. 건강한 display 연결·해제는
+  기존 surface를 보존하고, wake 복구는 같은 창 내부에서 ready layer로만 교체한다.
+- 초기 비동기 looper 준비는 5초 동안 기다리며, Pause·음소거 의도를 유지한다.
+- SwiftPM core/native 84개 테스트 통과. 실제 영상과 WindowServer를 사용하는 queue 복구,
+  Pause 중 maintenance 및 기존 surface 회귀 테스트도 통과했다.
+- 최종 Xcode 앱 빌드와 전체 테스트 94개 통과(실패·skip 0). wake/display 알림 중첩과
+  일반 display 변경의 wake surface 복구 금지 테스트를 포함한다. 결과는
+  `/tmp/hikari-sleep-recovery-build/Logs/Test/Test-Hikari-2026.10.09_02-10-44-+0900.xcresult`다.
+- 실제 장시간 sleep/wake 및 다중 physical display 검증은 아직 완료되지 않았다.
+  마케팅 버전·태그는 변경하지 않았으며 Native Apply/Restore도 수행하지 않았다.
+- 2026-10-09 수정본을 직접 빌드·ad-hoc 서명·strict verification 후
+  `/Applications/Hikari.app`에 설치하고 실행했다(PID 56172). 설치본과 빌드 산출물의
+  executable SHA-256은 `63e5d4a1b094e11cd2fb4e2e5574517852156b348a4e05c02ac8ff7bf0e3afca`로
+  일치한다. 기존 앱은 `/tmp/hikari-sleep-install.7A74Tm/Original-Hikari.app`에 보존했다.
+  실행 전후 settings와 active marker hash가 같고 기존 transaction
+  `3EAA8C31-5F36-4A53-9C08-40C4E644EDF5`는 active다. 앱 시작의 기존 one-shot native
+  renderer refresh 로그를 확인했다. 실제 장시간 잠자기 복귀 결과는 아직 확인하지 않았다.
 
 ## Hikari v0.3.5 (15) — Space 전환 중 화면 크기 변동 수정 (2026-09-19)
 

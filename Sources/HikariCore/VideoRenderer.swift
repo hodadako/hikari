@@ -44,6 +44,7 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
 
     public let player = AVQueuePlayer()
     private var looper: AVPlayerLooper?
+    private var loadStartedAt: ContinuousClock.Instant?
     private var itemFailureToken: NSObjectProtocol?
     private var timeControlObservation: NSKeyValueObservation?
     private var itemHealth = PlaybackItemHealth()
@@ -62,6 +63,7 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
     /// every display layer.
     public func reloadCurrentItem() {
         guard let currentURL else { return }
+        playbackLogger.notice("Rebuilding selected video's playback queue")
         load(
             url: currentURL,
             muted: player.isMuted,
@@ -71,15 +73,18 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
 
     /// A wake can leave the queue without an item while the URL and looper
     /// still look valid. Allow transient queue changes to settle first.
-    public func needsPlaybackRecovery(now: Date = Date()) -> Bool {
+    public var requiresPlaybackRecovery: Bool {
         guard currentURL != nil, looper != nil else {
             itemHealth.reset()
             return false
         }
-        return hasPlaybackError || itemHealth.needsRecovery(
+        if hasPlaybackError || looper?.status == .failed {
+            return true
+        }
+        return itemHealth.needsRecovery(
             hasItem: player.currentItem != nil,
             itemFailed: player.currentItem?.status == .failed,
-            now: now
+            now: Date()
         )
     }
 
@@ -101,6 +106,7 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
                 self?.isPlaying = false
             }
         }
+        loadStartedAt = ContinuousClock.now
         looper = AVPlayerLooper(player: player, templateItem: item)
         player.isMuted = muted
         currentURL = url
@@ -144,6 +150,7 @@ public final class VideoRenderer: ObservableObject, PlaybackSession {
         }
         looper?.disableLooping()
         looper = nil
+        loadStartedAt = nil
         player.removeAllItems()
         currentURL = nil
         isPlaying = false
