@@ -89,7 +89,7 @@ final class WallpaperControllerTests: XCTestCase {
 
         // Empty queues have a five-second recovery grace period. Leave time
         // after that for AVPlayer and WindowServer to prepare a display frame.
-        try await waitForPlayback(timeout: .seconds(15))
+        try await waitForPlayback(player: player, timeout: .seconds(15))
         XCTAssertNotNil(player.currentItem)
         XCTAssertEqual(Set(windows.map(\.windowNumber)), originalWindows)
         XCTAssertTrue(layers.allSatisfy { $0.player === player })
@@ -112,11 +112,18 @@ final class WallpaperControllerTests: XCTestCase {
         try await waitForPlayback()
     }
 
-    private func waitForPlayback(timeout: Duration = .seconds(5)) async throws {
+    private func waitForPlayback(
+        player: AVPlayer? = nil,
+        timeout: Duration = .seconds(5)
+    ) async throws {
         let deadline = ContinuousClock.now.advanced(by: timeout)
-        while !controller.isPlaying || readyWindows.count != NSScreen.screens.count {
+        while !controller.isPlaying
+            || readyWindows.count != NSScreen.screens.count
+            || (player.map { $0.currentItem == nil } ?? false) {
             guard ContinuousClock.now < deadline else {
-                XCTFail("Recovered queue did not display video and resume playback")
+                XCTFail(
+                    "Recovered queue did not restore its item, display video, and resume playback"
+                )
                 return
             }
             try await Task.sleep(for: .milliseconds(10))
