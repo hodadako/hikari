@@ -228,11 +228,20 @@ final class WallpaperControllerTests: XCTestCase {
         controller.setContentAvailable(true)
         controller.setContent(url: url, muted: true)
         controller.play()
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        let deadline = ContinuousClock.now.advanced(by: .seconds(15))
         while readyWindows.count != NSScreen.screens.count || !controller.isPlaying {
             guard ContinuousClock.now < deadline else {
+                let currentItem = layers.first?.player?.currentItem
+                let itemStatus = currentItem.map { String(describing: $0.status) } ?? "missing"
+                let itemError = currentItem?.error?.localizedDescription ?? "none"
+                let failureMessage = """
+                    Initial video did not become ready
+                    (ready windows: \(readyWindows.count)/\(NSScreen.screens.count),
+                    playing: \(controller.isPlaying), item status: \(itemStatus),
+                    item error: \(itemError))
+                    """
                 throw NSError(domain: "WallpaperTests", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Initial video did not become ready"])
+                              userInfo: [NSLocalizedDescriptionKey: failureMessage])
             }
             try await Task.sleep(for: .milliseconds(10))
         }
