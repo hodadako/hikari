@@ -2,6 +2,23 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.3.9 (19) — README 빠른 설치 안내 (2026-10-22)
+
+### 이슈와 영향
+
+- 처음 방문한 사용자가 AI agent에 바로 붙여 넣을 설치·초기 설정 안내를 README에서 빠르게 찾기 어려웠다. 한국어 README의 badge 정렬도 영어판과 일치하지 않았다.
+
+### 조치
+
+- PR #61에서 영어·한국어 README 최상단에 복사해 바로 사용할 수 있는 Fast Install 안내를 추가했다. macOS 26에서 영상 선택이 Native Lock Screen에도 적용된다는 점을 설명하고, 영상을 고르기 전에 사용자 승인을 받도록 안내한다. 중복 안내는 제거하고 한국어 badge를 가운데 정렬했다.
+- `project.yml`을 `MARKETING_VERSION: 0.3.9`, `CURRENT_PROJECT_VERSION: 19`로 올렸다.
+- main push CI matrix를 `CHANGE_GUARDRAILS.md`에 적힌 macOS 15/26 ARM64·Intel 네 runner 검증에 맞췄다. PR은 기존 macOS 15 대표 runner를 사용하고 정상 release tag는 네 runner 전체를 사용한다.
+
+### 검증
+
+- PR #61은 `b091097`로 main에 병합됐다. 필수 PR 체크와 CI Gate가 통과했고, docs-only 변경에서 생략된 Swift CodeQL 분석을 Actions 분석과 함께 브랜치에서 추가 실행해 둘 다 성공했다.
+- `v0.3.9` 태그 CI, 네 runner 빌드·테스트·coverage, release asset checksum/signature 및 게시 상태는 release 완료 뒤 이 항목에 추가 기록한다.
+
 ## Hikari v0.3.8 (18) — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
 
 ### 이슈와 영향

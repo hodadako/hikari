@@ -2,6 +2,12 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-22 README PR #61의 CodeQL 병합 차단
+
+- PR #61의 문서 전용 변경에서는 CodeQL workflow가 Actions 분석만 선택했고, `protect main` ruleset의 CodeQL code-scanning 조건을 만족하지 못해 merge state가 `BLOCKED`였다. 일반 merge는 base branch policy로 거절됐고, auto-merge 시도는 저장소에서 auto-merge가 꺼져 있어 거절됐다. admin 우회는 사용하지 않았다.
+- docs-only 최적화로 생략된 Swift 분석을 같은 PR 브랜치에서 `workflow_dispatch`로 실행했다. Actions와 Swift 분석이 모두 성공한 뒤 PR 상태가 `CLEAN`으로 바뀌었고, PR은 merge commit `b091097`로 병합됐다.
+- main push의 CI matrix는 기존에 macOS 15 ARM64/Intel만 포함했지만 `CHANGE_GUARDRAILS.md`는 main push와 정상 tag에 macOS 15/26 ARM64/Intel 전체 검증을 요구한다. 확인된 차이를 해소하기 위해 main push matrix를 네 runner로 확장했다. Pull request의 대표 macOS 15 runner와 정상 tag의 네 runner는 그대로 유지한다.
+
 ## 2026-10-21 v0.3.7 태그 CI macOS 26 Intel의 AVPlayer 준비 대기 실패
 
 - v0.3.7 태그 CI `39606112794`에서 `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가 `waitForItem`의 5초 제한 시간에 걸렸다. 실패 시 item 상태와 AVFoundation 오류가 출력되지 않아 원인을 구분하기 어려웠다. 같은 테스트는 main macOS 15 Intel 첫 시도에서도 실패한 뒤 재실행에서 통과했다.

@@ -39,7 +39,7 @@ jobs:
           is_tag=false
           tag_version=""
           docs_only=false
-          build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"},{"runner":"macos-15-intel","codecov_flag":"macos-15-intel"}]}'
+          build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"},{"runner":"macos-15-intel","codecov_flag":"macos-15-intel"},{"runner":"macos-26","codecov_flag":"macos-26-arm64"},{"runner":"macos-26-intel","codecov_flag":"macos-26-intel"}]}'
 
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
             if [[ -z "${PR_BASE_SHA}" || -z "${PR_HEAD_SHA}" ]]; then
