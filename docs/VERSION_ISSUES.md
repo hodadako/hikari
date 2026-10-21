@@ -43,8 +43,9 @@
   `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가
   초기 `AVPlayerItem` 준비 대기 5초를 넘겨 실패했다. macOS 15 ARM64/Intel과 macOS 26
   ARM64는 통과했지만 CI Gate가 실패해 GitHub Release는 생성되지 않았다. v0.3.7 태그는
-  이동·재사용하지 않고, 테스트 helper의 대기 시간과 실패 진단을 보완한 뒤 v0.3.8 (18)로
-  새로 검증한다.
+  이동·재사용하지 않고, 테스트 helper의 대기 시간과 실패 진단을 보완한 v0.3.8 (18)로
+  새로 검증한다. PR #64는 AVPlayer 준비 대기를 15초로 늘리고 `.failed` 상태와 timeout 시
+  item 상태·오류를 출력한다. macOS 15 PR CI와 CodeQL Actions·Swift 분석이 통과했다.
 - v0.3.8 태그의 네 runner 전체 CI·패키징 결과는 릴리스 확인 후 추가한다.
 - 알림 권한·시스템 배너·실제 클릭 동작과 장시간 잠자기/다중 디스플레이 복귀는 설치본에서
   수동 확인이 필요하다. 이번 릴리스에서는 Native Apply/Restore를 실행하지 않는다.

@@ -5,8 +5,8 @@
 ## 2026-10-21 v0.3.7 태그 CI macOS 26 Intel의 AVPlayer 준비 대기 실패
 
 - v0.3.7 태그 CI `39606112794`에서 `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가 `waitForItem`의 5초 제한 시간에 걸렸다. 실패 시 item 상태와 AVFoundation 오류가 출력되지 않아 원인을 구분하기 어려웠다. 같은 테스트는 main macOS 15 Intel 첫 시도에서도 실패한 뒤 재실행에서 통과했다.
-- AVPlayer item의 준비는 비동기이므로 테스트 helper의 5초 대기는 Intel runner에서 안정적이지 않았다. helper의 대기를 15초로 늘리고, item이 `.failed`가 되면 오류를 즉시 표시하며 대기 제한 초과 시 현재 상태와 오류를 포함하도록 보완한다. 제품의 5초 recovery grace는 변경하지 않는다.
-- v0.3.7 태그는 이동·재사용하지 않는다. 태그 CI 실패로 GitHub Release가 생성되지 않았으며, 후속 릴리스는 v0.3.8 (18) 새 태그로 검증한다.
+- AVPlayer item의 준비는 비동기이므로 테스트 helper의 5초 대기는 Intel runner에서 안정적이지 않았다. PR #64에서 대기를 15초로 늘리고, item이 `.failed`가 되면 오류를 즉시 표시하며 timeout 시 현재 상태와 오류를 포함하도록 보완했다. 제품의 5초 recovery grace는 변경하지 않았다.
+- PR #64의 macOS 15 CI와 CodeQL Actions·Swift 분석이 통과했다. v0.3.7 태그는 이동·재사용하지 않으며 태그 CI 실패로 GitHub Release는 생성되지 않았다. 후속 릴리스는 v0.3.8 (18) 새 태그로 검증한다.
 
 ## 2026-10-21 v0.3.6 태그 CI의 macOS 26 wake 복구 테스트 실패
 
