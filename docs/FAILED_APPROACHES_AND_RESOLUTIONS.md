@@ -8,6 +8,11 @@
 - docs-only 최적화로 생략된 Swift 분석을 같은 PR 브랜치에서 `workflow_dispatch`로 실행했다. Actions와 Swift 분석이 모두 성공한 뒤 PR 상태가 `CLEAN`으로 바뀌었고, PR은 merge commit `b091097`로 병합됐다.
 - main push의 CI matrix는 기존에 macOS 15 ARM64/Intel만 포함했지만 `CHANGE_GUARDRAILS.md`는 main push와 정상 tag에 macOS 15/26 ARM64/Intel 전체 검증을 요구한다. 확인된 차이를 해소하기 위해 main push matrix를 네 runner로 확장했다. Pull request의 대표 macOS 15 runner와 정상 tag의 네 runner는 그대로 유지한다.
 
+## 2026-10-22 main CI macOS 26 Intel의 초기 영상 준비 timeout
+
+- release prep commit `c281e17`의 main CI에서 macOS 26 Intel의 `WallpaperControllerTests.testCloseCancelsPendingRecovery`가 실패했다. 실패는 복구 동작 assertion이 아니라 테스트용 영상을 만든 뒤 첫 표시 프레임과 재생 상태를 기다리는 `preparePlayback()`의 5초 timeout에서 발생했다. macOS 15/26 ARM64와 macOS 15 Intel은 통과했다.
+- `preparePlayback()`의 테스트 전용 대기를 15초로 늘리고, 만료 시 ready window 수, playback 상태, AVPlayer item 상태와 오류를 출력한다. 제품 복구 grace period나 재생 동작은 변경하지 않는다. 새 PR CI와 병합 뒤 main의 네 runner 결과를 확인하고, 정상 release tag에서도 네 환경을 다시 검증한다.
+
 ## 2026-10-21 v0.3.7 태그 CI macOS 26 Intel의 AVPlayer 준비 대기 실패
 
 - v0.3.7 태그 CI `39606112794`에서 `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가 `waitForItem`의 5초 제한 시간에 걸렸다. 실패 시 item 상태와 AVFoundation 오류가 출력되지 않아 원인을 구분하기 어려웠다. 같은 테스트는 main macOS 15 Intel 첫 시도에서도 실패한 뒤 재실행에서 통과했다.
