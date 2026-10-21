@@ -2,6 +2,14 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+## Fast Install
+
+Copy this prompt into your AI agent:
+
+```text
+Install Hikari from the latest release on this Mac and complete the initial setup. Ask me to choose a video if needed. On macOS 26, explain that choosing a video also applies it to the Native Lock Screen, and get my approval before selecting one.
+```
+
 <p align="center">
   <a href="https://github.com/hodadako/hikari/actions/workflows/ci.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/hodadako/hikari/actions/workflows/codeql.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
@@ -67,10 +75,6 @@ The app is ad-hoc signed, not notarized. On first launch, Control-click
 ```sh
 shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 ```
-
-To have an AI agent install and set up Hikari, paste this prompt:
-
-> Install Hikari from the latest release on this Mac and complete the initial setup. Ask me to choose a video if needed. On macOS 26, explain that choosing a video also applies it to the Native Lock Screen, and get my approval before selecting one.
 
 ## Storage migration
 
