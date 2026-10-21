@@ -2,6 +2,20 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-10-21 v0.3.6 태그 CI의 macOS 26 wake 복구 테스트 실패
+
+- 제한 시간을 15초로 늘린 뒤 `macos-15` CI는 통과했지만, v0.3.6 태그 CI의
+  `macos-26` ARM64와 `macos-26-intel` runner에서
+  `testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 각각 1.967초와 2.846초
+  만에 `XCTAssertNotNil(player.currentItem)`에서 실패했다. 시간 제한 초과가 아니었다.
+- 원인은 `waitForPlayback`이 controller의 재생 플래그와 ready window 수만 확인한 것이다.
+  기존 값이 남아 있으면 새 queue item을 기다리지 않고 반환할 수 있었다.
+- 해당 테스트가 player를 helper에 전달하고 `currentItem` 존재도 함께 기다리도록 수정한다.
+  제품의 5초 recovery grace는 그대로 유지한다. 이 수정 후 `macos-26` tag CI 결과를
+  다시 확인한다.
+- 이미 push한 v0.3.6 tag는 이동하거나 재사용하지 않는다. 태그 CI가 실패해 GitHub Release는
+  게시되지 않으며, 후속 수정은 v0.3.7 (17) 새 tag로 검증한다.
+
 ## 2026-10-20 main CI의 wake queue 복구 테스트 timeout
 
 - PR 검사에서는 통과한 `WallpaperControllerTests.testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 main push CI의 macOS 15 ARM64와 Intel에서 실패했다. Actions run `39441509851`과 `39445579260` 모두 `Recovered queue did not display video and resume playback`을 보고했다.

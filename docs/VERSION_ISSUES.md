@@ -2,7 +2,7 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Hikari v0.3.6 (16) — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
+## Unreleased — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
 
 ### 이슈와 영향
 
@@ -25,10 +25,15 @@
 ### 검증
 
 - 업데이트 기능 추가 후 전체 Xcode 테스트 100개, 보완 후 업데이트 테스트 11개가 실패 없이
-  통과했다. wake 복구의 5초 대기를 반영해 통합 테스트 제한 시간을 15초로 늘린 수정은
-  PR #62에서 macOS 15 CI와 CodeQL(actions·Swift)을 통과했다.
-- `main`의 macOS 15 ARM64/Intel CI와 v0.3.6 태그의 macOS 15/26 네 runner 전체 CI·패키징은
-  릴리스 확인 후 결과를 추가한다.
+  통과했다. wake 복구의 5초 대기를 반영해 통합 테스트 제한 시간을 15초로 늘린 PR #62는
+  macOS 15 CI와 CodeQL(actions·Swift)을 통과했다. main의 v0.3.6 준비 커밋도 macOS 15
+  ARM64/Intel CI를 통과했다.
+- v0.3.6 태그 CI (#39518907106)는 `macos-26` ARM64와 Intel에서
+  `testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 실패했다. 테스트 helper가
+  `currentItem`을 기다리지 않아 복구 전 상태에서 반환한 문제를 고치고 있다. 태그는
+  이동·재사용하지 않으며, 실패한 태그의 GitHub Release는 게시되지 않는다. 후속 수정의
+  첫 정상 릴리스는 v0.3.7 (17)로 진행한다.
+- v0.3.7 태그의 macOS 15/26 네 runner 전체 CI·패키징 결과는 릴리스 확인 후 추가한다.
 - 알림 권한·시스템 배너·실제 클릭 동작과 장시간 잠자기/다중 디스플레이 복귀는 설치본에서
   수동 확인이 필요하다. 이번 릴리스에서는 Native Apply/Restore를 실행하지 않는다.
 
