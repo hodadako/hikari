@@ -2,7 +2,7 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
+## Hikari v0.3.8 (18) — 업데이트 안내와 잠자기 복귀 복구 (2026-10-21)
 
 ### 이슈와 영향
 
@@ -46,7 +46,15 @@
   이동·재사용하지 않고, 테스트 helper의 대기 시간과 실패 진단을 보완한 v0.3.8 (18)로
   새로 검증한다. PR #64는 AVPlayer 준비 대기를 15초로 늘리고 `.failed` 상태와 timeout 시
   item 상태·오류를 출력한다. macOS 15 PR CI와 CodeQL Actions·Swift 분석이 통과했다.
-- v0.3.8 태그의 네 runner 전체 CI·패키징 결과는 릴리스 확인 후 추가한다.
+- v0.3.8 태그 CI (#39610959121)는 macOS 15/26 ARM64/Intel 네 runner에서 모두 통과했고,
+  휴대용 앱 ZIP과 checksum을 게시했다. [GitHub Release](https://github.com/hodadako/hikari/releases/tag/v0.3.8)
+  ZIP SHA-256은 `6af94ca44616d4a71cfbcff32ec1bd5488f658fff9450f3484e6c67cb84c6137`이다.
+- 릴리스 ZIP을 내려받아 `/Applications/Hikari.app`에 설치했다. 설치본은 0.3.8 (18),
+  universal x86_64/arm64, 유효한 ad-hoc 서명이며 실행 파일 SHA-256은
+  `18d391230e2c0fc543ac714bdae7bffec7d0b7d8e04b1c79ce7f3ec7cdd2ffa2`다.
+  설치 전후 `native-lock-active.json` (`f5888a91c965bd2673caa0fc42f743309abed17d117e941184b0ff0661dd9233`)과
+  `hikari-storage-migration.json` (`1237442f2fbbb13f53e58dfcbc91bd05e67f7ad76252610e2d24344de7e2fe5f`)
+  해시가 같으며 Native Apply/Restore는 실행하지 않았다.
 - 알림 권한·시스템 배너·실제 클릭 동작과 장시간 잠자기/다중 디스플레이 복귀는 설치본에서
   수동 확인이 필요하다. 이번 릴리스에서는 Native Apply/Restore를 실행하지 않는다.
 
