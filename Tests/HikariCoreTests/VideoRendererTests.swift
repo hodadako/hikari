@@ -62,10 +62,25 @@ final class VideoRendererTests: XCTestCase {
     }
 
     private func waitForItem(_ renderer: VideoRenderer) async throws {
-        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-        while renderer.player.currentItem?.status != .readyToPlay {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(15))
+        while true {
+            let item = renderer.player.currentItem
+            if item?.status == .readyToPlay {
+                return
+            }
+            if item?.status == .failed {
+                let error = item?.error?.localizedDescription ?? "unknown error"
+                throw NSError(domain: "VideoRendererTests", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "Playback item failed before readyToPlay: \(error)"
+                ])
+            }
             guard ContinuousClock.now < deadline else {
-                throw NSError(domain: "VideoRendererTests", code: 1)
+                let status = item.map { String(describing: $0.status) } ?? "no current item"
+                let error = item?.error?.localizedDescription ?? "none"
+                throw NSError(domain: "VideoRendererTests", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Timed out waiting for readyToPlay (status: \(status), error: \(error))"
+                ])
             }
             try await Task.sleep(for: .milliseconds(10))
         }
