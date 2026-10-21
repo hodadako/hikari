@@ -16,6 +16,12 @@
 - 이미 push한 v0.3.6 tag는 이동하거나 재사용하지 않는다. 태그 CI가 실패해 GitHub Release는
   게시되지 않으며, 후속 수정은 v0.3.7 (17) 새 tag로 검증한다.
 
+## 2026-10-21 main CI macOS 15 Intel의 AVPlayer 준비 시간 초과
+
+- PR #63 병합 커밋의 첫 main CI 시도에서 `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가 실패했다. 테스트 helper가 만든 영상의 `AVPlayerItem`이 5초 안에 `.readyToPlay`가 되지 않아 `waitForItem` 제한 시간에서 종료됐다.
+- 같은 커밋의 실패 작업을 재실행한 결과 macOS 15 ARM64와 Intel 테스트 및 CI Gate가 통과했다. 제품 코드와 테스트 코드는 수정하지 않았으므로 이 결과만으로 제품 회귀를 단정하지 않는다.
+- 동일 실패가 다시 발생하면 제한 시간을 무작정 늘리기 전에 `currentItem` 유무·상태·오류와 생성 영상의 재생 가능성을 확인한다.
+
 ## 2026-10-20 main CI의 wake queue 복구 테스트 timeout
 
 - PR 검사에서는 통과한 `WallpaperControllerTests.testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 main push CI의 macOS 15 ARM64와 Intel에서 실패했다. Actions run `39441509851`과 `39445579260` 모두 `Recovered queue did not display video and resume playback`을 보고했다.

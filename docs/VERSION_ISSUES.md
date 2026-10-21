@@ -30,9 +30,15 @@
   ARM64/Intel CI를 통과했다.
 - v0.3.6 태그 CI (#39518907106)는 `macos-26` ARM64와 Intel에서
   `testWakeRecoveryRepopulatesEmptyQueueOnSamePlayerAndWindows`가 실패했다. 테스트 helper가
-  `currentItem`을 기다리지 않아 복구 전 상태에서 반환한 문제를 고치고 있다. 태그는
-  이동·재사용하지 않으며, 실패한 태그의 GitHub Release는 게시되지 않는다. 후속 수정의
-  첫 정상 릴리스는 v0.3.7 (17)로 진행한다.
+  `currentItem`을 기다리지 않아 복구 전 상태에서 반환한 문제였다. PR #63에서 helper가
+  player의 `currentItem`까지 기다리도록 수정했고, macOS 15 CI와 CodeQL의 Actions·Swift
+  분석이 통과했다. v0.3.6 태그는 이동·재사용하지 않으며 해당 태그의 GitHub Release는
+  게시되지 않았다. 후속 릴리스는 v0.3.7 (17)로 진행한다.
+- PR #63 병합 뒤 main CI (#39598158352)의 첫 macOS 15 Intel 시도에서
+  `VideoRendererTests.testMissingQueueItemRequiresRecoveryAndReloadsSelectedContent`가
+  초기 `AVPlayerItem` 준비 5초 제한에 걸렸다. 같은 커밋의 실패 작업을 재실행하자
+  macOS 15 ARM64/Intel과 CI Gate가 모두 통과했다. 코드 변경 없이 통과한 일시 실패로
+  기록하며, v0.3.7 태그 CI에서 네 runner 결과를 다시 확인한다.
 - v0.3.7 태그의 macOS 15/26 네 runner 전체 CI·패키징 결과는 릴리스 확인 후 추가한다.
 - 알림 권한·시스템 배너·실제 클릭 동작과 장시간 잠자기/다중 디스플레이 복귀는 설치본에서
   수동 확인이 필요하다. 이번 릴리스에서는 Native Apply/Restore를 실행하지 않는다.
