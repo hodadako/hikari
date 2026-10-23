@@ -11,7 +11,8 @@
 ## 2026-10-22 main CI macOS 26 Intel의 초기 영상 준비 timeout
 
 - release prep commit `c281e17`의 main CI에서 macOS 26 Intel의 `WallpaperControllerTests.testCloseCancelsPendingRecovery`가 실패했다. 실패는 복구 동작 assertion이 아니라 테스트용 영상을 만든 뒤 첫 표시 프레임과 재생 상태를 기다리는 `preparePlayback()`의 5초 timeout에서 발생했다. macOS 15/26 ARM64와 macOS 15 Intel은 통과했다.
-- `preparePlayback()`의 테스트 전용 대기를 15초로 늘리고, 만료 시 ready window 수, playback 상태, AVPlayer item 상태와 오류를 출력한다. 제품 복구 grace period나 재생 동작은 변경하지 않는다. 새 PR CI와 병합 뒤 main의 네 runner 결과를 확인하고, 정상 release tag에서도 네 환경을 다시 검증한다.
+- `preparePlayback()`의 테스트 전용 대기를 15초로 늘리고, 만료 시 ready window 수, playback 상태, AVPlayer item 상태와 오류를 출력한다. 제품 복구 grace period나 재생 동작은 변경하지 않았다. PR #65의 CI와 CodeQL이 통과했고, 수정은 `9715c3d`로 병합됐다.
+- 병합 main CI `39652173654`의 macOS 15/26 ARM64·Intel 네 runner와 CodeQL `39652173652`의 Actions·Swift 분석이 모두 통과했다. v0.3.9 tag CI `39654717415`도 네 runner의 테스트·coverage·패키징과 CI Gate를 통과해 GitHub Release가 게시됐다.
 
 ## 2026-10-21 v0.3.7 태그 CI macOS 26 Intel의 AVPlayer 준비 대기 실패
 
