@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Seoul",
+  "schedule": ["* * * * 1"],
+  "prConcurrentLimit": 5,
+  "dependencyDashboard": true,
+  "automerge": false,
+  "minimumReleaseAge": "3 days",
+  "major": {
+    "dependencyDashboardApproval": true
+  },
+  "enabledManagers": ["github-actions", "swift"],
+  "ignorePaths": ["Archive/HikariLegacy/**"],
+  "vulnerabilityAlerts": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions minor and patch updates"
+    },
+    {
+      "matchManagers": ["swift"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "SwiftPM patch updates"
+    }
+  ]
+}
