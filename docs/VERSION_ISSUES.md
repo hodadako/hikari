@@ -2,6 +2,33 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.4.0 (20) — Native Lock 및 업데이트 알림 (2026-10-30)
+
+### 이슈와 영향
+
+- Issue #69에서 처음 고른 영상의 macOS 26 잠금 화면용 변환이 시작될 때 진행 알림이 없고, 변환 완료 때만 알림이 왔다. 사용자는 변환 중인지 기다려야 하는지 알기 어려웠다.
+- 새 앱 버전이 생겼을 때도 알림을 유지해야 했다. 자동 업데이트 확인과 새 버전별 알림은 이미 구현돼 있었으므로 이를 함께 회귀 검사한다.
+
+### 조치
+
+- `UpdateNotificationService`를 `AppNotificationService`로 통합해 업데이트 가능, 잠금 화면 영상 변환 시작, 변환 완료 알림의 권한 확인·생성·게시를 한 곳에서 처리한다.
+- macOS 26에서 준비 작업을 시작할 때 영상 제목이 포함된 알림을 보내고, Aerial용 변환·preview 준비가 끝나면 별도 알림을 보낸다. 두 알림은 같은 알림 스레드에 묶고 서로 다른 식별자를 사용해 시작 알림이 완료 알림에 의해 대체되지 않게 한다.
+- 준비 알림을 클릭하면 General 설정을 열고, 업데이트 알림을 클릭하면 About의 업데이트 항목을 연다. 새 버전별 자동 알림 동작은 유지한다.
+- 시작 알림의 영어·한국어 문구를 추가했다. `MARKETING_VERSION`을 `0.4.0`, `CURRENT_PROJECT_VERSION`을 `20`으로 올렸다.
+- 릴리스 점검 guardrail의 화면 보호기 갱신 문구가 현재 Hikari target과 다름을 확인했다. Hikari는 `.saver`를 설치·갱신하지 않으며 legacy 구현은 `Archive/HikariLegacy`에만 남아 있으므로, 현재 앱 업데이트 흐름을 확인하도록 문구를 갱신했다.
+
+### 검증
+
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate`가 통과했다.
+- Hikari scheme의 전체 Xcode XCTest가 로컬 ARM64 환경에서 통과했다. 새 테스트는 준비 시작/완료 알림 내용·분리된 식별자·General 경로, 업데이트 버전 알림·About 경로를 확인한다. 기존 monitor 테스트는 새 버전만 자동 알림을 내고 중복·오프라인 알림을 억제하는 동작을 확인한다.
+- Release 구성의 Xcode build가 통과했다. bundle plist는 `0.4.0 (20)`, `com.hodadako.Hikari.NativeLocal`이고 앱과 `hikari-native-tool` 실행 파일은 둘 다 x86_64/arm64 universal이며 테스트 PlugIns는 포함하지 않는다.
+- macOS 15/26 ARM64·Intel의 release tag CI와 ZIP/checksum/signature 검증은 `v0.4.0` 태그 실행에서 확인한다.
+
+### 남은 제약
+
+- 실제 알림 권한 선택과 macOS 배너 표시·클릭은 OS 알림 센터 동작이므로 수동 확인이 남아 있다. 준비 실패 때는 기존 오류 표시가 유지되고 준비 완료 알림은 보내지 않는다.
+- 배포 asset은 기존 정책대로 macOS 15/26 지원 범위의 universal x86_64/arm64 앱이며 ad-hoc 서명·비공증 상태다.
+
 ## Hikari v0.3.9 (19) — README 빠른 설치 안내 (2026-10-22)
 
 ### 이슈와 영향

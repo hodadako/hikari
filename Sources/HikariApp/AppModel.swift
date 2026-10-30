@@ -5,7 +5,6 @@ import Darwin
 import HikariCore
 import HikariNativeLock
 import ServiceManagement
-import UserNotifications
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -29,6 +28,7 @@ final class AppModel: ObservableObject {
     private let contentStore: ContentStore
     private let importer: VideoImporter
     private let stateMonitor = SystemStateMonitor()
+    private let notificationService = AppNotificationService()
     private lazy var customAppIconStore = CustomAppIconStore(container: container)
     private lazy var customMenuBarIconStore = CustomMenuBarIconStore(container: container)
     private let updateMonitor = AppUpdateMonitor(
@@ -745,6 +745,10 @@ final class AppModel: ObservableObject {
             return
         }
         let contentID = content.id
+        let notificationService = self.notificationService
+        Task {
+            await notificationService.postNativeLockPreparationStarted(for: content)
+        }
         nativeLockPreparationTasks[contentID] = Task(priority: .userInitiated) {
             [weak self] in
             guard let self else { return }
@@ -757,7 +761,9 @@ final class AppModel: ObservableObject {
                 guard self.contents.contains(where: { $0.id == contentID }) else {
                     return
                 }
-                await self.postNativeLockPreparationNotification(for: content)
+                _ = await self.notificationService.postNativeLockPreparationReady(
+                    for: content
+                )
                 if self.settings.selectedContentID == contentID {
                     self.scheduleNativeLockAutoApply()
                 }
@@ -768,45 +774,6 @@ final class AppModel: ObservableObject {
                 self.presentedError = error.localizedDescription
             }
         }
-    }
-
-    private func postNativeLockPreparationNotification(
-        for content: LiveContent
-    ) async {
-        let notificationCenter = UNUserNotificationCenter.current()
-        let settings = await notificationCenter.notificationSettings()
-        switch settings.authorizationStatus {
-        case .notDetermined:
-            guard (try? await notificationCenter.requestAuthorization(
-                options: [.alert, .sound]
-            )) == true else {
-                return
-            }
-        case .authorized:
-            break
-        default:
-            return
-        }
-
-        let notification = UNMutableNotificationContent()
-        notification.title = NSLocalizedString(
-            "Lock Screen Video Ready",
-            comment: "Native Lock preparation completion notification title"
-        )
-        notification.body = String(
-            format: NSLocalizedString(
-                "%@ is ready to apply to the Lock Screen.",
-                comment: "Native Lock preparation completion notification body"
-            ),
-            content.title
-        )
-        notification.sound = .default
-        let request = UNNotificationRequest(
-            identifier: "com.hodadako.Hikari.native-lock-ready.\(content.id.uuidString)",
-            content: notification,
-            trigger: nil
-        )
-        try? await notificationCenter.add(request)
     }
 
     private func startNativeLockMaintenance() {
