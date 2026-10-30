@@ -54,6 +54,6 @@
 ## 릴리스
 
 - 이미 push한 태그는 이동하거나 재사용하지 않는다. 후속 수정은 새 버전과 새 태그로 릴리스한다.
-- 릴리스 전에 `project.yml`의 마케팅 버전, 태그, 릴리스 JSON 해석, 설치된 화면 보호기 업데이트 흐름을 함께 점검한다.
+- 릴리스 전에 `project.yml`의 마케팅 버전, 태그, `ReleaseUpdateService`의 GitHub release JSON 해석과 portable ZIP/checksum 앱 업데이트 흐름을 함께 점검한다. Hikari target은 화면 보호기 bundle을 설치·갱신하지 않으며, pre-Hikari 화면 보호기 갱신 구현은 `Archive/HikariLegacy`에만 보존한다.
 - Hikari의 정상 release 버전은 `MARKETING_VERSION`과 `CURRENT_PROJECT_VERSION`으로 관리한다. `vX.Y.Z` tag는 `MARKETING_VERSION`과 정확히 일치해야 하며, 로컬 빌드·Xcode 빌드·CI bundle plist·release asset의 Hikari 버전이 모두 일치해야 한다.
 - Updater는 `Hikari.app`, Hikari bundle identifier, Hikari executable, `Hikari-macOS-portable.zip`, SHA-256 checksum 및 ad-hoc code signature를 검증한다. Native Lock transaction이 `restored`가 아니거나 storage migration이 실패한 동안에는 업데이트를 시작하지 않는다.

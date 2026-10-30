@@ -196,15 +196,15 @@ final class AppUpdateMonitorTests: XCTestCase {
     }
 
     func testOnlyClickingUpdateNotificationOpensAbout() {
-        XCTAssertTrue(UpdateNotificationService.opensUpdates(
-            identifier: UpdateNotificationService.identifier,
+        XCTAssertTrue(AppNotificationService.opensUpdates(
+            identifier: AppNotificationService.updateIdentifier,
             actionIdentifier: UNNotificationDefaultActionIdentifier
         ))
-        XCTAssertFalse(UpdateNotificationService.opensUpdates(
-            identifier: UpdateNotificationService.identifier,
+        XCTAssertFalse(AppNotificationService.opensUpdates(
+            identifier: AppNotificationService.updateIdentifier,
             actionIdentifier: UNNotificationDismissActionIdentifier
         ))
-        XCTAssertFalse(UpdateNotificationService.opensUpdates(
+        XCTAssertFalse(AppNotificationService.opensUpdates(
             identifier: "com.hodadako.Hikari.native-lock-ready.example",
             actionIdentifier: UNNotificationDefaultActionIdentifier
         ))

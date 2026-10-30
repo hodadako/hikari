@@ -7,9 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarStatusItemController: MenuBarStatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hikari is normally active while a newly imported video is being
-        // prepared. Opt in to foreground presentation so completion still
-        // produces the banner the user requested.
+        // Hikari stays active while a Lock Screen video is prepared. Opt in
+        // to foreground presentation so progress and completion remain visible.
         UNUserNotificationCenter.current().delegate = self
         menuBarStatusItemController = MenuBarStatusItemController(model: model)
         model.startUpdateMonitoring()
@@ -59,10 +58,21 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         let identifier = response.notification.request.identifier
         let actionIdentifier = response.actionIdentifier
         Task { @MainActor [weak self] in
-            if UpdateNotificationService.opensUpdates(
+            if AppNotificationService.opensUpdates(
                 identifier: identifier, actionIdentifier: actionIdentifier
             ) {
                 self?.menuBarStatusItemController?.showUpdates()
+            } else if AppNotificationService.opensNativeLockSettings(
+                identifier: identifier, actionIdentifier: actionIdentifier
+            ) {
+                guard let self else {
+                    completionHandler()
+                    return
+                }
+                SettingsWindowPresenter.shared.show(
+                    model: self.model,
+                    section: .general
+                )
             }
             completionHandler()
         }

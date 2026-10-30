@@ -12,8 +12,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    CURRENT_PROJECT_VERSION: 19
-    MARKETING_VERSION: 0.3.9
+    CURRENT_PROJECT_VERSION: 20
+    MARKETING_VERSION: 0.4.0
 targets:
   HikariCore:
     type: framework.static
@@ -141,7 +141,7 @@ targets:
       - Tests/HikariUpdateTests
       - Sources/HikariApp/ReleaseUpdateService.swift
       - Sources/HikariApp/AppUpdateMonitor.swift
-      - Sources/HikariApp/UpdateNotificationService.swift
+      - Sources/HikariApp/AppNotificationService.swift
     dependencies:
       - target: HikariCore
     settings:

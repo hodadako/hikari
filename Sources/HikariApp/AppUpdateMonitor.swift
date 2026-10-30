@@ -34,7 +34,7 @@ final class AppUpdateMonitor: ObservableObject {
             try await ReleaseUpdateService().fetchLatestRelease()
         },
         notify: @escaping (LatestRelease) async -> Bool = {
-            await UpdateNotificationService().post(for: $0)
+            await AppNotificationService().postUpdateAvailable(for: $0)
         },
         now: @escaping () -> Date = Date.init
     ) {
