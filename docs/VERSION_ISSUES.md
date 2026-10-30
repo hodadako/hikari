@@ -22,7 +22,9 @@
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodegen generate`가 통과했다.
 - Hikari scheme의 전체 Xcode XCTest가 로컬 ARM64 환경에서 통과했다. 새 테스트는 준비 시작/완료 알림 내용·분리된 식별자·General 경로, 업데이트 버전 알림·About 경로를 확인한다. 기존 monitor 테스트는 새 버전만 자동 알림을 내고 중복·오프라인 알림을 억제하는 동작을 확인한다.
 - Release 구성의 Xcode build가 통과했다. bundle plist는 `0.4.0 (20)`, `com.hodadako.Hikari.NativeLocal`이고 앱과 `hikari-native-tool` 실행 파일은 둘 다 x86_64/arm64 universal이며 테스트 PlugIns는 포함하지 않는다.
-- macOS 15/26 ARM64·Intel의 release tag CI와 ZIP/checksum/signature 검증은 `v0.4.0` 태그 실행에서 확인한다.
+- PR #70은 `df6a643f`로 병합됐다. [PR CI](https://github.com/hodadako/hikari/actions/runs/40982484507)와 [PR CodeQL](https://github.com/hodadako/hikari/actions/runs/40982484649)이 통과했다. [main CI](https://github.com/hodadako/hikari/actions/runs/40983933157)는 macOS 15/26 ARM64·Intel 네 환경의 빌드·테스트와 CI Gate를 통과했고, [main CodeQL](https://github.com/hodadako/hikari/actions/runs/40983933169)의 Actions·Swift 분석도 통과했다.
+- [v0.4.0 태그 CI](https://github.com/hodadako/hikari/actions/runs/40986894304)는 네 환경의 빌드·테스트·coverage와 macOS 15 패키징, CI Gate를 통과했다. [GitHub Release](https://github.com/hodadako/hikari/releases/tag/v0.4.0)는 2026-10-30에 게시됐고 macOS 15/26, universal x86_64/arm64, ad-hoc 서명 및 비공증 상태를 release notes에 명시했다.
+- 공개한 [portable ZIP](https://github.com/hodadako/hikari/releases/download/v0.4.0/Hikari-macOS-portable.zip)의 SHA-256은 `66b59aa7ebd00eb7424aa6f11bf01af29da1eb0cfe3b9742706c5ac7321c0ba3`이며, 제공된 [.sha256 파일](https://github.com/hodadako/hikari/releases/download/v0.4.0/Hikari-macOS-portable.zip.sha256) 및 GitHub asset digest와 일치한다. 압축 해제본은 `codesign --verify --deep --strict`를 통과했고 `Signature=adhoc`였다. plist는 `0.4.0 (20)`, bundle ID `com.hodadako.Hikari.NativeLocal`, 최소 macOS `15.0`이며 앱과 `hikari-native-tool` 실행 파일 모두 `x86_64 arm64` universal이다.
 
 ### 남은 제약
 
