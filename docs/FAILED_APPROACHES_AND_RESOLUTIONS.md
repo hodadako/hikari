@@ -7,6 +7,12 @@
 - 새 업데이트 알림 테스트는 GitHub tag `v0.4.0`이 알림 본문에 그대로 표시된다고 기대해 실패했다. Hikari의 `HikariVersion`은 의미상 같은 trailing `.0`을 정규화하므로 기존 `LatestRelease.displayVersion`은 `v0.4`를 반환한다.
 - 앱의 기존 버전 표기 동작은 바꾸지 않는다. 테스트를 고정 tag 문자열 대신 `release.displayVersion`과 비교하도록 수정했다. 수정 뒤 전체 Xcode 테스트 suite가 통과했다.
 
+## 2026-10-30 v0.4.0 병합 및 태그 시점
+
+- Swift CodeQL 검사가 진행 중일 때 PR #70 일반 merge가 base branch policy에 의해 거절됐다. 저장소에서 auto-merge도 허용하지 않아 `--auto` 사용 역시 불가능했다.
+- 검사를 우회하지 않고 PR CI·CodeQL이 모두 통과할 때까지 기다린 뒤 일반 merge했다. main의 네 runner CI와 Actions·Swift CodeQL도 통과한 merge commit에만 `v0.4.0` 태그를 만들었다.
+- 태그 명령이 로컬에서 `bad object type`으로 실패한 이유는 새 main merge commit을 clone이 아직 가져오지 않은 상태였기 때문이다. `git fetch origin main:refs/remotes/origin/main`으로 원격 main을 갱신하고 검증된 `df6a643f`에 태그를 만들었다.
+
 ## 2026-10-22 README PR #61의 CodeQL 병합 차단
 
 - PR #61의 문서 전용 변경에서는 CodeQL workflow가 Actions 분석만 선택했고, `protect main` ruleset의 CodeQL code-scanning 조건을 만족하지 못해 merge state가 `BLOCKED`였다. 일반 merge는 base branch policy로 거절됐고, auto-merge 시도는 저장소에서 auto-merge가 꺼져 있어 거절됐다. admin 우회는 사용하지 않았다.
