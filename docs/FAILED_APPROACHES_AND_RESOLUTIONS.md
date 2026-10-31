@@ -13,6 +13,12 @@
 - 검사를 우회하지 않고 PR CI·CodeQL이 모두 통과할 때까지 기다린 뒤 일반 merge했다. main의 네 runner CI와 Actions·Swift CodeQL도 통과한 merge commit에만 `v0.4.0` 태그를 만들었다.
 - 태그 명령이 로컬에서 `bad object type`으로 실패한 이유는 새 main merge commit을 clone이 아직 가져오지 않은 상태였기 때문이다. `git fetch origin main:refs/remotes/origin/main`으로 원격 main을 갱신하고 검증된 `df6a643f`에 태그를 만들었다.
 
+## 2026-10-30 문서 병합 뒤 macOS 26 Intel XCTest worker 종료
+
+- v0.4.0 release 검증 문서 PR을 main에 병합한 뒤 macOS 26 Intel CI의 `WallpaperControllerTests.testCloseCancelsPendingRecovery`가 실패했다. 로그에는 테스트 시작 뒤 XCTest worker가 비정상 종료되어 test session이 다시 시작됐다고 기록됐지만 assertion 실패나 제품 오류는 나오지 않았다.
+- 실패한 macOS 26 Intel job만 재실행하자 전체 unit test가 통과했고 CI Gate도 성공했다. 나머지 세 runner도 첫 실행에서 통과했다.
+- 재현되지 않은 worker 종료에 대해 제품 코드나 테스트 동작은 바꾸지 않는다. 같은 테스트가 반복해서 실패하면 xcresult와 crash/timeout 진단을 먼저 확보하고 원인을 분리한다.
+
 ## 2026-10-22 README PR #61의 CodeQL 병합 차단
 
 - PR #61의 문서 전용 변경에서는 CodeQL workflow가 Actions 분석만 선택했고, `protect main` ruleset의 CodeQL code-scanning 조건을 만족하지 못해 merge state가 `BLOCKED`였다. 일반 merge는 base branch policy로 거절됐고, auto-merge 시도는 저장소에서 auto-merge가 꺼져 있어 거절됐다. admin 우회는 사용하지 않았다.
