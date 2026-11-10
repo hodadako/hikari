@@ -18,6 +18,11 @@
   실패했다. ISO 8601 날짜 인코딩에서 소수 초가 정규화되므로 저장 직후 읽은 기록을
   기준으로 비교하도록 테스트를 수정했다.
 
+- 첫 Xcode 27 CI에서 앱과 helper 빌드는 성공했으나 `lipo -verify_arch` 호출이
+  runner에서 입력 인자를 거부했다. Xcode에서 선택한 `xcrun lipo -archs` 결과로
+  ARM64·x86_64를 검증하고 `vtool`로 각 배포 대상을 검사한다.
+  [첫 Xcode 27 실행](https://github.com/hodadako/hikari/actions/runs/42925232112/job/130209978606)
+
 ## 2026-10-30 v0.4.0 알림 테스트의 버전 표기 기대값
 
 - 새 업데이트 알림 테스트는 GitHub tag `v0.4.0`이 알림 본문에 그대로 표시된다고 기대해 실패했다. Hikari의 `HikariVersion`은 의미상 같은 trailing `.0`을 정규화하므로 기존 `LatestRelease.displayVersion`은 `v0.4`를 반환한다.

@@ -219,6 +219,7 @@ jobs:
       - name: Generate Hikari Xcode project
         run: xcodegen generate
       - name: Build with the macOS 27 SDK
+        shell: bash
         run: |
           xcodebuild \
             -project Hikari.xcodeproj \
@@ -231,8 +232,13 @@ jobs:
           app_path="${RUNNER_TEMP}/HikariSDK27/Build/Products/Debug/Hikari.app"
           for executable in Hikari hikari-native-tool; do
             binary="${app_path}/Contents/MacOS/${executable}"
-            lipo "${binary}" -verify_arch arm64 x86_64
+            architectures="$(xcrun lipo -archs "${binary}")"
+            echo "${executable}: ${architectures}"
             for arch in arm64 x86_64; do
+              if [[ " ${architectures} " != *" ${arch} "* ]]; then
+                echo "${executable} is missing its ${arch} slice" >&2
+                exit 1
+              fi
               xcrun vtool -arch "${arch}" -show-build "${binary}" | awk '
                 $1 == "minos" && $2 ~ /^15[.]0([.]0)?$/ { found = 1 }
                 END { exit !found }

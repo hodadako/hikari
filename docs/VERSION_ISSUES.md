@@ -47,6 +47,10 @@
   POSIX 권한은 Hikari 프로세스의 TCC 승인, 적용 시 에이전트 순서, 파일 접근,
   매핑 유지 또는 다음 잠금의 재생을 입증하지 않는다. 실제 저장소 쓰기, 에이전트
   신호 전송 및 관리자 작업 없이 조사했다.
+- 이 Mac에 남아 있던 `userAerials` 활성 기록을 읽었고 Index와 manifest 원본
+  백업이 각각 journal hash와 일치했다. 현재 Index의 hash는 적용 시점과 달랐지만,
+  확인한 46개 Linked choice는 모두 기록의 asset을 가리켰다. 실제 잠금 표시와
+  시스템 파일을 쓰는 복원은 시험하지 않았다.
 - Phosphene은 private `WallpaperExtensionKit` provider를 macOS 27 베타에서
   테스트했다고 기록했다. 해당 경로는 Hikari의 사용자 Aerial transaction과
   다르므로 실제 교체·재부팅·복원 결과의 근거로 사용하지 않았다.
