@@ -199,14 +199,67 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  macos-27:
+    name: Build and test (xcode-27)
+    needs: metadata
+    if: needs.metadata.result == 'success' && needs.metadata.outputs.docs_only != 'true'
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Record runtime and SDK
+        run: |
+          sw_vers
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk macosx --show-sdk-version)"
+          echo "macOS SDK: ${sdk_version}"
+          [[ "$(sw_vers -productVersion)" == 27.* && "${sdk_version}" == 27.* ]]
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Hikari Xcode project
+        run: xcodegen generate
+      - name: Build with the macOS 27 SDK
+        run: |
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
+            -configuration Debug \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "${RUNNER_TEMP}/HikariSDK27" \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO \
+            build
+          app_path="${RUNNER_TEMP}/HikariSDK27/Build/Products/Debug/Hikari.app"
+          for executable in Hikari hikari-native-tool; do
+            binary="${app_path}/Contents/MacOS/${executable}"
+            lipo "${binary}" -verify_arch arm64 x86_64
+            for arch in arm64 x86_64; do
+              xcrun vtool -arch "${arch}" -show-build "${binary}" | awk '
+                $1 == "minos" && $2 ~ /^15[.]0([.]0)?$/ { found = 1 }
+                END { exit !found }
+              '
+            done
+          done
+      - name: Swift package tests
+        run: swift test
+      - name: Xcode tests on macOS 27
+        run: |
+          xcodebuild \
+            -project Hikari.xcodeproj \
+            -scheme Hikari \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
   release:
     name: Publish Hikari tagged release
-    needs: [metadata, build-and-test]
+    needs: [metadata, build-and-test, macos-27]
     if: >-
       always() &&
       needs.metadata.result == 'success' &&
       needs.metadata.outputs.is_tag == 'true' &&
-      needs.build-and-test.result == 'success'
+      needs.build-and-test.result == 'success' &&
+      needs.macos-27.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -237,7 +290,7 @@ jobs:
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [metadata, build-and-test, release]
+    needs: [metadata, build-and-test, macos-27, release]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -247,6 +300,7 @@ jobs:
           DOCS_ONLY: ${{ needs.metadata.outputs.docs_only }}
           IS_TAG: ${{ needs.metadata.outputs.is_tag }}
           BUILD_RESULT: ${{ needs.build-and-test.result }}
+          MACOS_27_RESULT: ${{ needs.macos-27.result }}
           RELEASE_RESULT: ${{ needs.release.result }}
         run: |
           set -euo pipefail
@@ -260,6 +314,9 @@ jobs:
             echo "Documentation-only pull request: macOS build and test were intentionally skipped."
           elif [[ "${BUILD_RESULT}" != "success" ]]; then
             echo "Build and test did not succeed: ${BUILD_RESULT}" >&2
+            exit 1
+          elif [[ "${MACOS_27_RESULT}" != "success" ]]; then
+            echo "macOS 27 build and test did not succeed: ${MACOS_27_RESULT}" >&2
             exit 1
           fi
 

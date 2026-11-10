@@ -248,6 +248,30 @@ final class AppModel: ObservableObject {
         nativeLockRecord?.journal.phase
     }
 
+    var nativeLockSafetyReport: NativeLockSafetyReport {
+        if let error = nativeLockController.transactionReadError {
+            return NativeLockSafetyReport(
+                state: .transactionPreserved,
+                title: "Saved Lock Screen transaction could not be read",
+                detail: error
+            )
+        }
+        return NativeLockSafetyInspector.evaluate(
+            hasSelectedMedia: selectedContent != nil,
+            transactionPhase: nativeLockPhase,
+            transactionBackend: nativeLockRecord?.journal.backend
+        )
+    }
+
+    private var canMaintainNativeLock: Bool {
+        guard let journal = nativeLockRecord?.journal, journal.phase == .active else {
+            return false
+        }
+        return NativeLockOperatingSystemPolicy.current.canModifyTransaction(
+            backend: journal.backend
+        )
+    }
+
     var nativeLockAppliedContentTitle: String? {
         guard let sourceID = nativeLockRecord?.request.sourceContentID else {
             return nil
@@ -275,8 +299,14 @@ final class AppModel: ObservableObject {
                 comment: "Legacy Native Lock migration update block"
             )
         }
+        if let error = nativeLockController.transactionReadError {
+            return error
+        }
         guard let phase = nativeLockPhase, phase != .restored else {
             return nil
+        }
+        if nativeLockSafetyReport.state == .transactionPreserved {
+            return NSLocalizedString(nativeLockSafetyReport.detail, comment: "Preserved Native Lock transaction")
         }
         return NSLocalizedString(
             "Restore Native Lock before updating Hikari.",
@@ -286,7 +316,7 @@ final class AppModel: ObservableObject {
 
     func applySelectedVideoToNativeLock() {
         guard !isNativeLockWorking, let content = selectedContent else { return }
-        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+        if NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
            (nativeLockRecord?.journal.phase != .active
                || nativeLockRecord?.request.sourceContentID != content.id),
            !nativeLockController.hasPreparedMediaForNativeLock(content: content) {
@@ -708,8 +738,9 @@ final class AppModel: ObservableObject {
     }
 
     private func scheduleNativeLockAutoApply() {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
-              nativeLockRecord?.journal.phase != .recoveryRequired,
+        guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
+              nativeLockController.transactionReadError == nil,
+              nativeLockRecord == nil || canMaintainNativeLock,
               let content = selectedContent else {
             return
         }
@@ -727,7 +758,8 @@ final class AppModel: ObservableObject {
             defer { self.nativeLockAutoApplyTask = nil }
             guard !self.stateMonitor.isScreenLocked,
                   !self.stateMonitor.isSleeping,
-                  self.nativeLockRecord?.journal.phase != .recoveryRequired,
+                  self.nativeLockController.transactionReadError == nil,
+                  self.nativeLockRecord == nil || self.canMaintainNativeLock,
                   self.selectedContent != nil else {
                 return
             }
@@ -739,7 +771,7 @@ final class AppModel: ObservableObject {
     /// transaction. The desktop selection stays immediate; the Lock Screen
     /// swap waits until this cache is atomically ready.
     private func prepareNativeLockMediaIfNeeded(for content: LiveContent) {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
+        guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
               !nativeLockController.hasPreparedMediaForNativeLock(content: content),
               nativeLockPreparationTasks[content.id] == nil else {
             return
@@ -778,7 +810,7 @@ final class AppModel: ObservableObject {
 
     private func startNativeLockMaintenance() {
         guard nativeLockMaintenanceTask == nil,
-              nativeLockRecord?.journal.phase == .active else {
+              canMaintainNativeLock else {
             return
         }
         nativeRendererRefreshRequested = true
@@ -796,7 +828,7 @@ final class AppModel: ObservableObject {
     }
 
     private func updateNativeLockMaintenance() {
-        if nativeLockRecord?.journal.phase == .active {
+        if canMaintainNativeLock {
             startNativeLockMaintenance()
         } else {
             stopNativeLockMaintenance()
@@ -810,7 +842,7 @@ final class AppModel: ObservableObject {
     }
 
     private func requestNativeRendererRefreshAfterUnlock() {
-        guard nativeLockRecord?.journal.phase == .active else { return }
+        guard canMaintainNativeLock else { return }
         nativeRendererRefreshTask?.cancel()
         nativeRendererRefreshTask = Task { [weak self] in
             // WallpaperAgent owns the outgoing Lock Screen surface briefly
@@ -831,7 +863,7 @@ final class AppModel: ObservableObject {
         // pass after the session has returned to the desktop.
         guard !stateMonitor.isScreenLocked,
               !stateMonitor.isSleeping,
-              nativeLockRecord?.journal.phase == .active,
+              canMaintainNativeLock,
               !nativeLockMaintenanceInProgress,
               !isNativeLockWorking else { return }
         nativeLockMaintenanceInProgress = true

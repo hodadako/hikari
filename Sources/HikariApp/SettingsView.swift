@@ -359,11 +359,9 @@ private struct NativeLockStatusSection: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
+        let report = model.nativeLockSafetyReport
+        let backend = NativeLockOperatingSystemPolicy.current.writeBackend
         Section {
-            let report = NativeLockSafetyInspector.evaluate(
-                hasSelectedMedia: model.selectedContent != nil,
-                transactionPhase: model.nativeLockPhase
-            )
             LabeledContent("Safety Status") {
                 Label(localized(report.title), systemImage: "lock.shield.fill")
                     .foregroundStyle(
@@ -374,8 +372,9 @@ private struct NativeLockStatusSection: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26,
-               report.state != .recoveryRequired {
+            if backend == .userAerials,
+               report.state != .recoveryRequired,
+               report.state != .transactionPreserved {
                 Text(
                     "Changing the selected video automatically updates the Lock Screen."
                 )
@@ -383,7 +382,8 @@ private struct NativeLockStatusSection: View {
                 .foregroundStyle(.secondary)
             }
 
-            if NativeLockUpgradeGuard
+            if report.state != .transactionPreserved,
+               NativeLockUpgradeGuard
                 .requiresRestoreBeforeMajorOperatingSystemUpdate(
                     transactionPhase: model.nativeLockPhase
                 ) {
@@ -406,13 +406,15 @@ private struct NativeLockStatusSection: View {
 
             if let title = model.nativeLockAppliedContentTitle,
                model.nativeLockPhase != .restored {
-                LabeledContent("Applied video") {
+                LabeledContent {
                     Text(title).lineLimit(1)
+                } label: {
+                    Text(report.state == .transactionPreserved ? LocalizedStringKey("Saved video") : "Applied video")
                 }
             }
 
             HStack {
-                if ProcessInfo.processInfo.operatingSystemVersion.majorVersion != 26 {
+                if backend == .systemCatalog, report.state != .transactionPreserved {
                     Button {
                         model.applySelectedVideoToNativeLock()
                     } label: {
@@ -436,15 +438,17 @@ private struct NativeLockStatusSection: View {
                     Button("Restore Previous Wallpaper") {
                         model.restoreNativeLock()
                     }
-                    .disabled(model.isNativeLockWorking)
+                    .disabled(model.isNativeLockWorking || report.state == .transactionPreserved)
                 }
             }
         } header: {
             Text("Lock Screen")
         } footer: {
-            Text(
-                "Hikari uses macOS's native Lock Screen path. Restore an unfinished transaction before updating the app or macOS."
-            )
+            if backend != nil, report.state != .transactionPreserved {
+                Text(
+                    "Hikari uses macOS's native Lock Screen path. Restore an unfinished transaction before updating the app or macOS."
+                )
+            }
         }
     }
 }

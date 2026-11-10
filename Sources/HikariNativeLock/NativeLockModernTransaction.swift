@@ -90,9 +90,8 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
             throw NativeLockTransactionError.aerialCatalogMissing
         }
         let data = try Data(contentsOf: environment.manifestURL)
-        let manifest = try manifestDictionary(from: data)
-        guard manifest["version"] as? Int == 1,
-              let assets = manifest["assets"] as? [[String: Any]] else {
+        let manifest = try NativeLockSafetyInspector.aerialManifest(from: data)
+        guard let assets = manifest["assets"] as? [[String: Any]] else {
             throw NativeLockTransactionError.invalidWallpaperStore
         }
 
@@ -135,8 +134,8 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         }
         let originalManifest = try Data(contentsOf: environment.manifestURL)
         let originalManifestSHA256 = NativeLockDigest.sha256(of: originalManifest)
-        var manifest = try manifestDictionary(from: originalManifest)
-        try validateManifest(&manifest, assetID: request.assetID.uuidString)
+        var manifest = try NativeLockSafetyInspector.aerialManifest(from: originalManifest)
+        try validateManifest(manifest, assetID: request.assetID.uuidString)
 
         let originalURL = sourceTransactionURL.appendingPathComponent(
             NativeLockPaths.originalModernManifestFilename
@@ -228,13 +227,14 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         guard NativeLockDigest.sha256(of: original) == originalManifestSHA256 else {
             throw NativeLockTransactionError.invalidHash
         }
+        _ = try NativeLockSafetyInspector.aerialManifest(from: original)
         let current = try Data(contentsOf: environment.manifestURL)
+        var manifest = try NativeLockSafetyInspector.aerialManifest(from: current)
         let restored: Data
         if let appliedManifestSHA256,
            NativeLockDigest.sha256(of: current) == appliedManifestSHA256 {
             restored = original
         } else {
-            var manifest = try manifestDictionary(from: current)
             guard var assets = manifest["assets"] as? [[String: Any]],
                   var categories = manifest["categories"] as? [[String: Any]] else {
                 throw NativeLockTransactionError.invalidWallpaperStore
@@ -295,11 +295,10 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
     }
 
     private func validateManifest(
-        _ manifest: inout [String: Any],
+        _ manifest: [String: Any],
         assetID: String
     ) throws {
-        guard manifest["version"] as? Int == 1,
-              let assets = manifest["assets"] as? [[String: Any]],
+        guard let assets = manifest["assets"] as? [[String: Any]],
               let categories = manifest["categories"] as? [[String: Any]],
               !assets.contains(where: { $0["id"] as? String == assetID }),
               !categories.contains(where: {
@@ -308,14 +307,6 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
               }) else {
             throw NativeLockTransactionError.invalidWallpaperStore
         }
-    }
-
-    private func manifestDictionary(from data: Data) throws -> [String: Any] {
-        guard let manifest = try JSONSerialization.jsonObject(with: data)
-            as? [String: Any] else {
-            throw NativeLockTransactionError.invalidWallpaperStore
-        }
-        return manifest
     }
 
     private func assetRecord(

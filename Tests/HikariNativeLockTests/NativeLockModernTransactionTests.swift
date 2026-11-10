@@ -110,6 +110,68 @@ final class NativeLockModernTransactionTests: XCTestCase {
             )
         )
 
+        // Reopen the same files as if the Mac had upgraded with an active transaction.
+        let upgradedStore = NativeLockUserTransactionStore(
+            supportRootURL: supportURL,
+            wallpaperIndexURL: wallpaperIndexURL,
+            userID: UInt32(getuid())
+        )
+        let savedRecord = try XCTUnwrap(
+            upgradedStore.activeOrPendingTransaction(removeStaleMarker: false)
+        )
+        XCTAssertEqual(savedRecord.journal.phase, .active)
+        XCTAssertEqual(savedRecord.journal.backend, .userAerials)
+        let transactionURL = store.transactionDirectoryURL(for: record.request.transactionID)
+        let mediaCopyURL = wallpaperRootURL.appendingPathComponent(
+            "aerials/videos/\(record.request.assetID.uuidString).mov"
+        )
+        let previewCopyURL = wallpaperRootURL.appendingPathComponent(
+            "aerials/thumbnails/\(record.request.assetID.uuidString).png"
+        )
+        let watchedURLs = [
+            wallpaperIndexURL!, manifestURL!, store.activeTransactionURL, mediaCopyURL, previewCopyURL
+        ] + (try FileManager.default.contentsOfDirectory(
+            at: transactionURL,
+            includingPropertiesForKeys: nil
+        ))
+        let snapshots = try watchedURLs.map { try Data(contentsOf: $0) }
+        let goldenGateManager = NativeLockModernTransactionManager(environment: environment(majorVersion: 27))
+        XCTAssertThrowsError(try goldenGateManager.apply(
+            request: savedRecord.request,
+            sourceTransactionURL: transactionURL
+        )) {
+            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(27))
+        }
+        XCTAssertThrowsError(try goldenGateManager.restore(
+            request: savedRecord.request,
+            sourceTransactionURL: transactionURL,
+            originalManifestSHA256: result.originalManifestSHA256,
+            appliedManifestSHA256: result.manifestSHA256
+        )) {
+            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(27))
+        }
+        XCTAssertEqual(try watchedURLs.map { try Data(contentsOf: $0) }, snapshots)
+
+        // A schema revision must also prevent selective restore on a supported OS.
+        let appliedManifest = try Data(contentsOf: manifestURL)
+        var newerManifest = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: appliedManifest) as? [String: Any]
+        )
+        newerManifest["version"] = 2
+        let newerManifestData = try JSONSerialization.data(withJSONObject: newerManifest)
+        try newerManifestData.write(to: manifestURL)
+        XCTAssertThrowsError(try manager.restore(
+            request: savedRecord.request,
+            sourceTransactionURL: transactionURL,
+            originalManifestSHA256: result.originalManifestSHA256,
+            appliedManifestSHA256: result.manifestSHA256
+        )) {
+            XCTAssertEqual($0 as? NativeLockTransactionError, .invalidWallpaperStore)
+        }
+        XCTAssertEqual(try Data(contentsOf: manifestURL), newerManifestData)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: mediaCopyURL.path))
+        try appliedManifest.write(to: manifestURL)
+
         _ = try store.beginRestore(transactionID: record.request.transactionID)
         try store.restoreWallpaperMapping(transactionID: record.request.transactionID)
         try manager.restore(
@@ -223,6 +285,50 @@ final class NativeLockModernTransactionTests: XCTestCase {
         }
     }
 
+    func testApplyWithChangedStagedMediaKeepsRollbackInputs() throws {
+        let store = NativeLockUserTransactionStore(
+            supportRootURL: supportURL,
+            wallpaperIndexURL: wallpaperIndexURL,
+            userID: UInt32(getuid())
+        )
+        let mediaURL = rootURL.appendingPathComponent("source.mov")
+        let previewURL = rootURL.appendingPathComponent("source.png")
+        try Data("movie".utf8).write(to: mediaURL)
+        try Data("preview".utf8).write(to: previewURL)
+        let record = try store.prepare(
+            sourceContentID: UUID(),
+            title: "Test Movie",
+            preparedMediaURL: mediaURL,
+            preparedPreviewURL: previewURL
+        )
+        let transactionID = record.request.transactionID
+        let savedRecord = try store.record(for: transactionID)
+        let transactionURL = store.transactionDirectoryURL(for: transactionID)
+        let originalManifest = try Data(contentsOf: manifestURL)
+        let originalIndex = try Data(contentsOf: wallpaperIndexURL)
+        try Data("changed media".utf8).write(to: transactionURL.appendingPathComponent(
+            NativeLockPaths.stagedMediaFilename
+        ))
+
+        let environment = environment()
+        let manager = NativeLockModernTransactionManager(environment: environment)
+        XCTAssertThrowsError(try manager.apply(
+            request: record.request,
+            sourceTransactionURL: transactionURL
+        )) {
+            XCTAssertEqual($0 as? NativeLockTransactionError, .sourceHashMismatch)
+        }
+        XCTAssertEqual(try Data(contentsOf: manifestURL), originalManifest)
+        XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), originalIndex)
+        XCTAssertEqual(try store.record(for: transactionID), savedRecord)
+        XCTAssertEqual(try Data(contentsOf: transactionURL.appendingPathComponent(
+            NativeLockPaths.originalModernManifestFilename
+        )), originalManifest)
+        for directory in [environment.mediaDirectoryURL, environment.previewDirectoryURL] {
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
+        }
+    }
+
     func testRestorePreservesHikariCategoryForAnotherAsset() throws {
         let store = NativeLockUserTransactionStore(
             supportRootURL: supportURL,
@@ -287,14 +393,14 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
     }
 
-    private func environment() -> NativeLockModernEnvironment {
+    private func environment(majorVersion: Int = 26) -> NativeLockModernEnvironment {
         NativeLockModernEnvironment(
             wallpaperRootURL: wallpaperRootURL,
             manifestURL: manifestURL,
             mediaDirectoryURL: wallpaperRootURL.appendingPathComponent("aerials/videos"),
             previewDirectoryURL: wallpaperRootURL.appendingPathComponent("aerials/thumbnails"),
             supportedOperatingSystemMajorVersions: [26],
-            operatingSystemMajorVersion: 26
+            operatingSystemMajorVersion: majorVersion
         )
     }
 

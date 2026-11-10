@@ -2,6 +2,94 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — macOS 27 Golden Gate
+
+### Apple 공식 자료
+
+- macOS 27의 AppKit/SwiftUI 메뉴 이미지 기본값과 파일 패널 동작이 SDK에 따라
+  달라진다. Hikari 상태 항목은 `NSStatusItem`과 `NSPopover`를 사용하며 영상·아이콘
+  패널은 이미 파일 형식과 디렉터리 선택 여부를 지정한다. Settings의 General/About,
+  다크 모드, 배율, VoiceOver는 실제 UI에서 확인해야 한다.
+  [macOS 27 Release Notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
+- Apple은 전체 화면에서 Mission Control을 오갈 때 Dock이 남거나 창이 사라지는
+  문제를 수정했다. 27.2 노트에는 외부 디스플레이 연결 때 배열이 바뀔 수 있는 문제가
+  기재돼 있다. Hikari의 desktop window level, all-Spaces membership, display ID diff,
+  공유 `AVQueuePlayer`와 ready layer 교체에는 해당 노트에서 변경할 계약을 확인하지
+  못했다. 같은 노트의 알림 프롬프트 이슈가 Hikari에 재현되는지는 미확인이다.
+  [macOS 27 Release Notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes),
+  [macOS 27.2 Release Notes](https://developer.apple.com/documentation/macos-release-notes/macos-27_2-release-notes),
+  [AVPlayerLooper](https://developer.apple.com/documentation/avfoundation/avplayerlooper)
+- Apple은 타 개발 팀 앱 컨테이너에 대한 접근 프롬프트를 없애고 기본 거부하며,
+  로컬 TCC DB에 대한 직접 접근도 차단한다. XProtect에 의한 추가 제한이 가능하다.
+  Hikari는 알림에 UserNotifications, 로그인 항목에 ServiceManagement를 사용한다.
+  Aerial 경로에 위 정책이 어떻게 적용되는지는 별도 검증 사항이다. 공개 노트에서
+  Aerial manifest·Linked 선택·Lock Screen·Screen Saver 전환의 쓰기 계약이나
+  새 renderer 재시작 순서는 확인할 수 없었다.
+  [macOS 27 Release Notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
+- Xcode 27은 Apple Silicon에서 실행되며 macOS 12 이상으로 Universal 빌드를
+  배포할 수 있다. 배포 대상을 macOS 27로 올리면 기본 아키텍처에서 x86_64가
+  빠진다. Hikari는 macOS 15.0을 유지한다. macOS 27 자체는 Apple Silicon Mac에서
+  지원된다.
+  [Xcode 27 Release Notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes),
+  [Apple 지원 기종](https://support.apple.com/en-us/127455)
+
+### 읽기 전용 실기기 관찰과 외부 사례
+
+- Apple Silicon macOS 27.2.1 (26B131)에서 사용자 소유
+  `~/Library/Application Support/com.apple.wallpaper/aerials/manifest/entries.json`을
+  읽었다. schema 1과 `assets`·`categories` 배열, 기존 이름의 URL·preview·
+  대표 asset 필드가 있었다. 사용자 소유 `videos/`·`thumbnails/`에 0600과
+  0644 파일이 있었고 manifest는 0644였다. `Store/Index.plist`의
+  `AllSpacesAndDisplays`, `Displays`, `Spaces`, `SystemDefault`와
+  `Linked.Content` 아래 바이너리 `EncodedOptionValues`도 읽었다.
+- root 소유 idleassets manifest와 `WallpaperAgent.app`,
+  `WallpaperAerialsExtension.appex` 번들의 존재를 확인했다. 설치된 파일과
+  POSIX 권한은 Hikari 프로세스의 TCC 승인, 적용 시 에이전트 순서, 파일 접근,
+  매핑 유지 또는 다음 잠금의 재생을 입증하지 않는다. 실제 저장소 쓰기, 에이전트
+  신호 전송 및 관리자 작업 없이 조사했다.
+- Phosphene은 private `WallpaperExtensionKit` provider를 macOS 27 베타에서
+  테스트했다고 기록했다. 해당 경로는 Hikari의 사용자 Aerial transaction과
+  다르므로 실제 교체·재부팅·복원 결과의 근거로 사용하지 않았다.
+  [Phosphene 프로젝트 기록](https://github.com/muqiralabs/phosphene-livewallpaper)
+
+### 구현과 검증
+
+- `NativeLockOperatingSystemPolicy`는 OS별로 검토한 backend를 고른다. 현재
+  저장소 검증은 별도로 수행한다. macOS 27에서는 Apply, Restore, 선택 자동
+  적용, launch/unlock refresh와 주기 reconciliation을 차단한다. 미완료 기록과
+  백업을 보존하고 General에 표시하며, 앱 업데이트 설치를 차단한다. 읽을 수 없는
+  active marker도 사용자에게 알리고 업데이트를 차단한다.
+- Restore의 호환성 확인은 journal phase 변경, 에이전트 제어 및 Index 교체
+  전에 한다. macOS 26과 15에 각각 일치하는 기록은 기존 hash 검증과 복원
+  경로를 사용한다. macOS 26은 Apply/Restore에서 알 수 없는 manifest schema를
+  거부한다. 기존 사용자의 라이브러리, 설정, Bundle Identifier 및 업데이트
+  archive 형식은 같은 저장 규칙을 사용한다.
+- 로컬 macOS 27.2.1에서 Xcode 26.6과 SDK 26.5로 `swift test` 90개 통과.
+  `xcodebuild build` 성공, `xcodebuild test` 113개 통과. Xcode 테스트에는
+  WindowServer 창의 ready frame, wake/Space 복구와 공유 player·Pause 보존, 업데이트
+  확인과 알림 routing이 포함된다. `lipo`와 `vtool`로 앱과 helper의 ARM64·x86_64
+  및 각 slice의 `minos 15.0`을 확인했다. fixture는 활성 macOS 26 기록을 다시
+  읽고 macOS 27 Apply/Restore 거부 후 marker, journal, 원본 백업, Index,
+  manifest와 media bytes를 확인한 뒤 macOS 26 경로에서 복원한다. 잘못된 schema와
+  staged media hash 실패, 기존 저장소 마이그레이션도 검증한다.
+- GitHub의 정식 `xcode-27` ARM64 job은 macOS 27/SDK 27을 확인하고 Universal
+  앱과 helper를 빌드한 뒤 SwiftPM/Xcode 테스트를 실행한다. 기존 macOS 15/26
+  ARM64·Intel 빌드/테스트, release packaging·checksum과 Codecov 검사는 유지한다.
+  [GitHub 정식 제공 공지](https://github.blog/changelog/2026-10-15-xcode-27-runner-image-generally-available/)
+
+### 실기기에 남은 검증
+
+- 다중 물리 디스플레이에서 Mission Control·Spaces·전체 화면, 모니터 연결·해제와
+  주 화면 변경, 장시간 sleep/wake, lock/unlock을 직접 반복한다. 메뉴 막대·Dock·
+  바탕화면 아이콘 계층, 첫 프레임, 깜빡임, 재생 위치·Pause·음소거를 확인한다.
+- 메뉴 막대 팝오버와 설정 닫기/재활성화, 파일·아이콘 선택, 알림 프롬프트와 클릭
+  이동, 로그인 실행, 다크 모드·배율·VoiceOver 및 실제 업데이트 설치를 확인한다.
+  SDK 27로 빌드한 동일 앱의 macOS 15/26 실사용도 별도 확인한다.
+- macOS 27 Native Lock을 활성화하기 전에 별도 승인된 환경에서 최초 적용, 교체,
+  실패, 재부팅, 연속 잠금 및 복원으로 lifecycle과 접근 권한을 검증해야 한다.
+  이미 업그레이드한 기록은 현재 OS에서 읽기만 가능하다. 복원에는 원래 OS와
+  일치하는 wallpaper store가 필요하다.
+
 ## Hikari v0.4.0 (20) — Native Lock 및 업데이트 알림 (2026-10-30)
 
 ### 이슈와 영향

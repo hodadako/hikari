@@ -2,6 +2,22 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-11 macOS 27에서 기존 Aerial 경로 재사용 검토
+
+- macOS 27.2.1에서 macOS 26과 같은 경로의 schema 1 manifest, 로컬 media·thumbnail,
+  `Linked` 및 바이너리 option을 읽을 수 있었다. 같은 schema로 파일을 읽을 수 있는지는
+  agent 재시작, mapping 유지, 반복 잠금, 재부팅 또는 선택적 복원의 안전성을 입증하지
+  못한다. macOS 27의 backend를 활성화하지 않았다.
+- 기존 Restore는 journal을 `restoring`으로 바꾸고 Index를 쓴 뒤 backend와 OS를
+  검사했다. 호환성 검사를 journal 전환과 에이전트 정지 앞으로 옮겼다. 활성 기록의
+  주기 유지보수와 시작·unlock 후 refresh에도 같은 정책을 적용했다.
+- 기본 Command Line Tools 대신 전체 Xcode를 지정했다. 관리 sandbox 안에서는
+  SwiftPM manifest 실행이 `sandbox_apply: Operation not permitted`로 실패했다.
+  전체 Xcode를 명시한 sandbox 밖 실행으로 fixture를 검증했다.
+- 첫 롤백 fixture는 메모리의 생성 직후 기록과 디스크에서 재로드한 기록을 비교해
+  실패했다. ISO 8601 날짜 인코딩에서 소수 초가 정규화되므로 저장 직후 읽은 기록을
+  기준으로 비교하도록 테스트를 수정했다.
+
 ## 2026-10-30 v0.4.0 알림 테스트의 버전 표기 기대값
 
 - 새 업데이트 알림 테스트는 GitHub tag `v0.4.0`이 알림 본문에 그대로 표시된다고 기대해 실패했다. Hikari의 `HikariVersion`은 의미상 같은 trailing `.0`을 정규화하므로 기존 `LatestRelease.displayVersion`은 `v0.4`를 반환한다.

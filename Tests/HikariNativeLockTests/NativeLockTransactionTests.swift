@@ -465,6 +465,10 @@ final class NativeLockTransactionTests: XCTestCase {
             "transactionID": record.request.transactionID
         ]).write(to: store.activeTransactionURL)
 
+        let originalMarker = try Data(contentsOf: store.activeTransactionURL)
+        XCTAssertNil(try store.activeOrPendingTransaction(removeStaleMarker: false))
+        XCTAssertEqual(try Data(contentsOf: store.activeTransactionURL), originalMarker)
+
         XCTAssertNil(try store.activeOrPendingTransaction())
         XCTAssertFalse(
             FileManager.default.fileExists(
