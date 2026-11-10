@@ -68,6 +68,10 @@
   경로를 사용한다. macOS 26은 Apply/Restore에서 알 수 없는 manifest schema를
   거부한다. 기존 사용자의 라이브러리, 설정, Bundle Identifier 및 업데이트
   archive 형식은 같은 저장 규칙을 사용한다.
+- Xcode 27에서 알림 delegate의 foreground callback이 비격리 프로토콜 요구 사항과
+  맞지 않는다는 진단을 확인했다. 앱 상태를 읽지 않는 이 callback을 비격리로 선언했다.
+  알림 클릭에서 UI를 여는 동작은 MainActor를 사용한다. Aerial 인코더의 macOS 13
+  deprecation 및 Sendable 경고는 남아 있으며 SDK 27에서도 빌드된다.
 - 로컬 macOS 27.2.1에서 Xcode 26.6과 SDK 26.5로 `swift test` 90개 통과.
   `xcodebuild build` 성공, `xcodebuild test` 113개 통과. Xcode 테스트에는
   WindowServer 창의 ready frame, wake/Space 복구와 공유 player·Pause 보존, 업데이트
