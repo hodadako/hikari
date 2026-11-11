@@ -248,6 +248,11 @@ final class AppModel: ObservableObject {
         nativeLockRecord?.journal.phase
     }
 
+    var showsLibrarySetup: Bool {
+        contents.isEmpty && nativeLockRecord == nil
+            && nativeLockController.transactionReadError == nil
+    }
+
     var nativeLockSafetyReport: NativeLockSafetyReport {
         if let error = nativeLockController.transactionReadError {
             return NativeLockSafetyReport(

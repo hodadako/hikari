@@ -62,7 +62,8 @@
   저장소 검증은 별도로 수행한다. macOS 27에서는 Apply, Restore, 선택 자동
   적용, launch/unlock refresh와 주기 reconciliation을 차단한다. 미완료 기록과
   백업을 보존하고 General에 표시하며, 앱 업데이트 설치를 차단한다. 읽을 수 없는
-  active marker도 사용자에게 알리고 업데이트를 차단한다.
+  active marker도 사용자에게 알리고 업데이트를 차단한다. 저장된 기록이 있으면
+  라이브러리가 비어 있어도 General의 상태를 볼 수 있다.
 - Restore의 호환성 확인은 journal phase 변경, 에이전트 제어 및 Index 교체
   전에 한다. macOS 26과 15에 각각 일치하는 기록은 기존 hash 검증과 복원
   경로를 사용한다. macOS 26은 Apply/Restore에서 알 수 없는 manifest schema를

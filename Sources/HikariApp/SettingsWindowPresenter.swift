@@ -64,7 +64,7 @@ final class SettingsWindowPresenter: NSObject {
     }
 
     private func configureTitle(of window: NSWindow, model: AppModel) {
-        window.title = model.contents.isEmpty
+        window.title = model.showsLibrarySetup
             ? "Set Up \(model.appDisplayName)"
             : "\(model.appDisplayName) Settings"
     }

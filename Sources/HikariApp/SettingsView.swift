@@ -28,7 +28,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var settingsContent: some View {
-        if model.contents.isEmpty && model.settingsSection != .about {
+        if model.showsLibrarySetup && model.settingsSection != .about {
             WelcomeView(model: model)
         } else {
             TabView(selection: $model.settingsSection) {
