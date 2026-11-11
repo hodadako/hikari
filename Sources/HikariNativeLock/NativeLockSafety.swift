@@ -45,6 +45,7 @@ public struct NativeLockOperatingSystemPolicy: Sendable {
 
     public let majorVersion: Int
 
+    /// Creates an injectable runtime policy without probing or modifying live stores.
     public init(majorVersion: Int) {
         self.majorVersion = majorVersion
     }
@@ -57,6 +58,8 @@ public struct NativeLockOperatingSystemPolicy: Sendable {
         }
     }
 
+    /// Allows a recorded backend only on its reviewed runtime.
+    /// A missing backend remains compatible with pre-split macOS 15 journals.
     public func canModifyTransaction(backend: NativeLockTransactionBackend?) -> Bool {
         switch writeBackend {
         case .systemCatalog: backend == nil || backend == .systemCatalog
@@ -90,6 +93,8 @@ public enum NativeLockSafetyInspector {
         case invalid
     }
 
+    /// Parses schema 1 and its record arrays, rejecting Boolean version values.
+    /// Throws before a caller can modify an unrecognized manifest.
     static func aerialManifest(from data: Data) throws -> [String: Any] {
         guard let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let version = manifest["version"] as? NSNumber,
@@ -102,6 +107,9 @@ public enum NativeLockSafetyInspector {
         return manifest
     }
 
+    /// Reports runtime support, saved recovery state and media/store prerequisites.
+    /// Preservation takes priority when an unfinished journal cannot be modified
+    /// on this runtime, even if the manifest itself has a recognized schema.
     public static func evaluate(
         operatingSystemVersion: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion,
         hasSelectedMedia: Bool,

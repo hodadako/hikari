@@ -34,6 +34,8 @@ final class NativeLockModernTransactionTests: XCTestCase {
         try? FileManager.default.removeItem(at: rootURL)
     }
 
+    /// Exercises a fixture through macOS 26 Apply, macOS 27 write refusal and
+    /// schema-change refusal, then verifies byte-for-byte Restore on macOS 26.
     func testModernApplyTargetsOnlyLinkedChoicesAndRestoresByteForByte() throws {
         let store = NativeLockUserTransactionStore(
             supportRootURL: supportURL,
@@ -285,6 +287,7 @@ final class NativeLockModernTransactionTests: XCTestCase {
         }
     }
 
+    /// Verifies a staged-media hash failure preserves fixture backups and live bytes.
     func testApplyWithChangedStagedMediaKeepsRollbackInputs() throws {
         let store = NativeLockUserTransactionStore(
             supportRootURL: supportURL,
@@ -393,6 +396,7 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
     }
 
+    /// Builds a simulated runtime using only this test's temporary wallpaper paths.
     private func environment(majorVersion: Int = 26) -> NativeLockModernEnvironment {
         NativeLockModernEnvironment(
             wallpaperRootURL: wallpaperRootURL,

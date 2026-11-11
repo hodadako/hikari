@@ -47,6 +47,9 @@ final class NativeLockController {
         )
     }
 
+    /// Reads the saved transaction and replaces any previous read error with this
+    /// attempt's result. Unsupported runtimes preserve stale markers and staging.
+    /// On macOS 26, the known unapplied legacy cleanup policy still applies.
     func currentRecord() -> NativeLockTransactionRecord? {
         let policy = NativeLockOperatingSystemPolicy.current
         let savedRecord: NativeLockTransactionRecord?
@@ -255,6 +258,8 @@ final class NativeLockController {
         return record
     }
 
+    /// Applies a video through the reviewed runtime backend after store preflight.
+    /// A failed transaction retains its recovery journal and verified backups.
     func apply(content: LiveContent) async throws -> NativeLockTransactionRecord {
         let policy = NativeLockOperatingSystemPolicy.current
         guard let backend = policy.writeBackend else {
@@ -418,6 +423,8 @@ final class NativeLockController {
         }
     }
 
+    /// Restores a transaction only when its backend matches the runtime policy.
+    /// Rejects unsupported recovery before journal changes or wallpaper process control.
     func restore() throws {
         let policy = NativeLockOperatingSystemPolicy.current
         guard let backend = policy.writeBackend else {
@@ -776,6 +783,8 @@ final class NativeLockController {
             .compactMap { $0["uuid"] as? String }
     }
 
+    /// Checks the live user Aerial manifest before any shared-store or agent changes.
+    /// Throws a prerequisite error for a missing or unrecognized manifest.
     private func validateAerialManifest() throws {
         switch NativeLockSafetyInspector.aerialManifestState(
             manifestURL: NativeLockModernEnvironment.live.manifestURL
@@ -786,6 +795,8 @@ final class NativeLockController {
         }
     }
 
+    /// Runs the embedded one-shot helper after verifying the legacy runtime backend.
+    /// Validates its transaction identifiers and operation before accepting the result.
     private func runPrivilegedTool(
         operation: String,
         transactionID: UUID,

@@ -28,6 +28,7 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertEqual(report.state, .unsupportedOperatingSystem)
     }
 
+    /// Checks backend compatibility, including old journals and unsupported runtimes.
     func testWritePolicyMatchesTheTransactionBackend() {
         let sequoia = NativeLockOperatingSystemPolicy(majorVersion: 15)
         XCTAssertEqual(sequoia.writeBackend, .systemCatalog)
@@ -48,6 +49,8 @@ final class NativeLockSafetyTests: XCTestCase {
         }
     }
 
+    /// Verifies a recognized fixture manifest cannot enable writes on macOS 27
+    /// and all unfinished phases remain visible as preserved transactions.
     func testGoldenGatePreservesUnfinishedTransactionsEvenWithRecognizedManifest() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -233,6 +236,7 @@ final class NativeLockSafetyTests: XCTestCase {
         )
     }
 
+    /// Rejects corrupt JSON, future schemas, Boolean versions and malformed arrays.
     func testAerialManifestStateReturnsInvalidForBadSchema() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

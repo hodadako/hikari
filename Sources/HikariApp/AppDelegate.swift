@@ -78,6 +78,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         }
     }
 
+    /// Presents foreground notifications without accessing main-actor app state.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,

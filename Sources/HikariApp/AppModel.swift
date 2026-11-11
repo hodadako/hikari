@@ -319,6 +319,8 @@ final class AppModel: ObservableObject {
         )
     }
 
+    /// Prepares and applies the selected video, then refreshes the saved transaction
+    /// and its maintenance task after either success or failure.
     func applySelectedVideoToNativeLock() {
         guard !isNativeLockWorking, let content = selectedContent else { return }
         if NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
@@ -742,7 +744,14 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    /// Retries a failed journal read when a video is selected or imported, then
+    /// debounces automatic application on a supported user Aerial backend.
+    /// A recovered active journal also resumes its eligible maintenance task.
     private func scheduleNativeLockAutoApply() {
+        if nativeLockController.transactionReadError != nil {
+            nativeLockRecord = nativeLockController.currentRecord()
+            updateNativeLockMaintenance()
+        }
         guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
               nativeLockController.transactionReadError == nil,
               nativeLockRecord == nil || canMaintainNativeLock,
@@ -813,6 +822,8 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Starts one maintenance task for an active transaction on its supported backend.
+    /// The suspending clock avoids accumulating work while the Mac sleeps.
     private func startNativeLockMaintenance() {
         guard nativeLockMaintenanceTask == nil,
               canMaintainNativeLock else {
@@ -832,6 +843,7 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Reconciles the maintenance task with the current journal and backend policy.
     private func updateNativeLockMaintenance() {
         if canMaintainNativeLock {
             startNativeLockMaintenance()
@@ -846,6 +858,8 @@ final class AppModel: ObservableObject {
         nativeRendererRefreshRequested = false
     }
 
+    /// Schedules one renderer refresh after the outgoing Lock Screen has settled.
+    /// Transactions without a supported runtime backend cannot schedule a refresh.
     private func requestNativeRendererRefreshAfterUnlock() {
         guard canMaintainNativeLock else { return }
         nativeRendererRefreshTask?.cancel()
@@ -862,6 +876,8 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Reconciles the active mapping while the session is awake and unlocked.
+    /// Transient failures retain the renderer refresh request for the next pass.
     private func performNativeLockMaintenance() async {
         // Never rewrite choices or restart WallpaperAgent while the Lock
         // Screen owns its presentation surfaces. Unlock schedules an immediate

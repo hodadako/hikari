@@ -63,6 +63,7 @@ final class SettingsWindowPresenter: NSObject {
         window.contentViewController = NSHostingController(rootView: rootView)
     }
 
+    /// Uses a settings title when saved recovery state keeps General visible.
     private func configureTitle(of window: NSWindow, model: AppModel) {
         window.title = model.showsLibrarySetup
             ? "Set Up \(model.appDisplayName)"

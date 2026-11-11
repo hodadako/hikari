@@ -448,6 +448,7 @@ final class NativeLockTransactionTests: XCTestCase {
         )
     }
 
+    /// Checks read-only fixture lookup retains a stale marker before normal cleanup.
     func testFinishedJournalClearsAStaleUserActiveMarker() throws {
         let store = makeUserStore()
         let mediaURL = rootURL.appendingPathComponent("prepared.mov")

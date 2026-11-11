@@ -122,6 +122,9 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         return candidate.1
     }
 
+    /// Stages verified media and preview copies and atomically replaces a schema 1
+    /// user manifest. Saves its original bytes and returns both manifest digests.
+    /// Pre-commit failures remove copies created by this attempt.
     public func apply(
         request: NativeLockRequest,
         sourceTransactionURL: URL
@@ -209,6 +212,9 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         }
     }
 
+    /// Restores verified original manifest bytes when the applied digest still matches,
+    /// or selectively removes this transaction's records after external edits.
+    /// Rejects unrecognized schemas and retains media whose digest has changed.
     public func restore(
         request: NativeLockRequest,
         sourceTransactionURL: URL,
@@ -294,6 +300,7 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         }
     }
 
+    /// Rejects an asset ID or Hikari category already present in the parsed manifest.
     private func validateManifest(
         _ manifest: [String: Any],
         assetID: String

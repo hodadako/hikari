@@ -461,6 +461,9 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         return NativeLockTransactionRecord(request: request, journal: journal)
     }
 
+    /// Loads the marked unfinished journal or the most recently updated pending one.
+    /// Set `removeStaleMarker` to false for a lookup that preserves finished markers.
+    /// An unreadable marked transaction throws so callers can retain a recovery block.
     public func activeOrPendingTransaction(
         removeStaleMarker: Bool = true
     ) throws -> NativeLockTransactionRecord? {
