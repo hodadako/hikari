@@ -24,6 +24,17 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
+        .alert(
+            model.attentionTitle,
+            isPresented: Binding(
+                get: { model.presentedError != nil },
+                set: { if !$0 { model.presentedError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.presentedError ?? "")
+        }
     }
 
     @ViewBuilder
@@ -97,17 +108,6 @@ private struct WelcomeView: View {
             Spacer()
         }
         .padding(36)
-        .alert(
-            model.attentionTitle,
-            isPresented: Binding(
-                get: { model.presentedError != nil },
-                set: { if !$0 { model.presentedError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(model.presentedError ?? "")
-        }
     }
 
     private func chooseVideo() {

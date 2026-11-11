@@ -72,6 +72,8 @@
 - CodeRabbit 리뷰 후 일시적인 transaction 읽기 오류는 영상 선택·가져오기에서 다시
   읽고 상태를 갱신한다. 복구된 활성 기록은 지원되는 backend에서 유지보수를 다시
   시작한다. `main`의 CI 정책 문구도 실제 macOS 15/26 네 runner 구성에 맞췄다.
+  설정의 작업 오류 알림을 공통 부모로 옮겨 General에서도 가져오기·Restore 실패를
+  표시한다. 초기 설정과 기존 오류 메시지·해제 방식은 같은 바인딩을 사용한다.
 - Xcode 27에서 알림 delegate의 foreground callback이 비격리 프로토콜 요구 사항과
   맞지 않는다는 진단을 확인했다. 앱 상태를 읽지 않는 이 callback을 비격리로 선언했다.
   알림 클릭에서 UI를 여는 동작은 MainActor를 사용한다. Aerial 인코더의 macOS 13
