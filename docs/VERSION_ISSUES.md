@@ -2,7 +2,23 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — macOS 27 Golden Gate
+<a id="unreleased--macos-27-golden-gate"></a>
+
+## Hikari v0.5.0 (21) — macOS 27 Golden Gate (2026-11-13)
+
+### 릴리스 범위
+
+- PR #73의 macOS 27 지원 정책과 복구 보호를 포함한다. `MARKETING_VERSION`은
+  `0.5.0`, `CURRENT_PROJECT_VERSION`은 `21`이며 최소 macOS는 `15.0`이다.
+- macOS 15/26은 기존 Native Lock backend를 사용하고 macOS 27은 데스크톱 영상을
+  제공한다. macOS 27의 Native Lock 적용·유지보수·Restore는 차단하며 기존 기록과
+  백업은 보존한다. 미완료 기록이 있으면 앱 내 업데이트 설치가 차단된다.
+- 배포 파일은 `Hikari-macOS-portable.zip`과 `.sha256`이며 ARM64·Intel universal,
+  ad-hoc 서명·비공증 형태다.
+- 이 릴리스에 포함된 PR #73 소스는 로컬 SwiftPM 90개, Xcode 113개 테스트와
+  macOS 15/26 ARM64·Intel 및 Xcode 27 CI를 통과했다. 릴리스 버전의 태그 CI,
+  패키지 checksum·서명과 실제 설치 검증은 게시 과정에서 확인한다.
+
 
 ### Apple 공식 자료
 
