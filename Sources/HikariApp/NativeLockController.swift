@@ -55,7 +55,7 @@ final class NativeLockController {
         let savedRecord: NativeLockTransactionRecord?
         do {
             savedRecord = try store.activeOrPendingTransaction(
-                removeStaleMarker: policy.writeBackend != nil
+                removeStaleMarker: policy.majorVersion == 15 || policy.majorVersion == 26
             )
             transactionReadError = nil
         } catch {
@@ -206,10 +206,16 @@ final class NativeLockController {
         guard policy.writeBackend != nil,
               let current = try store.activeOrPendingTransaction(),
               current.journal.phase == .active,
-              policy.canModifyTransaction(backend: current.journal.backend) else {
+              policy.canModifyTransaction(
+                backend: current.journal.backend,
+                operatingSystemMajorVersion: current.journal.operatingSystemMajorVersion
+              ) else {
             return currentRecord()
         }
 
+        if policy.majorVersion == 27 {
+            _ = try NativeLockModernTransactionManager(environment: .live).inspectStore()
+        }
         var record = current
         var restartedAgent = false
         let usesModernAerials = current.journal.backend == .userAerials
@@ -268,11 +274,17 @@ final class NativeLockController {
         let usesModernAerials = backend == .userAerials
         if usesModernAerials {
             try validateAerialManifest()
+            if policy.majorVersion == 27 {
+                _ = try NativeLockModernTransactionManager(environment: .live).inspectStore()
+            }
         }
         if let current = try store.activeOrPendingTransaction() {
             guard usesModernAerials,
                   current.journal.phase == .active,
-                  current.journal.backend == .userAerials else {
+                  policy.canModifyTransaction(
+                    backend: current.journal.backend,
+                    operatingSystemMajorVersion: current.journal.operatingSystemMajorVersion
+                  ) else {
                 throw NativeLockTransactionError.activeTransactionExists
             }
             if current.request.sourceContentID == content.id {
@@ -335,7 +347,8 @@ final class NativeLockController {
             sourceContentID: content.id,
             title: content.title,
             preparedMediaURL: mediaURL,
-            preparedPreviewURL: previewURL
+            preparedPreviewURL: previewURL,
+            operatingSystemMajorVersion: policy.majorVersion
         )
         nativeLockLogger.notice(
             "Prepared transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
@@ -379,7 +392,7 @@ final class NativeLockController {
                     modernAerials: true
                 )
                 nativeLockLogger.notice(
-                    "Activated macOS 26 user Aerial transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
+                    "Activated user Aerial transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
                 )
                 return active
             }
@@ -433,11 +446,42 @@ final class NativeLockController {
         guard let record = try store.activeOrPendingTransaction(removeStaleMarker: false) else {
             throw NativeLockTransactionError.transactionNotFound
         }
-        guard policy.canModifyTransaction(backend: record.journal.backend) else {
+        let upgradeRestore = policy.requiresUpgradeRestore(
+            backend: record.journal.backend,
+            operatingSystemMajorVersion: record.journal.operatingSystemMajorVersion
+        )
+        guard policy.canModifyTransaction(
+            backend: record.journal.backend,
+            operatingSystemMajorVersion: record.journal.operatingSystemMajorVersion
+        ) || upgradeRestore else {
             throw NativeLockTransactionError.transactionRestoreUnavailable(policy.majorVersion)
         }
-        if backend == .userAerials, record.journal.originalModernManifestSHA256 != nil {
-            try validateAerialManifest()
+        // Validate *all* rollback inputs before changing the journal, index, or
+        // agent. A corrupt manifest backup must not leave a half-restored index.
+        try store.validateWallpaperRestore(
+            transactionID: record.request.transactionID,
+            forceSelective: upgradeRestore
+        )
+        if backend == .userAerials {
+            let transactionURL = store.transactionDirectoryURL(for: record.request.transactionID)
+            if let originalHash = record.journal.originalModernManifestSHA256 {
+                try NativeLockModernTransactionManager(environment: .live).validateRestore(
+                    originalManifestSHA256: originalHash,
+                    sourceTransactionURL: transactionURL
+                )
+                if upgradeRestore {
+                    _ = try NativeLockAerialCompatibility.inspect(
+                        manifest: Data(contentsOf: transactionURL.appendingPathComponent(
+                            NativeLockPaths.originalModernManifestFilename
+                        )),
+                        wallpaperIndex: Data(contentsOf: transactionURL.appendingPathComponent(
+                            NativeLockPaths.originalWallpaperIndexFilename
+                        ))
+                    )
+                }
+            } else if upgradeRestore {
+                throw NativeLockTransactionError.transactionRestoreUnavailable(policy.majorVersion)
+            }
         }
         _ = try store.beginRestore(transactionID: record.request.transactionID)
         do {
@@ -446,7 +490,8 @@ final class NativeLockController {
             // root cleanup may still require repair.
             try withWallpaperAgentSuspended {
                 try store.restoreWallpaperMapping(
-                    transactionID: record.request.transactionID
+                    transactionID: record.request.transactionID,
+                    forceSelective: upgradeRestore
                 )
             }
             switch backend {
@@ -458,7 +503,8 @@ final class NativeLockController {
                             for: record.request.transactionID
                         ),
                         originalManifestSHA256: originalManifestSHA256,
-                        appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
+                        appliedManifestSHA256: record.journal.systemManifestAppliedSHA256,
+                        forceSelective: upgradeRestore
                     )
                 }
             case .systemCatalog:

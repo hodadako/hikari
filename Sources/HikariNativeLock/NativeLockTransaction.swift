@@ -106,6 +106,9 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
     public var requiresSelectiveWallpaperRestore: Bool?
     /// Optional so journals created before the backend split remain readable.
     public var backend: NativeLockTransactionBackend?
+    /// Absent in older journals. A userAerials journal without this field was
+    /// created by the macOS 26 backend; never silently adopt it on a newer OS.
+    public var operatingSystemMajorVersion: Int?
     /// macOS 26 keeps its active Aerial manifest in the user domain. Its
     /// original digest protects the byte-for-byte rollback copy.
     public var originalModernManifestSHA256: String?
@@ -123,6 +126,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         materializedWallpaperIndexSHA256: String? = nil,
         requiresSelectiveWallpaperRestore: Bool? = nil,
         backend: NativeLockTransactionBackend? = nil,
+        operatingSystemMajorVersion: Int? = nil,
         originalModernManifestSHA256: String? = nil,
         systemManifestAppliedSHA256: String? = nil,
         lastError: String? = nil,
@@ -138,6 +142,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         self.materializedWallpaperIndexSHA256 = materializedWallpaperIndexSHA256
         self.requiresSelectiveWallpaperRestore = requiresSelectiveWallpaperRestore
         self.backend = backend
+        self.operatingSystemMajorVersion = operatingSystemMajorVersion
         self.originalModernManifestSHA256 = originalModernManifestSHA256
         self.systemManifestAppliedSHA256 = systemManifestAppliedSHA256
         self.lastError = lastError
@@ -369,7 +374,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         sourceContentID: UUID,
         title: String,
         preparedMediaURL: URL,
-        preparedPreviewURL: URL
+        preparedPreviewURL: URL,
+        operatingSystemMajorVersion: Int? = nil
     ) throws -> NativeLockTransactionRecord {
         if try activeOrPendingTransaction() != nil {
             throw NativeLockTransactionError.activeTransactionExists
@@ -431,7 +437,15 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 phase: .prepared,
                 originalWallpaperIndexSHA256: NativeLockDigest.sha256(
                     of: originalIndexData
-                )
+                ),
+                backend: operatingSystemMajorVersion.flatMap {
+                    switch $0 {
+                    case 15: NativeLockTransactionBackend.systemCatalog
+                    case 26, 27: NativeLockTransactionBackend.userAerials
+                    default: nil
+                    }
+                },
+                operatingSystemMajorVersion: operatingSystemMajorVersion
             )
             try write(request, to: requestURL(for: transactionID))
             try write(journal, to: journalURL(for: transactionID))
@@ -791,7 +805,22 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         }
     }
 
-    public func restoreWallpaperMapping(transactionID: UUID) throws {
+    public func validateWallpaperRestore(transactionID: UUID, forceSelective: Bool = false) throws {
+        _ = try wallpaperRestoreData(transactionID: transactionID, forceSelective: forceSelective)
+    }
+
+    public func restoreWallpaperMapping(transactionID: UUID, forceSelective: Bool = false) throws {
+        let plan = try wallpaperRestoreData(transactionID: transactionID, forceSelective: forceSelective)
+        guard NativeLockDigest.sha256(of: try Data(contentsOf: wallpaperIndexURL)) == plan.currentHash else {
+            throw NativeLockTransactionError.wallpaperIndexChanged
+        }
+        try plan.data.write(to: wallpaperIndexURL, options: .atomic)
+        try synchronizeFileAndParent(wallpaperIndexURL)
+    }
+
+    private func wallpaperRestoreData(
+        transactionID: UUID, forceSelective: Bool
+    ) throws -> (data: Data, currentHash: String) {
         let record = try record(for: transactionID)
         let originalURL = transactionDirectoryURL(for: transactionID)
             .appendingPathComponent(NativeLockPaths.originalWallpaperIndexFilename)
@@ -806,18 +835,27 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         let overlayURL = transactionDirectoryURL(for: transactionID)
             .appendingPathComponent(NativeLockPaths.restoreOverlayFilename)
         let restoreOverlay = try restoreOverlayChoices(at: overlayURL)
+        if forceSelective {
+            let all = Self.wallpaperChoiceCounts(in: currentDictionary, matching: record.request.assetID.uuidString, scope: .all)
+            let linked = Self.wallpaperChoiceCounts(in: currentDictionary, matching: record.request.assetID.uuidString, scope: .linked)
+            guard all.matching == linked.matching else {
+                // Another writer is now using our asset outside the owned scope.
+                // Preserve the asset and all recovery inputs instead of orphaning it.
+                throw NativeLockTransactionError.transactionMismatch
+            }
+        }
 
         let restoredData: Data
         let currentHash = NativeLockDigest.sha256(of: currentData)
-        if record.journal.requiresSelectiveWallpaperRestore != true,
+        if !forceSelective, record.journal.requiresSelectiveWallpaperRestore != true,
            let appliedHash = record.journal.appliedWallpaperIndexSHA256,
            currentHash == appliedHash {
             restoredData = originalData
-        } else if record.journal.requiresSelectiveWallpaperRestore != true,
+        } else if !forceSelective, record.journal.requiresSelectiveWallpaperRestore != true,
                   let materializedHash = record.journal.materializedWallpaperIndexSHA256,
                   currentHash == materializedHash {
             restoredData = originalData
-        } else if record.journal.requiresSelectiveWallpaperRestore != true,
+        } else if !forceSelective, record.journal.requiresSelectiveWallpaperRestore != true,
                   currentHash == record.journal.originalWallpaperIndexSHA256 {
             // The process may have journaled the expected materialized hash
             // just before the shared write and then stopped. The original is
@@ -828,9 +866,14 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 current: currentDictionary,
                 original: originalDictionary,
                 restoreOverlay: restoreOverlay,
-                assetID: record.request.assetID.uuidString
+                assetID: record.request.assetID.uuidString,
+                linkedOnly: forceSelective
             )
             guard let mergedDictionary = merged as? [String: Any] else {
+                throw NativeLockTransactionError.invalidWallpaperStore
+            }
+            if forceSelective,
+               Self.wallpaperChoiceCounts(in: mergedDictionary, matching: record.request.assetID.uuidString, scope: .linked).matching != 0 {
                 throw NativeLockTransactionError.invalidWallpaperStore
             }
             restoredData = try PropertyListSerialization.data(
@@ -839,8 +882,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 options: 0
             )
         }
-        try restoredData.write(to: wallpaperIndexURL, options: .atomic)
-        try synchronizeFileAndParent(wallpaperIndexURL)
+        return (restoredData, currentHash)
     }
 
     public func markRestored(transactionID: UUID) throws {
@@ -1206,13 +1248,15 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         current: Any,
         original: Any,
         restoreOverlay: [String: Any],
-        assetID: String
+        assetID: String,
+        linkedOnly: Bool = false
     ) -> Any {
         var originalChoices: [String: [String: Any]] = [:]
         collectWallpaperChoices(
             in: original,
             path: [],
-            choices: &originalChoices
+            choices: &originalChoices,
+            linkedOnly: linkedOnly
         )
         let fallback = originalChoices
             .sorted { $0.key < $1.key }
@@ -1224,7 +1268,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             originalChoices: originalChoices,
             restoreOverlay: restoreOverlay,
             fallback: fallback,
-            assetID: assetID
+            assetID: assetID,
+            linkedOnly: linkedOnly
         )
     }
 
@@ -1234,10 +1279,11 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         originalChoices: [String: [String: Any]],
         restoreOverlay: [String: Any],
         fallback: [String: Any]?,
-        assetID: String
+        assetID: String,
+        linkedOnly: Bool = false
     ) -> Any {
         if let dictionary = current as? [String: Any] {
-            if choiceAssetID(in: dictionary) == assetID {
+            if (!linkedOnly || path.contains("Linked")), choiceAssetID(in: dictionary) == assetID {
                 return restoreOverlay[wallpaperChoiceExactPathKey(path: path)]
                     as? [String: Any]
                     ?? originalChoices[wallpaperChoiceContextKey(path: path)]
@@ -1252,7 +1298,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     originalChoices: originalChoices,
                     restoreOverlay: restoreOverlay,
                     fallback: fallback,
-                    assetID: assetID
+                    assetID: assetID,
+                    linkedOnly: linkedOnly
                 )
             }
             return restored
@@ -1265,7 +1312,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                     originalChoices: originalChoices,
                     restoreOverlay: restoreOverlay,
                     fallback: fallback,
-                    assetID: assetID
+                    assetID: assetID,
+                    linkedOnly: linkedOnly
                 )
             }
         }
@@ -1275,19 +1323,23 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
     private static func collectWallpaperChoices(
         in value: Any,
         path: [String],
-        choices: inout [String: [String: Any]]
+        choices: inout [String: [String: Any]],
+        linkedOnly: Bool = false
     ) {
         if let dictionary = value as? [String: Any] {
             if dictionary["Provider"] is String,
                dictionary["Configuration"] is Data {
-                choices[wallpaperChoiceContextKey(path: path)] = dictionary
+                if !linkedOnly || path.contains("Linked") {
+                    choices[wallpaperChoiceContextKey(path: path)] = dictionary
+                }
                 return
             }
             for key in dictionary.keys.sorted() {
                 collectWallpaperChoices(
                     in: dictionary[key] as Any,
                     path: path + [key],
-                    choices: &choices
+                    choices: &choices,
+                    linkedOnly: linkedOnly
                 )
             }
             return
@@ -1297,7 +1349,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 collectWallpaperChoices(
                     in: item,
                     path: path + [String(index)],
-                    choices: &choices
+                    choices: &choices,
+                    linkedOnly: linkedOnly
                 )
             }
         }

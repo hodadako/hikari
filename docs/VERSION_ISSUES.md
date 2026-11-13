@@ -2,6 +2,24 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.5.1 (22) — macOS 27 Native Lock 후보 (미릴리스)
+
+- 27.2.1의 실제 사용자 Aerial 저장소와 기존 transaction 백업을 읽기 전용으로
+  조사했다. schema/provider/Linked/configuration/placement를 검사하는 별도 preflight와
+  익명화 fixture를 추가했다. [조사와 검증 계획](NATIVE_LOCK_MACOS27.md)을 참고한다.
+- 새 journal에 생성 OS를 기록한다. 26 기록은 27의 자동 적용·유지보수가 인계하지
+  않는다. 명시적 upgrade Restore는 원본·현재 구조와 두 backup hash를 먼저 검사하고,
+  현재 topology에 소유 Linked choice만 병합한다. 이전 OS 전체 snapshot은 덮어쓰지 않는다.
+- Restore 전 원본 index/manifest를 모두 사전 검증하고 공유 파일의 입력 hash를 재확인한다.
+  macOS 15 root 경로, macOS 26 초기화, 사용자 데이터 및 기존 backup 보존 규칙을 유지한다.
+- `xcode-27` fixture 검증·xcresult 보관·release coverage를 보강한다. 기존 네 runner와
+  checksum/Universal/minimum 15.0 배포 검사는 유지한다. 버전은 0.5.1 (22) 후보다.
+- 로컬 SwiftPM 103개와 Xcode 126개 테스트, Debug Universal build가 통과했다.
+  원격 CI 결과는 후속 기록한다. 실제 Apply/Restore·agent restart·
+  잠금/해제·재부팅은 아직 수행하지 않았으며, 실기기 쓰기 승인과 검증 전에는
+  27 Native Lock 지원 완료로 릴리스하지 않는다. production gate는 false이며
+  테스트에서만 후보 capability를 주입한다. 설치본은 0.5.0을 유지한다.
+
 <a id="unreleased--macos-27-golden-gate"></a>
 
 ## Hikari v0.5.0 (21) — macOS 27 Golden Gate (2026-11-13)

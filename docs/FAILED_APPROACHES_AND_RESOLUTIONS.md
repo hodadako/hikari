@@ -2,6 +2,22 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-13 macOS 27 Native Lock 후속 조사
+
+- schema 1을 읽을 수 있다는 이유만으로 26 journal을 27에서 자동 인계하는 접근은
+  사용하지 않는다. 생성 OS를 새 journal에 기록하고, 기존 userAerials의 누락 값은
+  26으로 취급한다. upgrade Restore를 자동 적용과 분리하고 원본 전체 replay를 금지한다.
+- Restore의 manifest backup hash 검증이 index 복원보다 늦었다. 두 rollback 입력의
+  사전 검증을 journal/agent 변경 앞으로 옮겨 손상된 backup의 부분 복원을 방지한다.
+- 공통 Aerial 안내 문구에서 26 전용 표기를 없앤 첫 테스트는 기존 문자열 기대값 때문에
+  실패했다. 공통 문구의 영어·한국어 번역과 기대값을 함께 갱신했다. OS별 쓰기 정책과
+  저장소 형식 검증은 계속 별도로 유지한다.
+- 후보 빌드의 plist 검사에서 `MARKETING_VERSION` 들여쓰기 오류로 버전 키가 빠진 것을
+  발견했다. XcodeGen base 설정으로 수정하고 생성 프로젝트와 실제 bundle의 0.5.1 (22)를
+  다시 검사한다. 버전이 없는 후보는 설치하지 않았다.
+- 27 후보의 fixture/build 성공은 실제 service lifecycle 증거가 아니다. 읽기 전용
+  실기기 preflight와 원본 backup 검증까지만 수행했으며 승인 전 실기기 쓰기는 보류한다.
+
 ## 2026-11-11 macOS 27에서 기존 Aerial 경로 재사용 검토
 
 - macOS 27.2.1에서 macOS 26과 같은 경로의 schema 1 manifest, 로컬 media·thumbnail,

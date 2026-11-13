@@ -31,7 +31,8 @@ let package = Package(
         ),
         .testTarget(
             name: "HikariNativeLockTests",
-            dependencies: ["HikariNativeLock"]
+            dependencies: ["HikariNativeLock"],
+            resources: [.copy("Fixtures")]
         )
     ]
 )

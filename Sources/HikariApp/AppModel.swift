@@ -264,7 +264,8 @@ final class AppModel: ObservableObject {
         return NativeLockSafetyInspector.evaluate(
             hasSelectedMedia: selectedContent != nil,
             transactionPhase: nativeLockPhase,
-            transactionBackend: nativeLockRecord?.journal.backend
+            transactionBackend: nativeLockRecord?.journal.backend,
+            transactionOperatingSystemMajorVersion: nativeLockRecord?.journal.operatingSystemMajorVersion
         )
     }
 
@@ -273,7 +274,8 @@ final class AppModel: ObservableObject {
             return false
         }
         return NativeLockOperatingSystemPolicy.current.canModifyTransaction(
-            backend: journal.backend
+            backend: journal.backend,
+            operatingSystemMajorVersion: journal.operatingSystemMajorVersion
         )
     }
 

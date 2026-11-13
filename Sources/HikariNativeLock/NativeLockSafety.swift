@@ -39,33 +39,59 @@ public enum NativeLockUpgradeGuard {
 
 /// Selects reviewed write backends independently of the live store schema.
 public struct NativeLockOperatingSystemPolicy: Sendable {
+    /// Release gate: fixture/build success cannot validate the live service
+    /// lifecycle. Set only after explicitly authorized macOS 27 validation.
+    public static let goldenGateRuntimeValidated = false
     public static var current: Self {
         Self(majorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
     }
 
     public let majorVersion: Int
+    private let hasGoldenGateRuntimeValidation: Bool
 
     /// Creates an injectable runtime policy without probing or modifying live stores.
-    public init(majorVersion: Int) {
+    public init(
+        majorVersion: Int,
+        goldenGateRuntimeValidated: Bool = Self.goldenGateRuntimeValidated
+    ) {
         self.majorVersion = majorVersion
+        self.hasGoldenGateRuntimeValidation = goldenGateRuntimeValidated
     }
 
     public var writeBackend: NativeLockTransactionBackend? {
         switch majorVersion {
         case 15: .systemCatalog
         case 26: .userAerials
+        case 27: hasGoldenGateRuntimeValidation ? .userAerials : nil
         default: nil
         }
     }
 
     /// Allows a recorded backend only on its reviewed runtime.
     /// A missing backend remains compatible with pre-split macOS 15 journals.
-    public func canModifyTransaction(backend: NativeLockTransactionBackend?) -> Bool {
+    public func canModifyTransaction(
+        backend: NativeLockTransactionBackend?,
+        operatingSystemMajorVersion: Int? = nil
+    ) -> Bool {
         switch writeBackend {
-        case .systemCatalog: backend == nil || backend == .systemCatalog
-        case .userAerials: backend == .userAerials
+        case .systemCatalog:
+            (backend == nil || backend == .systemCatalog)
+                && (operatingSystemMajorVersion == nil || operatingSystemMajorVersion == 15)
+        case .userAerials:
+            backend == .userAerials && (operatingSystemMajorVersion ?? 26) == majorVersion
         case nil: false
         }
+    }
+
+    /// Only explicit Restore may cross the reviewed 26 → 27 user-store boundary.
+    /// The controller must validate both backups and the current store first,
+    /// and must merge into the current topology rather than replay the old index.
+    public func requiresUpgradeRestore(
+        backend: NativeLockTransactionBackend?,
+        operatingSystemMajorVersion: Int?
+    ) -> Bool {
+        writeBackend == .userAerials && majorVersion == 27 && backend == .userAerials
+            && (operatingSystemMajorVersion ?? 26) == 26
     }
 }
 
@@ -115,14 +141,33 @@ public enum NativeLockSafetyInspector {
         hasSelectedMedia: Bool,
         transactionPhase: NativeLockTransactionPhase? = nil,
         transactionBackend: NativeLockTransactionBackend? = nil,
-        aerialManifestURL: URL? = nil
+        transactionOperatingSystemMajorVersion: Int? = nil,
+        aerialManifestURL: URL? = nil,
+        aerialWallpaperIndexURL: URL? = nil,
+        goldenGateRuntimeValidated: Bool = NativeLockOperatingSystemPolicy.goldenGateRuntimeValidated
     ) -> NativeLockSafetyReport {
         let policy = NativeLockOperatingSystemPolicy(
-            majorVersion: operatingSystemVersion.majorVersion
+            majorVersion: operatingSystemVersion.majorVersion,
+            goldenGateRuntimeValidated: goldenGateRuntimeValidated
         )
         if NativeLockUpgradeGuard.requiresRestoreBeforeMajorOperatingSystemUpdate(
             transactionPhase: transactionPhase
-        ), !policy.canModifyTransaction(backend: transactionBackend) {
+        ), policy.requiresUpgradeRestore(
+            backend: transactionBackend,
+            operatingSystemMajorVersion: transactionOperatingSystemMajorVersion
+        ) {
+            return NativeLockSafetyReport(
+                state: .recoveryRequired,
+                title: "Lock Screen recovery required",
+                detail: "Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout."
+            )
+        }
+        if NativeLockUpgradeGuard.requiresRestoreBeforeMajorOperatingSystemUpdate(
+            transactionPhase: transactionPhase
+        ), !policy.canModifyTransaction(
+            backend: transactionBackend,
+            operatingSystemMajorVersion: transactionOperatingSystemMajorVersion
+        ) {
             return NativeLockSafetyReport(
                 state: .transactionPreserved,
                 title: "Saved Lock Screen transaction",
@@ -175,6 +220,22 @@ public enum NativeLockSafetyInspector {
             case .ready:
                 break
             }
+            if policy.majorVersion == 27 {
+                let indexURL = aerialWallpaperIndexURL
+                    ?? NativeLockModernEnvironment.live.wallpaperRootURL.appendingPathComponent("Store/Index.plist")
+                do {
+                    _ = try NativeLockAerialCompatibility.inspect(
+                        manifest: Data(contentsOf: manifestURL),
+                        wallpaperIndex: Data(contentsOf: indexURL)
+                    )
+                } catch {
+                    return NativeLockSafetyReport(
+                        state: .aerialCatalogRequired,
+                        title: "Aerial wallpaper store is not recognized",
+                        detail: "Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout."
+                    )
+                }
+            }
         }
 
         guard hasSelectedMedia else {
@@ -186,7 +247,7 @@ public enum NativeLockSafetyInspector {
         }
 
         let detail = backend == .userAerials
-            ? "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval."
+            ? "Applying uses the verified user Aerial catalog and creates rollback records without administrator approval."
             : "Applying requires administrator approval and creates verified user and system rollback records."
         return NativeLockSafetyReport(
             state: .ready,

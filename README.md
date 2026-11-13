@@ -64,6 +64,11 @@ its own update installer while an unfinished transaction is present.
 
 See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate).
 
+The 0.5.1 candidate adds an observed-store preflight, OS provenance and selective
+26 → 27 recovery, plus macOS 27 transaction fixtures and coverage. Live Native
+Lock validation is still required; the production gate remains disabled.
+See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md).
+
 ## Native Lock Screen disclaimer
 
 Native Lock changes undocumented macOS wallpaper/Aerial state. Formats may

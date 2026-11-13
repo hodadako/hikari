@@ -247,6 +247,8 @@ jobs:
           done
       - name: Swift package tests
         run: swift test
+      - name: Native Lock macOS 27 fixture transactions
+        run: swift test --filter NativeLockGoldenGateTests
       - name: Xcode tests on macOS 27
         run: |
           xcodebuild \
@@ -254,8 +256,29 @@ jobs:
             -scheme Hikari \
             -configuration Debug \
             -destination 'platform=macOS,arch=arm64' \
+            -enableCodeCoverage YES \
+            -resultBundlePath "${RUNNER_TEMP}/Hikari-macos-27-arm64.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
+      - name: Upload macOS 27 coverage to Codecov
+        if: needs.metadata.outputs.is_tag == 'true'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: hodadako/hikari
+          plugins: xcode
+          swift_project: Hikari
+          flags: macos-27-arm64
+          name: hikari-macos-27-arm64
+          fail_ci_if_error: true
+      - name: Preserve macOS 27 test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Hikari-macos-27-test-results
+          path: ${{ runner.temp }}/Hikari-macos-27-arm64.xcresult
+          if-no-files-found: warn
+          retention-days: 14
 
   release:
     name: Publish Hikari tagged release

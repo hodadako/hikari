@@ -41,7 +41,7 @@ public struct NativeLockModernEnvironment: Sendable {
                 .appendingPathComponent("entries.json"),
             mediaDirectoryURL: aerials.appendingPathComponent("videos", isDirectory: true),
             previewDirectoryURL: aerials.appendingPathComponent("thumbnails", isDirectory: true),
-            supportedOperatingSystemMajorVersions: [26],
+            supportedOperatingSystemMajorVersions: NativeLockOperatingSystemPolicy.goldenGateRuntimeValidated ? [26, 27] : [26],
             operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         )
     }
@@ -132,6 +132,10 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         try validateOperatingSystem()
         try validate(request)
 
+        if environment.operatingSystemMajorVersion == 27 {
+            _ = try inspectStore()
+        }
+
         guard FileManager.default.fileExists(atPath: environment.manifestURL.path) else {
             throw NativeLockTransactionError.aerialCatalogMissing
         }
@@ -219,7 +223,8 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         request: NativeLockRequest,
         sourceTransactionURL: URL,
         originalManifestSHA256: String,
-        appliedManifestSHA256: String?
+        appliedManifestSHA256: String?,
+        forceSelective: Bool = false
     ) throws {
         try validateOperatingSystem()
         try validate(request)
@@ -237,7 +242,7 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         let current = try Data(contentsOf: environment.manifestURL)
         var manifest = try NativeLockSafetyInspector.aerialManifest(from: current)
         let restored: Data
-        if let appliedManifestSHA256,
+        if !forceSelective, let appliedManifestSHA256,
            NativeLockDigest.sha256(of: current) == appliedManifestSHA256 {
             restored = original
         } else {
@@ -271,6 +276,10 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
                 options: [.sortedKeys]
             )
         }
+        guard NativeLockDigest.sha256(of: try Data(contentsOf: environment.manifestURL))
+                == NativeLockDigest.sha256(of: current) else {
+            throw NativeLockTransactionError.systemManifestChanged
+        }
         try writeShared(restored, to: environment.manifestURL)
         try removeOwnedFile(
             mediaURL(for: request.assetID),
@@ -279,6 +288,34 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         try removeOwnedFile(
             previewURL(for: request.assetID),
             expectedHash: request.previewSHA256
+        )
+    }
+
+    /// Validates both the live manifest/index contract and the original manifest
+    /// backup before the controller changes a journal or stops WallpaperAgent.
+    public func validateRestore(
+        originalManifestSHA256: String,
+        sourceTransactionURL: URL
+    ) throws {
+        try validateOperatingSystem()
+        let original = try Data(contentsOf: sourceTransactionURL.appendingPathComponent(
+            NativeLockPaths.originalModernManifestFilename
+        ))
+        guard NativeLockDigest.isValidSHA256(originalManifestSHA256),
+              NativeLockDigest.sha256(of: original) == originalManifestSHA256 else {
+            throw NativeLockTransactionError.invalidHash
+        }
+        _ = try NativeLockSafetyInspector.aerialManifest(from: original)
+        _ = try NativeLockSafetyInspector.aerialManifest(from: Data(contentsOf: environment.manifestURL))
+        if environment.operatingSystemMajorVersion == 27 {
+            _ = try inspectStore()
+        }
+    }
+
+    public func inspectStore() throws -> NativeLockAerialCompatibility.Snapshot {
+        try NativeLockAerialCompatibility.inspect(
+            manifest: Data(contentsOf: environment.manifestURL),
+            wallpaperIndex: Data(contentsOf: environment.wallpaperRootURL.appendingPathComponent("Store/Index.plist"))
         )
     }
 

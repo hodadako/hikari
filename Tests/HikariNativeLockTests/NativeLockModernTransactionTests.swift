@@ -34,7 +34,7 @@ final class NativeLockModernTransactionTests: XCTestCase {
         try? FileManager.default.removeItem(at: rootURL)
     }
 
-    /// Exercises a fixture through macOS 26 Apply, macOS 27 write refusal and
+    /// Exercises a fixture through macOS 26 Apply, an unreviewed OS write refusal and
     /// schema-change refusal, then verifies byte-for-byte Restore on macOS 26.
     func testModernApplyTargetsOnlyLinkedChoicesAndRestoresByteForByte() throws {
         let store = NativeLockUserTransactionStore(
@@ -137,20 +137,20 @@ final class NativeLockModernTransactionTests: XCTestCase {
             includingPropertiesForKeys: nil
         ))
         let snapshots = try watchedURLs.map { try Data(contentsOf: $0) }
-        let goldenGateManager = NativeLockModernTransactionManager(environment: environment(majorVersion: 27))
-        XCTAssertThrowsError(try goldenGateManager.apply(
+        let futureManager = NativeLockModernTransactionManager(environment: environment(majorVersion: 28))
+        XCTAssertThrowsError(try futureManager.apply(
             request: savedRecord.request,
             sourceTransactionURL: transactionURL
         )) {
-            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(27))
+            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(28))
         }
-        XCTAssertThrowsError(try goldenGateManager.restore(
+        XCTAssertThrowsError(try futureManager.restore(
             request: savedRecord.request,
             sourceTransactionURL: transactionURL,
             originalManifestSHA256: result.originalManifestSHA256,
             appliedManifestSHA256: result.manifestSHA256
         )) {
-            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(27))
+            XCTAssertEqual($0 as? NativeLockTransactionError, .unsupportedOperatingSystem(28))
         }
         XCTAssertEqual(try watchedURLs.map { try Data(contentsOf: $0) }, snapshots)
 
