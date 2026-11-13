@@ -14,11 +14,24 @@
   macOS 15 root 경로, macOS 26 초기화, 사용자 데이터 및 기존 backup 보존 규칙을 유지한다.
 - `xcode-27` fixture 검증·xcresult 보관·release coverage를 보강한다. 기존 네 runner와
   checksum/Universal/minimum 15.0 배포 검사는 유지한다. 버전은 0.5.1 (22) 후보다.
-- 로컬 SwiftPM 103개와 Xcode 126개 테스트, Debug Universal build가 통과했다.
-  원격 CI 결과는 후속 기록한다. 실제 Apply/Restore·agent restart·
-  잠금/해제·재부팅은 아직 수행하지 않았으며, 실기기 쓰기 승인과 검증 전에는
-  27 Native Lock 지원 완료로 릴리스하지 않는다. production gate는 false이며
-  테스트에서만 후보 capability를 주입한다. 설치본은 0.5.0을 유지한다.
+- 로컬 SwiftPM 106개와 Xcode 126개 테스트, Debug Universal build가 통과했다.
+  추가 SwiftPM 경계 테스트 3개는 별도로 통과했다. 최초 후보의
+  [전체 CI](https://github.com/hodadako/hikari/actions/runs/43347393969)는 macOS 15/26
+  ARM64·Intel 및 27 빌드·테스트를 통과했고,
+  [CodeQL](https://github.com/hodadako/hikari/actions/runs/43347377809)도 성공했다. 초기 읽기 전용 단계에서는 실제 Apply/Restore·agent restart·잠금/해제·재부팅을
+  수행하지 않았다. 아래 승인된 실기기 검증과 구분한다. production gate는 false이며
+  fixture에서 후보 capability를 주입한다. 잠금 화면 재생 확인 전 지원 완료로
+  릴리스하지 않는다.
+- 이후 사용자가 현재 Mac의 실제 Apply/Restore 검증을 명시적으로 승인했다. 앱·Hikari
+  128개 파일·사용자 wallpaper store 245개 파일을 백업하고 hash를 검증했다.
+  0.5.1 (22) 검증용 빌드의 최초 실행은 기존 파일을 변경하지 않았다.
+- 기존 26 기록의 선택적 Restore와 새 27 기록의 Apply → 30초 54/54 Linked 유지 →
+  Restore가 성공했다. manifest는 원본 bytes로 복원됐고 Index는 LastSet/LastUse
+  timestamp 108개만 달랐다. 외부 asset과 54개 topology 경로, 원본 백업을 보존했다.
+  현재 영상을 재적용해 두 번째 안정화도 통과했다. 설정·콘텐츠·아이콘·미디어·기존
+  backup과 root catalog hash는 유지됐다. sudo/root 작업은 수행하지 않았다.
+- 실제 두 번의 잠금 화면 재생은 사용자 확인 대기 중이며 재부팅·다중 디스플레이·
+  다른 영상으로의 실제 교체 검증은 남아 있다. 자세한 증거 범위는 별도 조사 문서에 기록한다.
 
 <a id="unreleased--macos-27-golden-gate"></a>
 

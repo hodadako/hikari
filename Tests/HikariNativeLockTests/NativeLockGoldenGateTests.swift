@@ -235,6 +235,35 @@ final class NativeLockGoldenGateTests: XCTestCase {
         XCTAssertFalse(try store.linkedWallpaperMappingMatches(transactionID: record.request.transactionID))
     }
 
+    func testUpgradeRestoreRefusesAnAssetNowUsedOutsideLinked() throws {
+        let record = try apply(majorVersion: 26)
+        var dictionary = try indexDictionary()
+        var defaults = dictionary["SystemDefault"] as! [String: Any]
+        defaults["Desktop"] = defaults["Linked"]
+        dictionary["SystemDefault"] = defaults
+        try writeIndex(dictionary)
+        let before = try bytes()
+        let saved = try store.record(for: record.request.transactionID)
+        XCTAssertThrowsError(try store.validateWallpaperRestore(
+            transactionID: record.request.transactionID, forceSelective: true
+        )) {
+            XCTAssertEqual($0 as? NativeLockTransactionError, .transactionMismatch)
+        }
+        XCTAssertEqual(try bytes(), before)
+        XCTAssertEqual(try store.record(for: record.request.transactionID), saved)
+    }
+
+    func testRestoreKeepsMediaWhoseHashWasChangedByAnotherWriter() throws {
+        let record = try apply()
+        let media = root.appendingPathComponent("Wallpaper/aerials/videos/\(record.request.assetID).mov")
+        let external = Data("externally changed media".utf8)
+        try external.write(to: media)
+        try restore(record)
+        XCTAssertEqual(try Data(contentsOf: media), external)
+        XCTAssertEqual(try store.record(for: record.request.transactionID).journal.phase, .restored)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: transaction(record).appendingPathComponent(NativeLockPaths.originalModernManifestFilename).path))
+    }
+
     func testGoldenGatePolicyDoesNotAdoptAnUpgradedOrUnknownJournal() {
         let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
         for sourceOS: Int? in [nil, 15, 26, 28] {
@@ -242,6 +271,13 @@ final class NativeLockGoldenGateTests: XCTestCase {
         }
         XCTAssertFalse(policy.requiresUpgradeRestore(backend: .systemCatalog, operatingSystemMajorVersion: 15))
         XCTAssertFalse(NativeLockOperatingSystemPolicy(majorVersion: 28).requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
+    }
+
+    func testUnvalidatedGoldenGateRuntimeCannotWriteOrRestoreEvenWithMatchingBackend() {
+        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: false)
+        XCTAssertNil(policy.writeBackend)
+        XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 27))
+        XCTAssertFalse(policy.requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
     }
 
     private func prepare(majorVersion: Int = 27) throws -> NativeLockTransactionRecord {

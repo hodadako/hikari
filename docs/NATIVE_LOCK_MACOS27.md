@@ -5,7 +5,8 @@
 This is a candidate implementation. Do not tag/release it as verified Native
 Lock support until an explicitly authorized live Apply/Restore validation has
 completed. `goldenGateRuntimeValidated` is false in production; fixtures inject
-the candidate capability without changing the live policy. The installed 0.5.0 is unchanged during development. Fixture and
+the candidate capability without changing the live policy. The installed app stayed on 0.5.0 through read-only development. A separately
+authorized local validation build is described below. Fixture and
 build results do not establish Lock Screen playback or WallpaperAgent lifecycle.
 
 Apple's [macOS 27 release notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
@@ -98,3 +99,36 @@ and index restores recheck their input digest before committing a shared write.
 Never simulate corrupt files in the real store. Failure injection belongs in
 fixtures. Never overwrite or delete existing backup/transaction history. A failed
 live step stops further trials and retains the recovery journal.
+
+## Authorized live validation — 2026-11-13
+
+The user explicitly approved this Mac's Apply/Restore trial. Before writes,
+the installed 0.5.0, all 128 Hikari files and all 245 user-wallpaper-store files
+were backed up and verified by SHA-256. No sudo/root operation was used.
+
+- An ad-hoc signed Universal 0.5.1 (22) validation build was installed. Its
+  first launch changed none of the 128 Hikari or three watched wallpaper files;
+  the upgraded 26 journal stayed in recovery UI without automatic writes.
+- The existing 26 journal's explicit selective Restore succeeded, retaining
+  all 54 current Linked topology paths. Exactly its owned Aerial asset was
+  removed; all other manifest assets and the original transaction backups
+  remained. The old journal is restored and its active marker was removed.
+- The currently selected video was applied as a new journal with OS 27
+  provenance. All 54/54 Linked choices retained the new asset through the
+  normal 30-second stabilization check. Media and preview digests matched.
+  WallpaperAgent and WallpaperAerialsExtension were replaced successfully.
+- Explicit Restore of this new 27 transaction succeeded. The manifest returned
+  byte-for-byte to its original. The index differed only in 54 LastSet and 54
+  LastUse timestamps; every other decoded value matched. Owned media/preview
+  were removed and both original backups were retained.
+- The selected video was applied again for manual Lock Screen playback checks,
+  and the second 30-second stabilization passed. It remains active in the
+  locally authorized validation build while manual checks are pending.
+- Existing settings, library, icons, media, preparation cache and original
+  backups retained their hashes. The root-owned idleassets catalog hash was
+  unchanged. No other video was selected or imported during these trials.
+
+Actual lock → unlock → next lock playback is awaiting the user's observation.
+Reboot, physical display changes and replacement with a different video remain
+manual validation items. Production release gating remains separate from the
+authorized local validation build.
