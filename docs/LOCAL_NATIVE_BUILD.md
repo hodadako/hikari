@@ -38,6 +38,13 @@ manifest and media records are preserved.
   release. The pre-Hikari screen-saver/event-tap code is archived and is not
   included in Hikari.
 
+On macOS 27, select and play videos in General for desktop playback. Hikari
+disables Native Lock writes and keeps existing journals and backups. If a
+transaction was active during the upgrade, the saved state appears in General
+and blocks Hikari's update installer. Restore requires the original supported
+macOS version and its matching wallpaper store. See the
+[macOS 27 verification record](VERSION_ISSUES.md#unreleased--macos-27-golden-gate).
+
 ## Prerequisites for macOS 26 Native Lock
 
 On macOS 26, Native Lock writes to Apple's per-user Aerial catalog. This

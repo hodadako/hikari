@@ -76,6 +76,15 @@ prepared → systemApplied → active → restoring → restored
                          └──────────────→ recoveryRequired
 ```
 
+The runtime write policy selects a reviewed backend independently of manifest
+validation. Restore and active maintenance require the recorded backend to
+match the runtime. A journal without a backend is usable on macOS 15 for
+legacy Restore. On macOS 27 the app reads saved journals for display in General
+and blocks the update installer while a transaction is unfinished. The lookup
+leaves the journal, marker and backups intact. Apply, Restore, reconciliation
+and renderer refresh are disabled on this runtime. Desktop video follows its
+own playback policy.
+
 Restore verifies hashes and selectively preserves external wallpaper changes.
 Hikari never runs a persistent privileged helper. Periodic maintenance is
 user-level only and does not repeat root operations.
@@ -95,7 +104,10 @@ bundle identifier, display name, executable, version, and ad-hoc code
 signature, then stages the replacement. Updates are disabled while Native
 Lock or storage migration requires recovery.
 
-CI runs Hikari tests on macOS 15/26 ARM64 and Intel runners. Release coverage
-uploads each result to Codecov with a runner flag. Only normal `vX.Y.Z` tags
-run the package and GitHub release jobs; there is no separate Hikari tag
-channel.
+CI retains the macOS 15/26 ARM64 and Intel matrix. A separate ARM64
+`xcode-27` job builds both architectures with the macOS 27 SDK, checks the
+macOS 15.0 minimum on the app and helper, and runs the SwiftPM and Xcode tests
+on macOS 27. The existing macOS 15/26 matrix exercises its own builds on the
+older runtimes. The macOS 15 release job still produces the portable ZIP and
+checksum, and the four matrix results retain their Codecov flags. Only normal
+`vX.Y.Z` tags package and publish releases after the required checks pass.

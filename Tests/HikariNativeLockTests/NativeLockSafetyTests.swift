@@ -28,6 +28,63 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertEqual(report.state, .unsupportedOperatingSystem)
     }
 
+    /// Checks backend compatibility, including old journals and unsupported runtimes.
+    func testWritePolicyMatchesTheTransactionBackend() {
+        let sequoia = NativeLockOperatingSystemPolicy(majorVersion: 15)
+        XCTAssertEqual(sequoia.writeBackend, .systemCatalog)
+        XCTAssertTrue(sequoia.canModifyTransaction(backend: nil))
+        XCTAssertTrue(sequoia.canModifyTransaction(backend: .systemCatalog))
+        XCTAssertFalse(sequoia.canModifyTransaction(backend: .userAerials))
+
+        let tahoe = NativeLockOperatingSystemPolicy(majorVersion: 26)
+        XCTAssertEqual(tahoe.writeBackend, .userAerials)
+        XCTAssertTrue(tahoe.canModifyTransaction(backend: .userAerials))
+        XCTAssertFalse(tahoe.canModifyTransaction(backend: nil))
+        XCTAssertFalse(tahoe.canModifyTransaction(backend: .systemCatalog))
+
+        let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27)
+        XCTAssertNil(goldenGate.writeBackend)
+        for backend: NativeLockTransactionBackend? in [nil, .systemCatalog, .userAerials] {
+            XCTAssertFalse(goldenGate.canModifyTransaction(backend: backend))
+        }
+    }
+
+    /// Verifies a recognized fixture manifest cannot enable writes on macOS 27
+    /// and all unfinished phases remain visible as preserved transactions.
+    func testGoldenGatePreservesUnfinishedTransactionsEvenWithRecognizedManifest() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let manifestURL = directory.appendingPathComponent("entries.json")
+        try Data(#"{"version":1,"assets":[],"categories":[]}"#.utf8).write(to: manifestURL)
+        let goldenGate = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
+        XCTAssertEqual(NativeLockSafetyInspector.aerialManifestState(manifestURL: manifestURL), .ready)
+
+        for phase: NativeLockTransactionPhase? in [nil, .restored] {
+            let report = NativeLockSafetyInspector.evaluate(
+                operatingSystemVersion: goldenGate,
+                hasSelectedMedia: true,
+                transactionPhase: phase,
+                aerialManifestURL: manifestURL
+            )
+            XCTAssertEqual(report.state, .unsupportedOperatingSystem)
+        }
+
+        for phase: NativeLockTransactionPhase in [
+            .prepared, .systemApplied, .active, .restoring, .recoveryRequired
+        ] {
+            let report = NativeLockSafetyInspector.evaluate(
+                operatingSystemVersion: goldenGate,
+                hasSelectedMedia: false,
+                transactionPhase: phase,
+                transactionBackend: .userAerials,
+                aerialManifestURL: manifestURL
+            )
+            XCTAssertEqual(report.state, .transactionPreserved)
+        }
+    }
+
     func testRequiresSelectedMedia() {
         let report = NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: OperatingSystemVersion(
@@ -179,18 +236,25 @@ final class NativeLockSafetyTests: XCTestCase {
         )
     }
 
+    /// Rejects corrupt JSON, future schemas, Boolean versions and malformed arrays.
     func testAerialManifestStateReturnsInvalidForBadSchema() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let manifestURL = dir.appendingPathComponent("entries.json")
-        try Data("not json".utf8).write(to: manifestURL)
-
-        XCTAssertEqual(
-            NativeLockSafetyInspector.aerialManifestState(manifestURL: manifestURL),
-            .invalid
-        )
+        for manifest in [
+            "not json",
+            #"{"version":2,"assets":[],"categories":[]}"#,
+            #"{"version":true,"assets":[],"categories":[]}"#,
+            #"{"version":1,"assets":[null],"categories":[]}"#
+        ] {
+            try Data(manifest.utf8).write(to: manifestURL)
+            XCTAssertEqual(
+                NativeLockSafetyInspector.aerialManifestState(manifestURL: manifestURL),
+                .invalid
+            )
+        }
     }
 
     func testActiveReportUsesHikariProductName() {

@@ -182,7 +182,7 @@
 "Initialize Apple Aerial wallpapers first" = "Initialize Apple Aerial wallpapers first";
 "Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock." = "Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock.";
 "Aerial wallpaper store is not recognized" = "Aerial wallpaper store is not recognized";
-"The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store." = "The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store.";
+"Hikari could not read the expected Aerial manifest. Check its availability in System Settings → Wallpaper." = "Hikari could not read the expected Aerial manifest. Check its availability in System Settings → Wallpaper.";
 "Lock Screen changes are disabled until this macOS major version is reviewed." = "Lock Screen changes are disabled until this macOS major version is reviewed.";
 "Import a video first" = "Import a video first";
 "The selected video remains in Hikari's private application-support directory." = "The selected video remains in Hikari's private application-support directory.";
@@ -203,3 +203,11 @@
 "%@ is ready to apply to the Lock Screen." = "%@ is ready to apply to the Lock Screen.";
 "Hikari Update Available" = "Hikari Update Available";
 "Version %@ is available. Open Hikari to review the update." = "Version %@ is available. Open Hikari to review the update.";
+
+"Native Lock is unavailable on this macOS version" = "Native Lock is unavailable on this macOS version";
+"Desktop video is available. Lock Screen changes require a verified macOS wallpaper backend." = "Desktop video is available. Lock Screen changes require a verified macOS wallpaper backend.";
+"Saved Lock Screen transaction" = "Saved Lock Screen transaction";
+"Hikari has kept the transaction and its backups. To restore it, use Hikari on the macOS version that created it, with the matching wallpaper store." = "Hikari has kept the transaction and its backups. To restore it, use Hikari on the macOS version that created it, with the matching wallpaper store.";
+"Saved Lock Screen transaction could not be read" = "Saved Lock Screen transaction could not be read";
+"Hikari could not read the saved Lock Screen transaction: %@" = "Hikari could not read the saved Lock Screen transaction: %@";
+"Saved video" = "Saved video";

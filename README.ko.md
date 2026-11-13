@@ -46,6 +46,20 @@ Hikari는 macOS용 네이티브 라이브 배경화면 앱입니다. 영상을 �
 
 Xcode 스킴과 XCTest 전체 실행에는 전체 Xcode 설치가 필요합니다.
 
+## macOS 호환성
+
+| 실행 환경 | 데스크톱 영상 | Native Lock 및 Restore |
+| --- | --- | --- |
+| macOS 15, Apple Silicon·Intel | 지원 | 관리자 승인 후 구형 카탈로그에 Apply 및 Restore |
+| macOS 26, Apple Silicon·Intel | 지원 | 영상 선택 시 사용자 Aerial에 자동 적용. 일치하는 저장소에서 Restore 가능 |
+| macOS 27, Apple Silicon | 자동화 테스트에서 재생 및 복구 확인. 실기기 디스플레이·앱 UI 검증은 남아 있음 | Apply·자동 유지보수·Restore 비활성화. 기존 변경 기록과 백업 보존 |
+
+macOS를 업그레이드하기 전에 활성 Native Lock을 Restore하세요. 이미 업그레이드했다면
+변경 기록을 보존하세요. 복원에는 기록이 생성된 지원 macOS 버전과 일치하는 배경화면
+저장소가 필요합니다. 미완료 기록이 있으면 Hikari 자체 업데이트 설치도 차단됩니다.
+
+[macOS 27 검증 결과와 남은 항목](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate)을 참고하세요.
+
 ## Native Lock Screen 기능 고지
 
 Native Lock은 문서화되지 않은 macOS wallpaper/Aerial 상태를 변경합니다. 형식은

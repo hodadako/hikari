@@ -36,6 +36,12 @@ Backdrop manifest와 media record는 삭제하지 않습니다.
 wallpaper 저장소가 소유하며, 실행 중인 Native Lock transaction이 시작된 뒤 검증하고
 snapshot합니다. 빌드 스크립트는 이 runtime 파일을 bundle 안에 만들거나 복사하지 않습니다.
 
+macOS 27에서는 General에서 데스크톱 영상을 선택하고 재생할 수 있습니다. Hikari는
+Native Lock 쓰기를 차단하고 기존 변경 기록과 백업을 보존합니다. 업그레이드 당시 활성
+기록은 General에서 확인할 수 있으며, 미완료 기록이 있으면 앱 업데이트가 차단됩니다.
+Restore에는 기록을 생성한 지원 macOS 버전과 일치하는 저장소가 필요합니다.
+[macOS 27 검증 기록](VERSION_ISSUES.md#unreleased--macos-27-golden-gate)을 참고하세요.
+
 ### macOS 26 Aerial catalog 초기화
 
 macOS 26에서 Aerial catalog는 Apple Aerial wallpaper를 한 번 선택하거나 내려받은 뒤에만

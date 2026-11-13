@@ -194,6 +194,7 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
     case aerialCatalogMissing
     /// A legacy system-catalog transaction cannot be restored on the current OS.
     case legacyTransactionUnsupportedOnCurrentOperatingSystem(Int)
+    case transactionRestoreUnavailable(Int)
 
     public var errorDescription: String? {
         switch self {
@@ -241,6 +242,8 @@ public enum NativeLockTransactionError: LocalizedError, Equatable {
             "Initialize Apple Aerial wallpapers first."
         case let .legacyTransactionUnsupportedOnCurrentOperatingSystem(majorVersion):
             "The legacy system-catalog transaction cannot be used on macOS \(majorVersion). Restore using the original macOS version."
+        case let .transactionRestoreUnavailable(majorVersion):
+            "This Native Lock transaction cannot be restored on macOS \(majorVersion). Use its original macOS version and matching wallpaper store."
         }
     }
 }
@@ -458,7 +461,12 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         return NativeLockTransactionRecord(request: request, journal: journal)
     }
 
-    public func activeOrPendingTransaction() throws -> NativeLockTransactionRecord? {
+    /// Loads the marked unfinished journal or the most recently updated pending one.
+    /// Set `removeStaleMarker` to false for a lookup that preserves finished markers.
+    /// An unreadable marked transaction throws so callers can retain a recovery block.
+    public func activeOrPendingTransaction(
+        removeStaleMarker: Bool = true
+    ) throws -> NativeLockTransactionRecord? {
         if fileManager.fileExists(atPath: activeTransactionURL.path) {
             let marker: ActiveTransactionMarker = try read(
                 ActiveTransactionMarker.self,
@@ -468,7 +476,9 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             if markedRecord.journal.phase != .restored {
                 return markedRecord
             }
-            try fileManager.removeItem(at: activeTransactionURL)
+            if removeStaleMarker {
+                try fileManager.removeItem(at: activeTransactionURL)
+            }
         }
 
         guard let entries = try? fileManager.contentsOfDirectory(

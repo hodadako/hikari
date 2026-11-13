@@ -1,7 +1,9 @@
+import CoreFoundation
 import Foundation
 
 public enum NativeLockSafetyState: String, Codable, Sendable {
     case unsupportedOperatingSystem
+    case transactionPreserved
     /// macOS 26: the per-user Aerial catalog has not been initialized.
     case aerialCatalogRequired
     case mediaRequired
@@ -35,24 +37,54 @@ public enum NativeLockUpgradeGuard {
     }
 }
 
+/// Selects reviewed write backends independently of the live store schema.
+public struct NativeLockOperatingSystemPolicy: Sendable {
+    public static var current: Self {
+        Self(majorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
+    }
+
+    public let majorVersion: Int
+
+    /// Creates an injectable runtime policy without probing or modifying live stores.
+    public init(majorVersion: Int) {
+        self.majorVersion = majorVersion
+    }
+
+    public var writeBackend: NativeLockTransactionBackend? {
+        switch majorVersion {
+        case 15: .systemCatalog
+        case 26: .userAerials
+        default: nil
+        }
+    }
+
+    /// Allows a recorded backend only on its reviewed runtime.
+    /// A missing backend remains compatible with pre-split macOS 15 journals.
+    public func canModifyTransaction(backend: NativeLockTransactionBackend?) -> Bool {
+        switch writeBackend {
+        case .systemCatalog: backend == nil || backend == .systemCatalog
+        case .userAerials: backend == .userAerials
+        case nil: false
+        }
+    }
+}
+
 /// Evaluates prerequisites without elevated privileges. The separate system
 /// transaction manager repeats the OS and schema checks before every write.
 public enum NativeLockSafetyInspector {
     /// Returns whether the macOS 26 per-user Aerial manifest exists and has
-    /// the expected schema. Does not read or modify any wallpaper state.
+    /// the expected schema. Reads only the manifest.
     public static func aerialManifestState(
         manifestURL: URL
     ) -> AerialManifestState {
-        guard let data = try? Data(contentsOf: manifestURL) else {
+        do {
+            _ = try aerialManifest(from: Data(contentsOf: manifestURL))
+            return .ready
+        } catch CocoaError.fileReadNoSuchFile {
             return .missing
-        }
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              root["version"] as? Int == 1,
-              root["assets"] is [[String: Any]],
-              root["categories"] is [[String: Any]] else {
+        } catch {
             return .invalid
         }
-        return .ready
     }
 
     public enum AerialManifestState {
@@ -61,18 +93,48 @@ public enum NativeLockSafetyInspector {
         case invalid
     }
 
+    /// Parses schema 1 and its record arrays, rejecting Boolean version values.
+    /// Throws before a caller can modify an unrecognized manifest.
+    static func aerialManifest(from data: Data) throws -> [String: Any] {
+        guard let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let version = manifest["version"] as? NSNumber,
+              CFGetTypeID(version) != CFBooleanGetTypeID(),
+              version.doubleValue == 1,
+              manifest["assets"] is [[String: Any]],
+              manifest["categories"] is [[String: Any]] else {
+            throw NativeLockTransactionError.invalidWallpaperStore
+        }
+        return manifest
+    }
+
+    /// Reports runtime support, saved recovery state and media/store prerequisites.
+    /// Preservation takes priority when an unfinished journal cannot be modified
+    /// on this runtime, even if the manifest itself has a recognized schema.
     public static func evaluate(
         operatingSystemVersion: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion,
         hasSelectedMedia: Bool,
         transactionPhase: NativeLockTransactionPhase? = nil,
+        transactionBackend: NativeLockTransactionBackend? = nil,
         aerialManifestURL: URL? = nil
     ) -> NativeLockSafetyReport {
-        let majorVersion = operatingSystemVersion.majorVersion
-        guard majorVersion == 15 || majorVersion == 26 else {
+        let policy = NativeLockOperatingSystemPolicy(
+            majorVersion: operatingSystemVersion.majorVersion
+        )
+        if NativeLockUpgradeGuard.requiresRestoreBeforeMajorOperatingSystemUpdate(
+            transactionPhase: transactionPhase
+        ), !policy.canModifyTransaction(backend: transactionBackend) {
+            return NativeLockSafetyReport(
+                state: .transactionPreserved,
+                title: "Saved Lock Screen transaction",
+                detail: "Hikari has kept the transaction and its backups. To restore it, use Hikari on the macOS version that created it, with the matching wallpaper store."
+            )
+        }
+
+        guard let backend = policy.writeBackend else {
             return NativeLockSafetyReport(
                 state: .unsupportedOperatingSystem,
-                title: "Reviewed macOS 15 or 26 build required",
-                detail: "Lock Screen changes are disabled until this macOS major version is reviewed."
+                title: "Native Lock is unavailable on this macOS version",
+                detail: "Desktop video is available. Lock Screen changes require a verified macOS wallpaper backend."
             )
         }
 
@@ -95,7 +157,7 @@ public enum NativeLockSafetyInspector {
         }
 
         // On macOS 26, verify the Aerial catalog exists before allowing Apply.
-        if majorVersion == 26 {
+        if backend == .userAerials {
             let manifestURL = aerialManifestURL ?? NativeLockModernEnvironment.live.manifestURL
             switch aerialManifestState(manifestURL: manifestURL) {
             case .missing:
@@ -108,7 +170,7 @@ public enum NativeLockSafetyInspector {
                 return NativeLockSafetyReport(
                     state: .aerialCatalogRequired,
                     title: "Aerial wallpaper store is not recognized",
-                    detail: "The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store."
+                    detail: "Hikari could not read the expected Aerial manifest. Check its availability in System Settings → Wallpaper."
                 )
             case .ready:
                 break
@@ -123,7 +185,7 @@ public enum NativeLockSafetyInspector {
             )
         }
 
-        let detail = majorVersion == 26
+        let detail = backend == .userAerials
             ? "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval."
             : "Applying requires administrator approval and creates verified user and system rollback records."
         return NativeLockSafetyReport(

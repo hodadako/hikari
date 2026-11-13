@@ -182,7 +182,7 @@
 "Initialize Apple Aerial wallpapers first" = "먼저 Apple Aerial 배경화면을 초기화하세요";
 "Download or select an Apple Aerial wallpaper in System Settings → Wallpaper before applying Native Lock." = "Native Lock을 적용하기 전에 시스템 설정 → 배경화면에서 Apple Aerial 배경화면을 다운로드하거나 선택하세요.";
 "Aerial wallpaper store is not recognized" = "Aerial 배경화면 저장소를 인식할 수 없습니다";
-"The macOS Aerial manifest exists but does not match the expected schema. Native Lock cannot modify an unrecognized store." = "macOS Aerial 매니페스트가 존재하지만 예상된 스키마와 일치하지 않습니다. Native Lock은 인식되지 않는 저장소를 수정할 수 없습니다.";
+"Hikari could not read the expected Aerial manifest. Check its availability in System Settings → Wallpaper." = "Hikari가 예상한 Aerial 매니페스트를 읽을 수 없습니다. 시스템 설정 → 배경화면에서 사용 가능 여부를 확인하세요.";
 "Lock Screen changes are disabled until this macOS major version is reviewed." = "이 macOS 주 버전을 검토하기 전까지 잠금 화면 변경이 비활성화됩니다.";
 "Import a video first" = "먼저 영상을 가져오세요";
 "The selected video remains in Hikari's private application-support directory." = "선택한 영상은 Hikari 전용 Application Support 폴더에 보관됩니다.";
@@ -203,3 +203,11 @@
 "%@ is ready to apply to the Lock Screen." = "%@의 잠금 화면용 영상 준비가 완료되었습니다.";
 "Hikari Update Available" = "Hikari 업데이트 안내";
 "Version %@ is available. Open Hikari to review the update." = "%@ 버전이 있습니다. Hikari를 열어 업데이트를 확인하세요.";
+
+"Native Lock is unavailable on this macOS version" = "이 macOS 버전에서는 Native Lock을 사용할 수 없습니다";
+"Desktop video is available. Lock Screen changes require a verified macOS wallpaper backend." = "데스크톱 영상은 사용할 수 있습니다. 잠금 화면을 변경하려면 검증된 macOS 배경화면 저장소가 필요합니다.";
+"Saved Lock Screen transaction" = "보존된 잠금 화면 변경 기록";
+"Hikari has kept the transaction and its backups. To restore it, use Hikari on the macOS version that created it, with the matching wallpaper store." = "Hikari가 변경 기록과 백업을 보존했습니다. 복원하려면 기록을 생성한 macOS 버전과 그에 맞는 배경화면 저장소에서 Hikari를 사용하세요.";
+"Saved Lock Screen transaction could not be read" = "보존된 잠금 화면 변경 기록을 읽을 수 없습니다";
+"Hikari could not read the saved Lock Screen transaction: %@" = "Hikari가 보존된 잠금 화면 변경 기록을 읽을 수 없습니다: %@";
+"Saved video" = "보존된 영상";

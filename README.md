@@ -49,6 +49,21 @@ macOS Native Lock Screen path.
 
 The full Xcode installation is required for the Xcode scheme and XCTest suite.
 
+## macOS compatibility
+
+| Runtime | Desktop video | Native Lock and Restore |
+| --- | --- | --- |
+| macOS 15, Apple Silicon and Intel | Supported | Apply and Restore use the legacy catalog and require administrator approval |
+| macOS 26, Apple Silicon and Intel | Supported | Selecting a video applies it to the user Aerial store. Restore is available with a matching store |
+| macOS 27, Apple Silicon | Playback and recovery covered by automated tests. Physical display and app UI checks are pending | Apply, automatic maintenance and Restore are disabled. Hikari retains existing transactions and backups |
+
+Restore an active Native Lock transaction before upgrading macOS. If the Mac
+has already been upgraded, keep the transaction files. Restoring requires the
+original supported macOS version and matching wallpaper store. Hikari blocks
+its own update installer while an unfinished transaction is present.
+
+See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate).
+
 ## Native Lock Screen disclaimer
 
 Native Lock changes undocumented macOS wallpaper/Aerial state. Formats may
