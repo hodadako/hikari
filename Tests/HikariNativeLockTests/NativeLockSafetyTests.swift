@@ -43,8 +43,8 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertFalse(tahoe.canModifyTransaction(backend: .systemCatalog))
 
         let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
-        XCTAssertEqual(goldenGate.writeBackend, .userAerials)
-        XCTAssertTrue(goldenGate.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 27))
+        XCTAssertEqual(goldenGate.writeBackend, .userAerials27)
+        XCTAssertTrue(goldenGate.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: 27))
         for backend: NativeLockTransactionBackend? in [nil, .systemCatalog, .userAerials] {
             XCTAssertFalse(goldenGate.canModifyTransaction(backend: backend))
         }

@@ -64,9 +64,10 @@ its own update installer while an unfinished transaction is present.
 
 See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate).
 
-The 0.5.1 candidate adds an observed-store preflight, OS provenance and selective
-26 → 27 recovery, plus macOS 27 transaction fixtures and coverage. Live Native
-Lock validation is still required; the production gate remains disabled.
+The first 0.5.1 live trial kept the Index mapping but failed actual Lock Screen
+playback. The candidate now has a separate schema-2 catalog and journaled catalog
+preferences for 27, OS provenance and selective 26 → 27 recovery. Actual playback
+validation is still required; the production gate remains disabled.
 See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md).
 
 ## Native Lock Screen disclaimer

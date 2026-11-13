@@ -16,6 +16,10 @@ public enum NativeLockTransactionBackend: String, Codable, Sendable {
     case systemCatalog
     /// The macOS 26 per-user Aerial manifest transaction.
     case userAerials
+    /// macOS 27 schema-2 catalog, selected through a journaled user override.
+    case userAerials27
+
+    public var isUserAerials: Bool { self == .userAerials || self == .userAerials27 }
 }
 
 /// Identifies the one legacy failure that is known not to have modified any
@@ -109,6 +113,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
     /// Absent in older journals. A userAerials journal without this field was
     /// created by the macOS 26 backend; never silently adopt it on a newer OS.
     public var operatingSystemMajorVersion: Int?
+    public var aerialActivationSHA256: String?
     /// macOS 26 keeps its active Aerial manifest in the user domain. Its
     /// original digest protects the byte-for-byte rollback copy.
     public var originalModernManifestSHA256: String?
@@ -127,6 +132,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         requiresSelectiveWallpaperRestore: Bool? = nil,
         backend: NativeLockTransactionBackend? = nil,
         operatingSystemMajorVersion: Int? = nil,
+        aerialActivationSHA256: String? = nil,
         originalModernManifestSHA256: String? = nil,
         systemManifestAppliedSHA256: String? = nil,
         lastError: String? = nil,
@@ -143,6 +149,7 @@ public struct NativeLockJournal: Codable, Equatable, Sendable {
         self.requiresSelectiveWallpaperRestore = requiresSelectiveWallpaperRestore
         self.backend = backend
         self.operatingSystemMajorVersion = operatingSystemMajorVersion
+        self.aerialActivationSHA256 = aerialActivationSHA256
         self.originalModernManifestSHA256 = originalModernManifestSHA256
         self.systemManifestAppliedSHA256 = systemManifestAppliedSHA256
         self.lastError = lastError
@@ -441,7 +448,8 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                 backend: operatingSystemMajorVersion.flatMap {
                     switch $0 {
                     case 15: NativeLockTransactionBackend.systemCatalog
-                    case 26, 27: NativeLockTransactionBackend.userAerials
+                    case 26: NativeLockTransactionBackend.userAerials
+                    case 27: NativeLockTransactionBackend.userAerials27
                     default: nil
                     }
                 },
@@ -532,6 +540,17 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             journal.systemManifestAppliedSHA256 = manifestSHA256
             journal.lastError = nil
         }
+    }
+
+    /// Persist the activation backup digest before any wallpaper preference write.
+    public func markAerialActivationPrepared(transactionID: UUID, sha256: String) throws {
+        guard NativeLockDigest.isValidSHA256(sha256) else { throw NativeLockTransactionError.invalidHash }
+        let record = try record(for: transactionID)
+        guard record.journal.phase == .prepared, record.journal.backend == .userAerials27,
+              record.journal.aerialActivationSHA256 == nil else {
+            throw NativeLockTransactionError.transactionMismatch
+        }
+        _ = try updateJournal(transactionID: transactionID) { $0.aerialActivationSHA256 = sha256 }
     }
 
     public func applyWallpaperMapping(
@@ -814,6 +833,7 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
         guard NativeLockDigest.sha256(of: try Data(contentsOf: wallpaperIndexURL)) == plan.currentHash else {
             throw NativeLockTransactionError.wallpaperIndexChanged
         }
+        guard NativeLockDigest.sha256(of: plan.data) != plan.currentHash else { return }
         try plan.data.write(to: wallpaperIndexURL, options: .atomic)
         try synchronizeFileAndParent(wallpaperIndexURL)
     }
@@ -876,11 +896,11 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
                Self.wallpaperChoiceCounts(in: mergedDictionary, matching: record.request.assetID.uuidString, scope: .linked).matching != 0 {
                 throw NativeLockTransactionError.invalidWallpaperStore
             }
-            restoredData = try PropertyListSerialization.data(
-                fromPropertyList: mergedDictionary,
-                format: .binary,
-                options: 0
-            )
+            // An external photo/no-Linked selection can already contain no
+            // owned choice. Preserve its bytes rather than reserializing it.
+            restoredData = NSDictionary(dictionary: mergedDictionary).isEqual(to: currentDictionary)
+                ? currentData
+                : try PropertyListSerialization.data(fromPropertyList: mergedDictionary, format: .binary, options: 0)
         }
         return (restoredData, currentHash)
     }

@@ -85,11 +85,16 @@ leaves the journal, marker and backups intact. Apply, Restore, reconciliation
 and renderer refresh are disabled on this runtime. Desktop video follows its
 own playback policy.
 
-The 0.5.1 candidate adds `NativeLockAerialCompatibility` as a read-only 27
-contract probe. New journals record their originating OS before shared writes.
-Automatic maintenance requires a matching OS; explicit 26 → 27 recovery uses
-validated backups and a Linked-only merge into the current topology. The
-production 27 gate stays disabled pending authorized live validation. See
+The 0.5.1 candidate separates `userAerials27` from 26's shared catalog. Its
+`NativeLockGoldenGateActivation` copies the bundled schema-2 catalog to a
+transaction-specific user path and journals the original two catalog-selection
+preferences and their digest before activation. The shared engine receives the
+schema/locations explicitly. Maintenance checks preference ownership and the
+owned asset before reconciliation; Restore preserves foreign selections.
+New journals record their originating OS before shared writes. Explicit 26 → 27
+recovery uses validated backups and a Linked-only merge into the current topology.
+The first schema-1 trial failed actual playback despite stable Index choices;
+the production 27 gate stays disabled pending schema-2 live validation. See
 [the evidence and release gate](docs/NATIVE_LOCK_MACOS27.md).
 
 Restore verifies hashes and selectively preserves external wallpaper changes.

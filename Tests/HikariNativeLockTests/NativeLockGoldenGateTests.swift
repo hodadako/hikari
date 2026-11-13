@@ -151,6 +151,9 @@ final class NativeLockGoldenGateTests: XCTestCase {
     }
 
     func testGoldenGateSafetyDistinguishesNewAndUpgradedTransactions() throws {
+        var catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as! [String: Any]
+        catalog["version"] = 2
+        try JSONSerialization.data(withJSONObject: catalog).write(to: manifest)
         let os = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
         XCTAssertEqual(NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: os, hasSelectedMedia: true,
@@ -158,10 +161,10 @@ final class NativeLockGoldenGateTests: XCTestCase {
         ).state, .ready)
         XCTAssertEqual(NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: os, hasSelectedMedia: false, transactionPhase: .active,
-            transactionBackend: .userAerials, transactionOperatingSystemMajorVersion: 27,
+            transactionBackend: .userAerials27, transactionOperatingSystemMajorVersion: 27,
             aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateRuntimeValidated: true
         ).state, .active)
-        for source: Int? in [nil, 26] {
+        for source: Int? in [nil, 26, 27] {
             XCTAssertEqual(NativeLockSafetyInspector.evaluate(
                 operatingSystemVersion: os, hasSelectedMedia: false, transactionPhase: .active,
                 transactionBackend: .userAerials, transactionOperatingSystemMajorVersion: source,

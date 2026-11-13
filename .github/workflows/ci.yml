@@ -248,7 +248,7 @@ jobs:
       - name: Swift package tests
         run: swift test
       - name: Native Lock macOS 27 fixture transactions
-        run: swift test --filter NativeLockGoldenGateTests
+        run: swift test --filter NativeLockGoldenGate
       - name: Xcode tests on macOS 27
         run: |
           xcodebuild \

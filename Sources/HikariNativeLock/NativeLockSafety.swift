@@ -62,7 +62,7 @@ public struct NativeLockOperatingSystemPolicy: Sendable {
         switch majorVersion {
         case 15: .systemCatalog
         case 26: .userAerials
-        case 27: hasGoldenGateRuntimeValidation ? .userAerials : nil
+        case 27: hasGoldenGateRuntimeValidation ? .userAerials27 : nil
         default: nil
         }
     }
@@ -78,7 +78,9 @@ public struct NativeLockOperatingSystemPolicy: Sendable {
             (backend == nil || backend == .systemCatalog)
                 && (operatingSystemMajorVersion == nil || operatingSystemMajorVersion == 15)
         case .userAerials:
-            backend == .userAerials && (operatingSystemMajorVersion ?? 26) == majorVersion
+            backend == .userAerials && (operatingSystemMajorVersion ?? 26) == 26
+        case .userAerials27:
+            backend == .userAerials27 && operatingSystemMajorVersion == 27
         case nil: false
         }
     }
@@ -90,8 +92,8 @@ public struct NativeLockOperatingSystemPolicy: Sendable {
         backend: NativeLockTransactionBackend?,
         operatingSystemMajorVersion: Int?
     ) -> Bool {
-        writeBackend == .userAerials && majorVersion == 27 && backend == .userAerials
-            && (operatingSystemMajorVersion ?? 26) == 26
+        writeBackend == .userAerials27 && backend == .userAerials
+            && [26, 27].contains(operatingSystemMajorVersion ?? 26)
     }
 }
 
@@ -101,10 +103,10 @@ public enum NativeLockSafetyInspector {
     /// Returns whether the macOS 26 per-user Aerial manifest exists and has
     /// the expected schema. Reads only the manifest.
     public static func aerialManifestState(
-        manifestURL: URL
+        manifestURL: URL, schemaVersion: Int = 1
     ) -> AerialManifestState {
         do {
-            _ = try aerialManifest(from: Data(contentsOf: manifestURL))
+            _ = try aerialManifest(from: Data(contentsOf: manifestURL), schemaVersion: schemaVersion)
             return .ready
         } catch CocoaError.fileReadNoSuchFile {
             return .missing
@@ -119,13 +121,13 @@ public enum NativeLockSafetyInspector {
         case invalid
     }
 
-    /// Parses schema 1 and its record arrays, rejecting Boolean version values.
+    /// Parses the expected schema and record arrays, rejecting Boolean version values.
     /// Throws before a caller can modify an unrecognized manifest.
-    static func aerialManifest(from data: Data) throws -> [String: Any] {
+    static func aerialManifest(from data: Data, schemaVersion: Int = 1) throws -> [String: Any] {
         guard let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let version = manifest["version"] as? NSNumber,
               CFGetTypeID(version) != CFBooleanGetTypeID(),
-              version.doubleValue == 1,
+              version.doubleValue == Double(schemaVersion),
               manifest["assets"] is [[String: Any]],
               manifest["categories"] is [[String: Any]] else {
             throw NativeLockTransactionError.invalidWallpaperStore
@@ -202,9 +204,12 @@ public enum NativeLockSafetyInspector {
         }
 
         // On macOS 26, verify the Aerial catalog exists before allowing Apply.
-        if backend == .userAerials {
-            let manifestURL = aerialManifestURL ?? NativeLockModernEnvironment.live.manifestURL
-            switch aerialManifestState(manifestURL: manifestURL) {
+        if backend.isUserAerials {
+            let manifestURL = aerialManifestURL ?? (backend == .userAerials27
+                ? URL(fileURLWithPath: "/System/Library/ExtensionKit/Extensions/WallpaperAerialsExtension.appex/Contents/Resources/entries.json")
+                : NativeLockModernEnvironment.live.manifestURL)
+            let schemaVersion = backend == .userAerials27 ? 2 : 1
+            switch aerialManifestState(manifestURL: manifestURL, schemaVersion: schemaVersion) {
             case .missing:
                 return NativeLockSafetyReport(
                     state: .aerialCatalogRequired,
@@ -226,7 +231,9 @@ public enum NativeLockSafetyInspector {
                 do {
                     _ = try NativeLockAerialCompatibility.inspect(
                         manifest: Data(contentsOf: manifestURL),
-                        wallpaperIndex: Data(contentsOf: indexURL)
+                        wallpaperIndex: Data(contentsOf: indexURL), schemaVersion: schemaVersion,
+                        previousSelectionManifest: aerialManifestURL == nil
+                            ? try? Data(contentsOf: NativeLockModernEnvironment.live.manifestURL) : nil
                     )
                 } catch {
                     return NativeLockSafetyReport(
@@ -246,7 +253,7 @@ public enum NativeLockSafetyInspector {
             )
         }
 
-        let detail = backend == .userAerials
+        let detail = backend.isUserAerials
             ? "Applying uses the verified user Aerial catalog and creates rollback records without administrator approval."
             : "Applying requires administrator approval and creates verified user and system rollback records."
         return NativeLockSafetyReport(

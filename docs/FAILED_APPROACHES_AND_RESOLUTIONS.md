@@ -2,6 +2,25 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-13 macOS 27 기본 잠금 화면이 유지된 실제 실패
+
+- 사용자 cache의 schema 1과 54/54 Linked 선택이 30초 유지된 것만으로 실제 렌더러가
+  그 catalog를 사용한다고 판단할 수 없었다. 사용자 잠금 검증은 기본 화면으로 실패했다.
+  로그는 fallback catalog 로딩, 열린 파일은 Golden Gate.mov를 나타냈다. 시스템 번들의
+  실제 catalog는 schema 2였다. 실패 transaction과 로그를 보관한 뒤 Restore했다.
+- 27은 별도 schema 2 사용자 catalog와 소유권·원본 hash를 journal에 기록한 두 catalog
+  선택 설정으로 분리한다. 외부 프로젝트의 override 방법은 참고 관찰이며 Apple 계약이
+  아니다. 실제 파일 선택과 반복 잠금 재생을 확인하기 전 production gate를 열지 않는다.
+- 첫 schema 2 재시도는 이전 다른 앱의 영상이 bundled catalog에 없어 사전 검증에서
+  중단됐다. 공유 설정·Index 쓰기 전에 멈추고 준비 기록을 Restore했다. 이전 선택 UUID는
+  별도의 인식된 schema 1 cache에서 확인할 수 있게 분리했으며 그 기록을 새 catalog에
+  복사하지 않는다. 알 수 없는 UUID·잘못된 cache는 계속 차단한다.
+- CodeRabbit이 확인한 maintenance의 누락 asset 재참조와, 사진/no-Linked 외부 선택 때문에
+  Restore가 막히는 경로를 수정했다. Apply 구조 검증과 Restore 읽기 검증을 분리하고,
+  외부 선택에 소유 choice가 없으면 Index bytes를 다시 쓰지 않는다. fixture로 재현했다.
+- 새 photo/no-Linked 회귀 테스트의 첫 실패는 선택 내용이 아닌 binary plist 재직렬화 순서
+  차이였다. 내용이 동일한 selective restore는 원본 current bytes를 유지하도록 고쳤다.
+
 ## 2026-11-13 macOS 27 Native Lock 후속 조사
 
 - schema 1을 읽을 수 있다는 이유만으로 26 journal을 27에서 자동 인계하는 접근은

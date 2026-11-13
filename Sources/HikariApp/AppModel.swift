@@ -325,7 +325,7 @@ final class AppModel: ObservableObject {
     /// and its maintenance task after either success or failure.
     func applySelectedVideoToNativeLock() {
         guard !isNativeLockWorking, let content = selectedContent else { return }
-        if NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
+        if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
            (nativeLockRecord?.journal.phase != .active
                || nativeLockRecord?.request.sourceContentID != content.id),
            !nativeLockController.hasPreparedMediaForNativeLock(content: content) {
@@ -754,7 +754,7 @@ final class AppModel: ObservableObject {
             nativeLockRecord = nativeLockController.currentRecord()
             updateNativeLockMaintenance()
         }
-        guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
+        guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               nativeLockController.transactionReadError == nil,
               nativeLockRecord == nil || canMaintainNativeLock,
               let content = selectedContent else {
@@ -787,7 +787,7 @@ final class AppModel: ObservableObject {
     /// transaction. The desktop selection stays immediate; the Lock Screen
     /// swap waits until this cache is atomically ready.
     private func prepareNativeLockMediaIfNeeded(for content: LiveContent) {
-        guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
+        guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               !nativeLockController.hasPreparedMediaForNativeLock(content: content),
               nativeLockPreparationTasks[content.id] == nil else {
             return

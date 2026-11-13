@@ -30,8 +30,24 @@
   timestamp 108개만 달랐다. 외부 asset과 54개 topology 경로, 원본 백업을 보존했다.
   현재 영상을 재적용해 두 번째 안정화도 통과했다. 설정·콘텐츠·아이콘·미디어·기존
   backup과 root catalog hash는 유지됐다. sudo/root 작업은 수행하지 않았다.
-- 실제 두 번의 잠금 화면 재생은 사용자 확인 대기 중이며 재부팅·다중 디스플레이·
-  다른 영상으로의 실제 교체 검증은 남아 있다. 자세한 증거 범위는 별도 조사 문서에 기록한다.
+- **실제 잠금 화면 검증은 실패했다.** 사용자는 기본 화면이 그대로라고 확인했다.
+  30초 Index 유지 결과를 실제 재생 성공으로 해석하지 않는다. 렌더러는 stale schema 1
+  사용자 catalog 대신 schema 2 fallback을 읽고 Golden Gate.mov를 열었다. 실패 기록을
+  보관하고 마지막 trial transaction을 Restore했으며 gated 후보로 되돌렸다.
+- 27 전용 userAerials27 backend는 bundled schema 2를 별도 사용자 catalog로 복사하고,
+  catalog 선택 설정 두 개를 원본·hash와 함께 journal에 보관한다. 외부 override는 차단하며
+  Restore는 소유 설정만 되돌린다. 26의 공유 schema 1 파일과 15 root 경로는 유지한다.
+- CodeRabbit 지적을 반영해 maintenance 전에 소유 asset이 남아 있는지 검사하고,
+  사진 또는 Linked 없는 외부 선택을 유지한 채 Restore할 수 있도록 분리했다.
+- 새 schema 2 경로의 SwiftPM 123개, 로컬 Xcode 146개 테스트가 통과했다. 실제 재시도 전
+  앱·설정·wallpaper 파일과 Aerial 설정을 다시 백업했고 388개 파일 hash를 검증했다.
+  재부팅·다중 디스플레이·교체·반복 잠금 및 새 catalog 설정 복원 실기기 확인은 남아 있다.
+  production gate는 false이고 0.5.1 tag/Release는 만들지 않았다.
+- 보완한 검증 빌드가 새 schema 2 override를 읽고 실제 Hikari 영상 파일을 여는 것을
+  renderer 로그와 lsof로 확인했다. 54/54 선택, 원본 Apple asset 164개 보존, activation
+  backup hash, 공유 schema 1·root catalog 무변경을 확인했다. 현재 사용자 반복 잠금 확인을
+  기다리며 활성 상태로 두었다. 실제 움직이는 재생 성공과 catalog 설정 Restore 성공은
+  아직 선언하지 않는다.
 
 <a id="unreleased--macos-27-golden-gate"></a>
 

@@ -2,133 +2,160 @@
 
 ## Evidence and release gate
 
-This is a candidate implementation. Do not tag/release it as verified Native
-Lock support until an explicitly authorized live Apply/Restore validation has
-completed. `goldenGateRuntimeValidated` is false in production; fixtures inject
-the candidate capability without changing the live policy. The installed app stayed on 0.5.0 through read-only development. A separately
-authorized local validation build is described below. Fixture and
-build results do not establish Lock Screen playback or WallpaperAgent lifecycle.
+The first authorized live trial **failed actual Lock Screen playback**: the user
+still saw Apple's default video. Its Index mapping remained correct for 30 seconds,
+but that did not prove the renderer accepted the custom asset. The failed
+transaction was explicitly restored; its journal, backups and logs were retained.
+`goldenGateRuntimeValidated` remains false in production. Do not release Native
+Lock support based on fixtures, build success or mapping persistence alone.
 
 Apple's [macOS 27 release notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
-do not publish an Aerial manifest/index write contract. They describe stricter
-cross-team app data access; no TCC bypass is used. Observations below are from
-this Mac, not an Apple compatibility guarantee or an external project's result.
+do not publish an Aerial manifest/index write contract. Their cross-team app data
+access changes do not justify bypassing TCC. The observations below are from one
+Mac, not an Apple compatibility guarantee.
 
-## Read-only observations — 2026-11-13
+## Observations on 2026-11-13
 
-Apple Silicon, macOS 27.2.1 (26B131), Xcode 26.6/SDK 26.5:
+Apple Silicon, macOS 27.2.1 (26B131), local Xcode 26.6/SDK 26.5:
 
-- The user store remains `~/Library/Application Support/com.apple.wallpaper/`.
-  `aerials/manifest/entries.json` is schema 1, with 158 assets and 7 categories.
-  Media and previews use `aerials/videos` and `aerials/thumbnails`.
-- Manifest and `Store/Index.plist` are owned by the current user, mode 0644;
-  media directories are 0755. Existing Hikari media are still present. These
-  permissions alone do not establish access from a newly signed app.
-- Index has `AllSpacesAndDisplays`, `Displays`, `Spaces`, `SystemDefault`.
-  All 54 observed Linked containers have one `com.apple.wallpaper.choice.aerials`
-  choice with binary plist `{assetID: UUID}` configuration. Placement is a
-  binary plist with `values.placement.picker._0.id = FillScreen`.
-- WallpaperAgent and WallpaperAerialsExtension are running from Apple's system
-  bundles. Existence/process names do not prove restart behavior.
-- The existing pre-upgrade active userAerials journal has no OS provenance
-  field. Its manifest and index backup hashes validate. The original index
-  has 30 Linked choices and passes the candidate's read-only compatibility
-  checks. A selective restore plan can be computed without writing any file.
-- The checked-in fixture retains representative observed nesting and binary
-  fields, replacing personal identifiers, dates, URLs and asset labels.
+- The current user's `com.apple.wallpaper/aerials/manifest/entries.json` was
+  **schema 1**, with 158 assets and 7 categories. Its download metadata dated
+  back to macOS 26. Reading this cache did not identify the active catalog.
+- The system extension's bundled `Contents/Resources/entries.json` was
+  **schema 2**, with 164 assets and 6 categories. Most asset fields remain the
+  same; some records also have `group`, or `variant` and `videoGravity`.
+- During the failed trial, WallpaperAerialsExtension logged
+  `Loading fallback manifest (AerialManifestLocalPathOverride: none)` and
+  `ConfigDataPreference: false`. `lsof` showed it opening
+  `/System/Library/Wallpapers/.default/Golden Gate.mov`, not Hikari's video.
+  Renderer/snapshot creation errors were also present. These facts establish
+  an inactive catalog mismatch; they do not prove why Apple chose fallback.
+- `AerialManifestLocalPathOverride` and `AerialManifestForceLocal` were absent
+  from the user's `com.apple.wallpaper.aerial` preferences. Existing scheduler
+  and resource-update preferences were preserved.
+- All 54 observed Linked containers had `Type = linked`, one Aerial provider,
+  a binary `{assetID: UUID}` configuration and binary placement options.
+  Changing all those choices alone was insufficient for actual playback.
+- Media/previews remain in `aerials/videos` and `aerials/thumbnails`. File
+  ownership/permissions do not by themselves prove renderer access or TCC state.
+
+## External project observations
+
+The primary-source [pdfux Golden Gate experiment](https://gist.github.com/pdfux/5659724021e584313c00b843312e909d)
+reports selecting a copied schema-2 catalog with the two Aerial preferences
+above on 27.0/27.2 beta. Hikari does not execute that script or blindly delete
+preferences on undo: it journals their original values and selectively restores
+only its own selection.
+
+[Vidwall Hub](https://github.com/jaywcjlove/vidwall-hub) reports HEVC temporal
+scalability requirements for repeated Lock Screen playback on 27. This remains
+an external observation, not a verified Hikari codec requirement. Do not shorten
+user videos or add a new encoder solely on that report. Actual custom-file
+selection, playback and the next lock must each be checked separately.
 
 ## Candidate implementation
 
-| Runtime | Backend | Transactions / recovery |
+| Runtime | Backend | Status |
 | --- | --- | --- |
-| macOS 15 | Root-owned legacy catalog | Existing explicit administrator Apply/Restore; no new root operations |
-| macOS 26 | User Aerial store | Existing automatic selection, bootstrap and restore retained |
-| macOS 27 | User Aerial store with extra contract checks | Candidate Apply/replace/restore; requires initialized Linked layout; live validation pending |
-| Other major versions | None | Preserve unfinished journals/backups; no Apply/Restore/maintenance |
+| macOS 15 | Root-owned idleassets catalog | Existing administrator Apply/Restore unchanged; no root trial performed |
+| macOS 26 | Shared user schema-1 Aerial catalog (`userAerials`) | Existing bootstrap, selection and recovery retained |
+| macOS 27 | Separate user schema-2 catalog (`userAerials27`) | New candidate; production writes remain gated |
+| Other major versions | None | Preserve journals/backups; no Apply/Restore/maintenance |
 
-27 shares the schema-1 transaction engine with 26, with an independent preflight
-for provider, binary configuration, asset references, placement and topology.
-It refuses uninitialized Linked layouts rather than assuming 26's automatic
-topology materialization works on 27. The legacy root catalog stays 15-only.
+`NativeLockGoldenGateActivation` copies the recognized bundled schema-2 catalog
+to `aerials/Hikari/<transaction UUID>/entries.json`, preserving Apple's records.
+It does not change Apple's bundle or the stale shared schema-1 cache. The common
+transaction engine receives its schema and locations explicitly. An initialized,
+recognized Linked layout is required on 27; 26's layout bootstrap is not assumed.
+A prior third-party asset can exist only in the schema-1 cache. Apply may recognize
+its UUID from that parsed cache as the previous selection, without importing its
+records into schema 2. Unknown references and malformed cache still block Apply.
+Maintenance must find Hikari's owned asset in the actual selected schema-2 catalog.
 
-New journals record `operatingSystemMajorVersion` before shared writes, including
-interrupted preparation. Missing provenance in old userAerials journals means
-26. A 27 app never silently adopts an older journal for automatic replacement,
-reconciliation or renderer refresh. Explicit 26 → 27 Restore validates current
-and original contracts and both backup hashes before journal/agent/index changes.
-It always merges only owned Linked choices into the current topology and removes
-only the transaction's Aerial records and hash-matching files. It never replays
-the whole old index or manifest. An asset referenced outside Linked blocks this
-upgrade restore. Unknown/legacy root backends remain preserved and blocked.
+Before preference changes, the transaction saves a private, durable original
+preference record and journals its SHA-256. It includes transaction/asset/path
+identity and the original catalog digest. Only `AerialManifestLocalPathOverride`
+and `AerialManifestForceLocal` can be written. Existing third-party overrides
+block Apply. Catalog, media, preview and index still use original backups, hashes,
+atomic commits and recovery-required on failure. A crash between catalog commit
+and systemApplied can recover using the prepared activation digest. Preference
+selection is restored only while it still names this transaction's catalog;
+foreign selections and changed values are preserved. Catalog audit copies and
+transaction history remain after Restore.
 
-The original transaction directories and backups are retained after Restore.
-Updates remain blocked until every unfinished transaction is resolved. Desktop
-player, windows, settings, library, bundle identity and minimum deployment 15.0
-are unchanged. Restoring on 26 after creating a 27 transaction is blocked.
+New journals record OS provenance. Automatic maintenance on 27 requires both
+`userAerials27` and OS 27, the owned asset's presence, and the selected catalog
+preferences. It marks recovery-required before reconciliation if those checks
+fail. A valid Apple selection cannot disguise a missing Hikari asset.
 
-Restore now checks both rollback inputs before moving the journal to restoring;
-a corrupt manifest backup cannot first change the wallpaper index. Both manifest
-and index restores recheck their input digest before committing a shared write.
+Explicit 26 → 27 Restore uses schema 1 and a selective Linked-only merge into
+the current topology. The earlier failed schema-1/OS-27 trial is also restore-only.
+It never adopts either for automatic maintenance or replays the old whole index.
+Restore validates both original backup digests and readable current structures
+before journal/agent/index changes. Foreign photo providers or removal of Linked
+choices do not block cleanup of Hikari's own catalog/media. Owned assets now used
+outside Linked block cross-version cleanup. Both shared-file restores recheck
+input digests. A no-op index restore retains the foreign selection's exact bytes.
 
-## Reproducible validation
+Original backup/history, minimum deployment 15.0, bundle identity, settings,
+library, desktop windows/shared AVPlayer and updater assets are preserved. A 27
+transaction cannot be restored by a 26 runtime. Unfinished transactions block
+in-app updates.
 
-- `swift test --parallel` and Hikari `xcodebuild build/test` exercise temporary
-  stores only. New 27 tests cover observed schema, apply/restore, replacement,
-  journal reopen, Desktop/Idle preservation, external topology, old journal
-  decoding, corrupt backups, malformed placement/provider/schema and failed media.
-- `xcode-27` remains the verified GitHub label. It runs the 27 fixture suite
-  explicitly, keeps xcresult diagnostics, and adds a `macos-27-arm64` release
-  coverage flag. The four existing 15/26 coverage flags, Universal/minimum-OS
-  checks, release packaging, checksum and updater asset names remain.
-- Local read-only preflight recognizes 54 live and 30 original backup Linked
-  choices and validates both backup hashes. No WallpaperAgent signals, sudo,
-  system wallpaper writes or live Apply/Restore have been performed in this step.
+## Tests and CI
 
-## Explicitly authorized live validation still required
+- `swift test --parallel`: 123 tests passed after the schema-2 changes.
+- Local `xcodebuild ... test`: 146 tests passed on 27.2.1, built with SDK 26.5.
+  The separate Universal Release build checks app/helper compilation.
+- Temporary fixtures cover both the stale schema-1 cache and a sanitized
+  schema-2 bundled catalog. Fake preferences cover unsupported OS/schema,
+  foreign overrides, original nil/false/true values, external preference changes,
+  tampered backups, sync failure, interrupted catalog commit and cleanup after
+  switching to a photo/no-Linked selection. No fixture test writes the real store.
+- The verified `xcode-27` CI label runs both Golden Gate suites and Xcode tests;
+  xcresult and the new release coverage flag remain. The existing 15/26 ARM64
+  and Intel jobs, Universal/minimum-OS checks, packaging, checksum and Codecov
+  flags remain. New source changes require fresh CI results.
 
-1. Quit Hikari, back up the app, Hikari support data and user wallpaper store;
-   hash all originals. Close other wallpaper writers.
-2. Use the candidate's normal Restore logic for the existing 26 journal,
-   verifying selective preservation of the current topology and external records.
-3. Apply the currently selected video, verify all Linked mappings for the existing
-   30-second stabilization period, then test replacement and Restore.
-4. Verify lock → unlock → next lock playback and renderer recovery manually;
-   test reboot, failed/interrupted operations and external display/Spaces.
-5. Record actual results and remaining limits here before enabling release.
+## Authorized live trials
 
-Never simulate corrupt files in the real store. Failure injection belongs in
-fixtures. Never overwrite or delete existing backup/transaction history. A failed
-live step stops further trials and retains the recovery journal.
+The user explicitly approved Apply/Restore on this Mac, without sudo/root.
+Before the first trial, the installed 0.5.0, all 128 Hikari files and 245 user
+wallpaper files were backed up and SHA-256 verified.
 
-## Authorized live validation — 2026-11-13
+1. A locally enabled, signed Universal 0.5.1 (22) trial preserved the old 26
+   journal on launch. Its explicit selective Restore succeeded, keeping all 54
+   current topology paths and foreign assets/backups.
+2. Schema-1 Apply → 30-second mapping check → Restore succeeded at file level.
+   Manifest bytes were restored; only Index LastSet/LastUse timestamps differed.
+   A second Apply also passed mapping checks. **The user's actual Lock Screen
+   check then failed: the default video remained.** This supersedes the earlier
+   pending-playback record; it is not a successful Native Lock validation.
+3. Failure evidence was copied before explicit Restore of the final trial
+   transaction. The installed app returned to a gated 0.5.1 build with desktop
+   playback available. The root catalog and original backups were not changed.
+4. Before the schema-2 retry, a fresh copy of the current app, Hikari data,
+   wallpaper store and full Aerial preference snapshot was made. 388 data/store
+   files were hash-verified; both catalog-selection preference keys were absent.
+   The initial schema-2 preflight rejected a prior third-party video absent from
+   the bundled catalog. It wrote no shared catalog preferences or Index; its
+   prepared transaction was explicitly restored. Recognition of the old selection
+   is now separate from the new target catalog and covered by a regression test.
+   The retry's renderer/file and manual playback results must be recorded
+   separately before enabling production support.
+5. The revised locally enabled Universal build applied the selected video and
+   passed 30-second stabilization with 54/54 Linked choices. The extension logged
+   the transaction's override path and `AerialManifestForceLocal` selection;
+   `lsof` showed the Hikari movie open, replacing the previous default-movie
+   observation. All 164 bundled Apple assets remained unchanged in schema 2;
+   the activation backup digest verified; shared schema-1 and root catalogs
+   retained their hashes. The transaction remains active for the user's manual
+   lock → unlock → next lock check. This is file-selection evidence, not yet
+   confirmed moving playback. Renderer logs still contain XPC/view-model,
+   ML-enhancement and local re-download errors; their user-visible effect is
+   not established and they must not be described as a clean renderer log.
 
-The user explicitly approved this Mac's Apply/Restore trial. Before writes,
-the installed 0.5.0, all 128 Hikari files and all 245 user-wallpaper-store files
-were backed up and verified by SHA-256. No sudo/root operation was used.
-
-- An ad-hoc signed Universal 0.5.1 (22) validation build was installed. Its
-  first launch changed none of the 128 Hikari or three watched wallpaper files;
-  the upgraded 26 journal stayed in recovery UI without automatic writes.
-- The existing 26 journal's explicit selective Restore succeeded, retaining
-  all 54 current Linked topology paths. Exactly its owned Aerial asset was
-  removed; all other manifest assets and the original transaction backups
-  remained. The old journal is restored and its active marker was removed.
-- The currently selected video was applied as a new journal with OS 27
-  provenance. All 54/54 Linked choices retained the new asset through the
-  normal 30-second stabilization check. Media and preview digests matched.
-  WallpaperAgent and WallpaperAerialsExtension were replaced successfully.
-- Explicit Restore of this new 27 transaction succeeded. The manifest returned
-  byte-for-byte to its original. The index differed only in 54 LastSet and 54
-  LastUse timestamps; every other decoded value matched. Owned media/preview
-  were removed and both original backups were retained.
-- The selected video was applied again for manual Lock Screen playback checks,
-  and the second 30-second stabilization passed. It remains active in the
-  locally authorized validation build while manual checks are pending.
-- Existing settings, library, icons, media, preparation cache and original
-  backups retained their hashes. The root-owned idleassets catalog hash was
-  unchanged. No other video was selected or imported during these trials.
-
-Actual lock → unlock → next lock playback is awaiting the user's observation.
-Reboot, physical display changes and replacement with a different video remain
-manual validation items. Production release gating remains separate from the
-authorized local validation build.
+Remaining release checks: actual selected-file decoding, lock → unlock → next
+lock, Restore of catalog preferences, replacement, reboot, external displays and
+Spaces. File-open evidence alone is not proof of moving Lock Screen playback.
+Never inject failures into the real store or discard old recovery history.
