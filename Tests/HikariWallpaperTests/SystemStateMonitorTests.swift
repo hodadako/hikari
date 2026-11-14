@@ -1,8 +1,75 @@
 import AppKit
 import XCTest
+import HikariCore
 
 @MainActor
 final class SystemStateMonitorTests: XCTestCase {
+    func testRapidRelockCancelsOldRefreshBeforeDebouncedStateCallback() async throws {
+        // Use a private center: never send real system lock notifications.
+        let center = NotificationCenter()
+        let monitor = SystemStateMonitor(
+            sessionLockState: { nil }, lockNotificationCenter: center
+        )
+        var schedule = NativeLockMaintenanceSchedule()
+        var uptime = 10.0
+        var lockEvents = 0
+        var unlockEvents = 0
+        monitor.onScreenLocked = {
+            lockEvents += 1
+            schedule.cancel()
+        }
+        monitor.onScreenUnlocked = {
+            unlockEvents += 1
+            schedule.didUnlock(at: uptime)
+        }
+        monitor.start()
+        defer { monitor.stop() }
+        center.post(name: Notification.Name("com.apple.screenIsUnlocked"), object: nil)
+        try await Task.sleep(for: .milliseconds(20))
+        XCTAssertTrue(schedule.refreshRequested)
+        center.post(name: Notification.Name("com.apple.screenIsLocked"), object: nil)
+        try await Task.sleep(for: .milliseconds(20))
+        XCTAssertEqual(lockEvents, 1)
+        XCTAssertFalse(schedule.refreshRequested)
+        XCTAssertFalse(monitor.permitsNativeMaintenance)
+        uptime = 20
+        center.post(name: Notification.Name("com.apple.screenIsUnlocked"), object: nil)
+        try await Task.sleep(for: .milliseconds(20))
+        XCTAssertEqual(unlockEvents, 2)
+        XCTAssertFalse(schedule.permitsMaintenance(at: 20.65))
+        XCTAssertTrue(schedule.permitsMaintenance(at: 22))
+    }
+
+    func testFreshSessionLockBlocksMaintenanceBeforeNotificationDelivery() {
+        var locked: Bool? = false
+        let monitor = SystemStateMonitor(sessionLockState: { locked })
+        XCTAssertTrue(monitor.permitsNativeMaintenance)
+        locked = true
+        XCTAssertFalse(monitor.isScreenLocked) // No notification delivered yet.
+        XCTAssertFalse(monitor.permitsNativeMaintenance)
+        locked = false
+        XCTAssertTrue(monitor.permitsNativeMaintenance)
+    }
+
+    func testMissingSessionSnapshotPreservesKnownLockedState() {
+        var locked: Bool? = true
+        let monitor = SystemStateMonitor(sessionLockState: { locked })
+        monitor.start()
+        defer { monitor.stop() }
+        XCTAssertTrue(monitor.isScreenLocked)
+        locked = nil
+        XCTAssertFalse(monitor.permitsNativeMaintenance)
+    }
+
+    func testSleepBlocksMaintenanceWithUnlockedSnapshot() async throws {
+        let monitor = SystemStateMonitor(sessionLockState: { false })
+        monitor.start()
+        defer { monitor.stop() }
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.willSleepNotification, object: nil)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertFalse(monitor.permitsNativeMaintenance)
+    }
+
     func testWakeSurfaceRecoverySurvivesDisplayTaskReplacement() async throws {
         let monitor = SystemStateMonitor()
         let recovered = expectation(description: "Wake surfaces recovered after topology settled")

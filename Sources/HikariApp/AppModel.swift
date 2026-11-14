@@ -44,7 +44,7 @@ final class AppModel: ObservableObject {
     private var nativeRendererRefreshTask: Task<Void, Never>?
     private var nativeLockPreparationTasks: [UUID: Task<Void, Never>] = [:]
     private var nativeLockMaintenanceInProgress = false
-    private var nativeRendererRefreshRequested = false
+    private var nativeMaintenanceSchedule = NativeLockMaintenanceSchedule()
     private var nativeRendererRefreshPendingFromUnlockNotification = false
     private var didPresentNativeMaintenanceError = false
     private var wasScreenLocked = false
@@ -113,6 +113,10 @@ final class AppModel: ObservableObject {
                 self.nativeRendererRefreshPendingFromUnlockNotification = false
             }
             self.reconcilePlayback()
+        }
+        stateMonitor.onScreenLocked = { [weak self] in
+            self?.cancelNativeRendererRefresh()
+            self?.nativeRendererRefreshPendingFromUnlockNotification = false
         }
         stateMonitor.onScreenUnlocked = { [weak self] in
             // Do not wait for the state callback: it is intentionally
@@ -341,7 +345,7 @@ final class AppModel: ObservableObject {
                 )
                 self.nativeRendererRefreshTask?.cancel()
                 self.nativeRendererRefreshTask = nil
-                self.nativeRendererRefreshRequested = false
+                self.nativeMaintenanceSchedule.cancel()
                 self.updateNativeLockMaintenance()
             } catch {
                 self.nativeLockRecord = self.nativeLockController.currentRecord()
@@ -361,7 +365,7 @@ final class AppModel: ObservableObject {
             nativeLockRecord = nativeLockController.currentRecord()
             nativeRendererRefreshTask?.cancel()
             nativeRendererRefreshTask = nil
-            nativeRendererRefreshRequested = false
+            nativeMaintenanceSchedule.cancel()
             updateNativeLockMaintenance()
         } catch {
             nativeLockRecord = nativeLockController.currentRecord()
@@ -831,7 +835,7 @@ final class AppModel: ObservableObject {
               canMaintainNativeLock else {
             return
         }
-        nativeRendererRefreshRequested = true
+        nativeMaintenanceSchedule.requestRefresh()
         let clock = SuspendingClock()
         nativeLockMaintenanceTask = Task { [weak self] in
             await self?.performNativeLockMaintenance()
@@ -857,7 +861,13 @@ final class AppModel: ObservableObject {
     private func stopNativeLockMaintenance() {
         nativeLockMaintenanceTask?.cancel()
         nativeLockMaintenanceTask = nil
-        nativeRendererRefreshRequested = false
+        cancelNativeRendererRefresh()
+    }
+
+    private func cancelNativeRendererRefresh() {
+        nativeRendererRefreshTask?.cancel()
+        nativeRendererRefreshTask = nil
+        nativeMaintenanceSchedule.cancel()
     }
 
     /// Schedules one renderer refresh after the outgoing Lock Screen has settled.
@@ -865,6 +875,7 @@ final class AppModel: ObservableObject {
     private func requestNativeRendererRefreshAfterUnlock() {
         guard canMaintainNativeLock else { return }
         nativeRendererRefreshTask?.cancel()
+        nativeMaintenanceSchedule.didUnlock(at: ProcessInfo.processInfo.systemUptime)
         nativeRendererRefreshTask = Task { [weak self] in
             // WallpaperAgent owns the outgoing Lock Screen surface briefly
             // after the unlock notification. Restarting it immediately tears
@@ -873,7 +884,7 @@ final class AppModel: ObservableObject {
             // while the session is safely unlocked.
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, let self else { return }
-            self.nativeRendererRefreshRequested = true
+            self.nativeRendererRefreshTask = nil
             await self.performNativeLockMaintenance()
         }
     }
@@ -884,28 +895,32 @@ final class AppModel: ObservableObject {
         // Never rewrite choices or restart WallpaperAgent while the Lock
         // Screen owns its presentation surfaces. Unlock schedules an immediate
         // pass after the session has returned to the desktop.
-        guard !stateMonitor.isScreenLocked,
-              !stateMonitor.isSleeping,
+        guard permitsNativeMaintenance,
               canMaintainNativeLock,
               !nativeLockMaintenanceInProgress,
               !isNativeLockWorking else { return }
         nativeLockMaintenanceInProgress = true
-        let shouldRefreshRenderer = nativeRendererRefreshRequested
-        nativeRendererRefreshRequested = false
+        let shouldRefreshRenderer = nativeMaintenanceSchedule.consumeRefresh()
         defer { nativeLockMaintenanceInProgress = false }
         do {
             nativeLockRecord = try await nativeLockController
                 .maintainActiveTransaction(
-                    refreshRenderer: shouldRefreshRenderer
+                    refreshRenderer: shouldRefreshRenderer,
+                    mayModifyRenderer: { [weak self] in
+                        self?.permitsNativeMaintenance == true && !Task.isCancelled
+                    }
                 )
             didPresentNativeMaintenanceError = false
             objectWillChange.send()
+        } catch NativeLockMaintenanceDeferred.sessionTransition {
+            // Re-locking is an expected deferral, not a damaged transaction.
+            // The next unlock must start its own full settling interval.
+            if shouldRefreshRenderer { nativeMaintenanceSchedule.requestRefresh() }
         } catch {
             // Keep a renderer refresh pending after a transient process-control
             // failure. Mapping reconciliation is idempotent and will be retried
             // by the next five-second maintenance tick.
-            nativeRendererRefreshRequested = nativeRendererRefreshRequested
-                || shouldRefreshRenderer
+            if shouldRefreshRenderer { nativeMaintenanceSchedule.requestRefresh() }
             nativeLockRecord = nativeLockController.currentRecord()
             if !didPresentNativeMaintenanceError {
                 presentedError = error.localizedDescription
@@ -913,6 +928,14 @@ final class AppModel: ObservableObject {
             }
         }
     }
+    private var permitsNativeMaintenance: Bool {
+        !Task.isCancelled
+            && stateMonitor.permitsNativeMaintenance
+            && nativeMaintenanceSchedule.permitsMaintenance(
+                at: ProcessInfo.processInfo.systemUptime
+            )
+    }
+
     private var hasPlayableContent: Bool {
         guard let mediaURL = selectedMediaURL else { return false }
         return FileManager.default.fileExists(atPath: mediaURL.path)

@@ -2,6 +2,35 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 unlock 타이머만으로 안정화 대기를 보장한 접근
+
+- 새 temporal 영상에서도 단축키 잠금의 검은 화면이 재보고됐다. 캡처 구간에는
+  Code=4가 없었지만 실제 마지막 unlock 약 0.65초 뒤 renderer refresh가 있었다.
+- 이전 unlock timer가 잠금 중 pending Boolean을 남기고, 다음 unlock의 2초 timer가
+  끝나기 전에 주기 유지보수가 이를 소비할 수 있었다. timer sleep만으로 모든
+  실행 경로의 안정화 대기를 보장한다는 가정은 잘못됐다.
+- 모든 유지보수가 마지막 unlock의 monotonic deadline을 확인하고 잠금 알림은 이전
+  timer·요청을 취소하게 했다. 새 session snapshot도 프로세스 제어 직전에 확인한다.
+  fake notification center와 clock 값으로 재현하며 실제 시스템 잠금 알림을 보내지 않는다.
+- 이는 확인된 timing 결함의 수정이며 검은 화면 전체 원인 규명이나 실기기 해결 확인을
+  뜻하지 않는다. 현재 27 지원 gate와 미릴리스 상태를 유지한다.
+
+## 2026-11-14 Main10-only 사본의 잠금 해제 뒤 지속 검은 화면
+
+- 실제 사용자 반복 잠금에서 지속 검은 화면이 보고됐다. 렌더러 로그의 ramp-down
+  Code=4와 활성 MOV의 tscl/tsas 누락을 확인했다. Index/manifest hash와 파일 열림만으로는
+  재생 성공을 판단하지 않는다. unlock 재시작은 다음 잠금을 회복할 수 있으나 metadata를
+  추가하지 못하므로 주기 재시작이나 2초 지연 축소로 우회하지 않는다.
+- 27 사본만 공개 BaseLayerFrameRate를 사용하는 VideoToolbox Main10 계층 인코딩으로
+  분리하고, MOV description과 mapping을 검사한 뒤 새 cache version으로 게시한다.
+  26 encoder/cache와 원본 데스크톱 영상, 영상 길이는 유지한다.
+- 실제 적용 파일에도 tscl/tsas description과 compact mapping이 생성됨을 독립 parser로
+  확인했다. 실제 반복 잠금 결과가 오기 전 완전한 해결이나 릴리스 준비 완료로 기록하지 않는다.
+  [조사 기록](NATIVE_LOCK_BLACK_SCREEN.md)을 참고한다.
+- CI의 hardware encoder 유무 확인에 존재하지 않는 encode 지원 조회 함수를 사용한
+  테스트 컴파일 오류를 수정했다. decode 지원 여부로 대신 추측하지 않고, 실제 required
+  encoder 생성의 kVTCouldNotFindVideoEncoderErr만 명시적으로 skip한다. 다른 실패는 실패로 남긴다.
+
 ## 2026-11-14 macOS 26 bootstrap 기록의 선택 복원 누락
 
 - CodeRabbit 후속 리뷰에서 원본 Index에 Linked가 없는 26 bootstrap transaction은

@@ -155,6 +155,12 @@ wallpaper files were backed up and SHA-256 verified.
    ML-enhancement and local re-download errors; their user-visible effect is
    not established and they must not be described as a clean renderer log.
 
+On 2026-11-14 the user reported intermittent persistent black screens. Actual
+logs and MOV comparison identified missing temporal information as the primary
+candidate; [the encoder follow-up](NATIVE_LOCK_BLACK_SCREEN.md) records evidence,
+implementation and live trial limits. The earlier schema-2 transaction's live
+Restore, including both catalog preferences, has now passed.
+
 Remaining release checks: actual selected-file decoding, lock → unlock → next
 lock, Restore of catalog preferences, replacement, reboot, external displays and
 Spaces. File-open evidence alone is not proof of moving Lock Screen playback.

@@ -15,9 +15,15 @@ private let nativeLockLogger = Logger(
     category: "NativeLock"
 )
 
+enum NativeLockMaintenanceDeferred: Error {
+    case sessionTransition
+}
+
 @MainActor
 final class NativeLockController {
-    private static let aerialPreparationVersion = "aerial-hevc-main10-1920x1080-v1"
+    private static var aerialPreparationVersion: String {
+        AerialPreparationProfile(operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion).cacheVersion
+    }
 
     private struct PreparedAerialMedia {
         let mediaURL: URL
@@ -169,6 +175,8 @@ final class NativeLockController {
               FileManager.default.isReadableFile(atPath: previewURL.path) else {
             return nil
         }
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27,
+           (try? AerialTemporalSampleGroups.isPresent(in: mediaURL)) != true { return nil }
         return PreparedAerialMedia(mediaURL: mediaURL, previewURL: previewURL)
     }
 
@@ -200,7 +208,8 @@ final class NativeLockController {
     /// used at launch and after unlock so a failed WallpaperVideoExtension
     /// reader cannot poison the next Lock Screen session.
     func maintainActiveTransaction(
-        refreshRenderer: Bool
+        refreshRenderer: Bool,
+        mayModifyRenderer: () -> Bool
     ) async throws -> NativeLockTransactionRecord? {
         let policy = NativeLockOperatingSystemPolicy.current
         guard policy.writeBackend != nil,
@@ -237,11 +246,17 @@ final class NativeLockController {
                 transactionID: current.request.transactionID
             )
         if !mappingMatches {
+            guard mayModifyRenderer() else {
+                throw NativeLockMaintenanceDeferred.sessionTransition
+            }
             // Backdrop only needs to be stopped immediately before this
             // transaction writes the shared index. Avoid launching killall on
             // every healthy five-second maintenance pass.
             if usesModernAerials {
                 stopCompetingWallpaperRenderer()
+            }
+            guard mayModifyRenderer() else {
+                throw NativeLockMaintenanceDeferred.sessionTransition
             }
             record = try withWallpaperAgentSuspended {
                 try usesModernAerials
@@ -266,7 +281,10 @@ final class NativeLockController {
         // video extension. After launch or unlock, restart it once so a stale
         // reader cannot carry a black presentation surface into the next lock.
         if refreshRenderer, !restartedAgent {
-            try refreshWallpaperRenderer()
+            guard mayModifyRenderer() else {
+                throw NativeLockMaintenanceDeferred.sessionTransition
+            }
+            try refreshWallpaperRenderer(mayModifyRenderer: mayModifyRenderer)
             nativeLockLogger.notice(
                 "Refreshed the native wallpaper renderer for \(current.request.transactionID.uuidString, privacy: .public)"
             )
@@ -692,6 +710,11 @@ final class NativeLockController {
         }
         reader.add(readerOutput)
 
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27 {
+            try AerialTemporalEncoder.encode(reader: reader, output: readerOutput, destinationURL: destinationURL,
+                                             width: outputWidth, height: outputHeight, frameRate: frameRate)
+            return
+        }
         let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mov)
         let encoderSpecification: [String: Any] = [
             kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder
@@ -927,15 +950,21 @@ final class NativeLockController {
         return try operation()
     }
 
-    private func refreshWallpaperRenderer() throws {
+    private func refreshWallpaperRenderer(mayModifyRenderer: () -> Bool) throws {
         let applications = NSRunningApplication.runningApplications(
             withBundleIdentifier: "com.apple.wallpaper.agent"
         )
+        guard mayModifyRenderer() else {
+            throw NativeLockMaintenanceDeferred.sessionTransition
+        }
         for application in applications {
             let processID = application.processIdentifier
             if kill(processID, SIGTERM) != 0, errno != ESRCH {
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EPERM)
             }
+        }
+        guard mayModifyRenderer() else {
+            throw NativeLockMaintenanceDeferred.sessionTransition
         }
         signalNamedWallpaperProcess("WallpaperAerialsExtension", "TERM")
     }
