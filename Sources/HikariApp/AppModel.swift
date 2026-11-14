@@ -103,8 +103,10 @@ final class AppModel: ObservableObject {
             )
         }
 
-        for content in contents where settings.cancelledNativeLockPreparationIDs.contains(content.id) {
-            videoPreparationStates[content.id] = VideoPreparationState(operationID: UUID(), phase: .cancelled)
+        if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true {
+            for content in contents where settings.cancelledNativeLockPreparationIDs.contains(content.id) {
+                videoPreparationStates[content.id] = VideoPreparationState(operationID: UUID(), phase: .cancelled)
+            }
         }
 
         stateMonitor.onStateChanged = { [weak self] in
@@ -367,7 +369,8 @@ final class AppModel: ObservableObject {
     /// and its maintenance task after either success or failure.
     func applySelectedVideoToNativeLock() {
         guard !isApplyingUpdate, !isNativeLockWorking, let content = selectedContent else { return }
-        guard !settings.cancelledNativeLockPreparationIDs.contains(content.id) else { return }
+        if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
+           settings.cancelledNativeLockPreparationIDs.contains(content.id) { return }
         if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
            (nativeLockRecord?.journal.phase != .active
                || nativeLockRecord?.request.sourceContentID != content.id),
