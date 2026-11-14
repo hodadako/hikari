@@ -66,8 +66,9 @@ replacement first. Hikari then restores a supported unfinished Native Lock
 transaction before replacing the app. A failed or cancelled Restore stops the
 update; unreadable or unsupported transactions and failed storage migrations
 still block it. macOS 15 Restore may request administrator approval. Transaction
-backups and the selected video remain saved. This automatic Restore flow is an
-unreleased change; installed versions through 0.5.3 require manual Restore first.
+backups and the selected video remain saved. This automatic Restore flow is
+available from 0.5.4; installed versions through 0.5.3 require manual Restore
+before their first update to 0.5.4.
 
 See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md).
 

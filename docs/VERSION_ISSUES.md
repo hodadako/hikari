@@ -2,7 +2,17 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — 앱 업데이트 직전 Native Lock 자동 복원 (2026-11-14)
+## Hikari v0.5.4 (25) — 앱 업데이트 직전 Native Lock 자동 복원 (2026-11-14)
+
+- 사용자 요청에 따라 PR #79의 자동 복원 변경을 0.5.4 (25)로 릴리스 준비한다.
+  기존 0.5.3 이하 앱에는 자동 복원이 없으므로 처음 0.5.4를 설치할 때는 수동 Restore가
+  필요하다. 자동 복원은 0.5.4에서 이후 버전으로 업데이트할 때 동작한다.
+  최소 배포 대상 15.0, bundle identity, Universal 배포 및 기존 태그/asset을 유지한다.
+- 0.5.4 metadata로 XcodeGen 재생성 후 Release Universal build가 성공했다.
+  실제 앱 plist에서 0.5.4 (25)·minimum 15.0·기존 bundle ID를 확인했고, 앱과 helper의
+  arm64/x86_64 slice 및 각 minimum 15.0을 확인했다. 앱 실행 없이 두 slice의
+  goldenGateNativeLockEnabled 저장 값이 true임을 확인했다. 이 검사는 실기기 잠금 화면
+  또는 자동 Restore→업데이트 흐름의 성공을 뜻하지 않는다.
 
 - 0.5.1 로컬 앱은 Native Lock이 active인 동안 About의 업데이트 버튼을 비활성화했다.
   화면의 Restore 안내와 `AppModel.updateBlockedReason`을 대조해 기존 안전 정책에 따른
@@ -20,7 +30,7 @@
   Sendable 경고는 남아 있다. 이 변경에서 테스트를 추가·실행하지 않았다.
 - 실제 updater의 자동 Restore→앱 교체, macOS 15 승인 취소, 다운로드 중 잠금 및 실패 후
   재시도 실기기 검증은 미실행이다. 현재 로컬 앱과 실제 wallpaper 저장소를 변경하지 않았다.
-  버전·태그·릴리스 asset은 갱신하지 않았으며 0.5.3까지의 수동 복원 정책은 그대로다.
+  아래 기록은 PR 최초 구현 시점의 결과다. 버전 metadata와 태그 CI 결과는 별도로 남긴다.
 
 ## Hikari v0.5.3 (24) — macOS 27 Native Lock 활성화
 

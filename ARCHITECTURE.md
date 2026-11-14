@@ -52,7 +52,7 @@ the source root is moved to a recoverable `.archived` sibling. The
 migration is idempotent and writes `hikari-storage-migration.json`. An active,
 prepared, restoring, or recovery-required journal continues to be visible to
 Hikari, so the app can offer Restore and blocks app updates until the journal
-is `restored`. The unreleased update flow permits downloading and validating a
+is `restored`. From 0.5.4, the update flow permits downloading and validating a
 replacement with a supported unfinished transaction, then restores it before
 starting the replacement helper. Failed migration and unreadable or unsupported
 transactions still block update preparation.
@@ -90,7 +90,7 @@ Product enablement is independent of store/schema preflight and does not assert
 that every Lock Screen presentation scenario is validated. Desktop video follows
 its own playback policy.
 
-### Restore during an app update (unreleased)
+### Restore during an app update (0.5.4+)
 
 `AppModel` separates update preparation eligibility from the final replacement
 guard. The confirmation dialog discloses automatic Restore, failure/cancellation
