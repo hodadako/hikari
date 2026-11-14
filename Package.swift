@@ -17,6 +17,7 @@ let package = Package(
             name: "HikariCore",
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("VideoToolbox"),
                 .linkedFramework("AppKit")
             ]
         ),

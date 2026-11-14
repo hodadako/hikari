@@ -4,6 +4,14 @@
 
 ## Hikari v0.5.1 (22) — macOS 27 Native Lock 후보 (미릴리스)
 
+- 후속 검은 화면 조사: 사용자는 잠금 화면이 계속 검고 재잠금해야 회복된다고 보고했다.
+  실제 sample-reader Code=4와 활성 Main10 파일의 tscl/tsas 누락을 확인했다. 27 전용
+  공개 VideoToolbox 계층 인코딩, 실제 MOV 그룹 검증, 독립 cache version을 추가했다.
+  기존 schema 2 transaction의 실제 Restore로 두 catalog 설정·원본 bytes 복구를 확인한 뒤
+  같은 영상을 새 형식으로 적용했다. 반복 잠금 확인 전 release gate는 계속 false다.
+  최종 로컬 Swift 128개·Xcode 151개가 통과했고 Universal/minimum 15.0·서명을 검증했다.
+  [근거와 검증 범위](NATIVE_LOCK_BLACK_SCREEN.md)를 참고한다.
+
 - 2026-11-14 추가 리뷰: 원본 Linked가 없는 macOS 26 bootstrap 기록의 선택 Restore가
   남은 소유 choice 때문에 중단되는 경로를 수정했다. 원본 값이 없는 소유 Linked만 제거하고
   현재 topology·외부 선택·원본 Desktop/Idle를 보존하는 fixture를 추가했다.

@@ -68,7 +68,8 @@ The first 0.5.1 live trial kept the Index mapping but failed actual Lock Screen
 playback. The candidate now has a separate schema-2 catalog and journaled catalog
 preferences for 27, OS provenance and selective 26 → 27 recovery. Actual playback
 validation is still required; the production gate remains disabled.
-See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md).
+See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md)
+and [the persistent black-screen encoder follow-up](docs/NATIVE_LOCK_BLACK_SCREEN.md).
 
 ## Native Lock Screen disclaimer
 

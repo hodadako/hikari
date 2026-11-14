@@ -2,6 +2,19 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 Main10-only 사본의 잠금 해제 뒤 지속 검은 화면
+
+- 실제 사용자 반복 잠금에서 지속 검은 화면이 보고됐다. 렌더러 로그의 ramp-down
+  Code=4와 활성 MOV의 tscl/tsas 누락을 확인했다. Index/manifest hash와 파일 열림만으로는
+  재생 성공을 판단하지 않는다. unlock 재시작은 다음 잠금을 회복할 수 있으나 metadata를
+  추가하지 못하므로 주기 재시작이나 2초 지연 축소로 우회하지 않는다.
+- 27 사본만 공개 BaseLayerFrameRate를 사용하는 VideoToolbox Main10 계층 인코딩으로
+  분리하고, MOV description과 mapping을 검사한 뒤 새 cache version으로 게시한다.
+  26 encoder/cache와 원본 데스크톱 영상, 영상 길이는 유지한다.
+- 실제 적용 파일에도 tscl/tsas description과 compact mapping이 생성됨을 독립 parser로
+  확인했다. 실제 반복 잠금 결과가 오기 전 완전한 해결이나 릴리스 준비 완료로 기록하지 않는다.
+  [조사 기록](NATIVE_LOCK_BLACK_SCREEN.md)을 참고한다.
+
 ## 2026-11-14 macOS 26 bootstrap 기록의 선택 복원 누락
 
 - CodeRabbit 후속 리뷰에서 원본 Index에 Linked가 없는 26 bootstrap transaction은

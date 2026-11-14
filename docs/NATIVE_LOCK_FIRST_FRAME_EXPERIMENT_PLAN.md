@@ -16,6 +16,15 @@ Lock Screen 퇴장 surface와 renderer 재시작이 겹쳐 검은 프레임이 �
 위한 비동기 안전 지연이다. 약 120ms로 재시작했을 때의 flash 회귀가 이미 확인됐으므로,
 그 값을 근거 없이 즉시 줄이지 않는다.
 
+## 2026-11-14 macOS 27 지속 검은 화면 조사
+
+실제 잠금 화면이 계속 검고 재잠금해야 회복되는 경우에 sample-reader Code=4와
+Main10 영상의 temporal 정보 누락을 관찰했다. 이 문제는 이 문서의 짧은 첫 프레임
+지연과 구분한다. 27의 Native Lock 사본은 공개 VideoToolbox 계층 인코딩과 실제 MOV
+sample-group 검증을 먼저 적용한다. 아래 H.264 후보는 27 호환 출력으로 채택하지 않는다.
+2초 unlock refresh 지연은 유지하며 [실제 증거와 검증 범위](NATIVE_LOCK_BLACK_SCREEN.md)를
+별도로 기록한다. 26 경로와 데스크톱 영상은 변경하지 않는다.
+
 ## 실험 순서
 
 ### 1. 잠금 전용 최적화 영상 사본

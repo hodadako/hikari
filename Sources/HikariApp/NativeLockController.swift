@@ -17,7 +17,9 @@ private let nativeLockLogger = Logger(
 
 @MainActor
 final class NativeLockController {
-    private static let aerialPreparationVersion = "aerial-hevc-main10-1920x1080-v1"
+    private static var aerialPreparationVersion: String {
+        AerialPreparationProfile(operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion).cacheVersion
+    }
 
     private struct PreparedAerialMedia {
         let mediaURL: URL
@@ -169,6 +171,8 @@ final class NativeLockController {
               FileManager.default.isReadableFile(atPath: previewURL.path) else {
             return nil
         }
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27,
+           (try? AerialTemporalSampleGroups.isPresent(in: mediaURL)) != true { return nil }
         return PreparedAerialMedia(mediaURL: mediaURL, previewURL: previewURL)
     }
 
@@ -692,6 +696,11 @@ final class NativeLockController {
         }
         reader.add(readerOutput)
 
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27 {
+            try AerialTemporalEncoder.encode(reader: reader, output: readerOutput, destinationURL: destinationURL,
+                                             width: outputWidth, height: outputHeight, frameRate: frameRate)
+            return
+        }
         let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mov)
         let encoderSpecification: [String: Any] = [
             kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder
