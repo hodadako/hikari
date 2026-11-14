@@ -26,24 +26,24 @@ struct ShortcutKeyCapsView: View {
     ) -> some View {
         content()
             .font(.system(
-                size: compact ? 9 : 11,
+                size: 11,
                 weight: .semibold,
                 design: .rounded
             ))
             .frame(
-                minWidth: compact ? 17 : 22,
-                minHeight: compact ? 16 : 20
+                minWidth: compact ? 20 : 24,
+                minHeight: 20
             )
             .background(
                 Color.primary.opacity(0.08),
                 in: RoundedRectangle(
-                    cornerRadius: compact ? 3 : 5,
+                    cornerRadius: compact ? 4 : 6,
                     style: .continuous
                 )
             )
             .overlay {
                 RoundedRectangle(
-                    cornerRadius: compact ? 3 : 5,
+                    cornerRadius: compact ? 4 : 6,
                     style: .continuous
                 )
                 .stroke(Color.primary.opacity(0.18), lineWidth: 0.75)
