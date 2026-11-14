@@ -7,6 +7,9 @@
 - 2026-11-14 추가 리뷰: 원본 Linked가 없는 macOS 26 bootstrap 기록의 선택 Restore가
   남은 소유 choice 때문에 중단되는 경로를 수정했다. 원본 값이 없는 소유 Linked만 제거하고
   현재 topology·외부 선택·원본 Desktop/Idle를 보존하는 fixture를 추가했다.
+  Hikari 적용 전에 Apple seed만 materialize하고 중단된 기록은 별도로 차단한다.
+  이 seed를 소유 asset으로 간주하거나 27에서 이전 Index 전체를 replay하지 않는다.
+  원래 OS의 검증된 materialized hash 복원은 유지한다.
 
 - 27.2.1의 실제 사용자 Aerial 저장소와 기존 transaction 백업을 읽기 전용으로
   조사했다. schema/provider/Linked/configuration/placement를 검사하는 별도 preflight와

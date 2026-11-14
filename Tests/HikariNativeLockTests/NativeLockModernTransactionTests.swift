@@ -250,6 +250,27 @@ final class NativeLockModernTransactionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), originalIndex)
     }
 
+    func testUpgradeRestoreRejectsUnappliedAppleSeedInsteadOfCompletingRecovery() throws {
+        try makeIndex(includeLinkedChoices: false).write(to: wallpaperIndexURL)
+        let original = try Data(contentsOf: wallpaperIndexURL)
+        let store = NativeLockUserTransactionStore(supportRootURL: supportURL, wallpaperIndexURL: wallpaperIndexURL, userID: UInt32(getuid()))
+        let media = rootURL.appendingPathComponent("source.mov"), preview = rootURL.appendingPathComponent("source.png")
+        try Data("movie".utf8).write(to: media); try Data("preview".utf8).write(to: preview)
+        let record = try store.prepare(sourceContentID: UUID(), title: "Interrupted bootstrap", preparedMediaURL: media,
+                                       preparedPreviewURL: preview, operatingSystemMajorVersion: 26)
+        _ = try store.materializeLinkedWallpaperTopology(transactionID: record.request.transactionID,
+            assetID: "11111111-1111-4111-8111-111111111111",
+            topology: NativeLockLinkedWallpaperTopology(spaceIDs: ["SPACE-1"], displayIDs: ["DISPLAY-1"]))
+        let before = try Data(contentsOf: wallpaperIndexURL)
+        XCTAssertThrowsError(try store.validateWallpaperRestore(transactionID: record.request.transactionID, forceSelective: true))
+        XCTAssertThrowsError(try store.restoreWallpaperMapping(transactionID: record.request.transactionID, forceSelective: true))
+        XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), before)
+        XCTAssertEqual(try store.record(for: record.request.transactionID).journal.phase, .prepared)
+        // Same-runtime exact-hash recovery remains available.
+        try store.restoreWallpaperMapping(transactionID: record.request.transactionID)
+        XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), original)
+    }
+
     func testUpgradeSelectiveRestoreRemovesBootstrapLinkedWithoutInventingFallback() throws {
         try makeIndex(includeLinkedChoices: false).write(to: wallpaperIndexURL)
         let original = try PropertyListSerialization.propertyList(from: Data(contentsOf: wallpaperIndexURL), options: [], format: nil) as! [String: Any]

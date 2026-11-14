@@ -13,6 +13,9 @@
   인식할 수 없는 container metadata는 삭제하지 않고 복구 상태를 유지한다.
 - 임시 저장소 회귀 테스트로 bootstrap → Apply → 외부 topology 변경 → 선택 Restore를
   확인했다. 검증된 Apple 원본 choice를 새로 만들거나 이전 Index 전체를 replay하지 않는다.
+- 추가 경계: Hikari 선택 적용 전 Apple seed만 남은 중단 기록은 소유 choice가 아니므로
+  27 선택 Restore의 완료 처리를 거부한다. 원래 26의 exact-hash Restore만 허용하고,
+  공유 파일과 journal은 변경하지 않는 회귀 테스트를 추가했다.
 
 ## 2026-11-13 macOS 27 기본 잠금 화면이 유지된 실제 실패
 

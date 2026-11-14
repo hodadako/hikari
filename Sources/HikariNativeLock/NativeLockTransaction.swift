@@ -867,6 +867,17 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
 
         let restoredData: Data
         let currentHash = NativeLockDigest.sha256(of: currentData)
+        if forceSelective, let materializedHash = record.journal.materializedWallpaperIndexSHA256,
+           record.journal.appliedWallpaperIndexSHA256 == materializedHash,
+           currentHash != record.journal.originalWallpaperIndexSHA256,
+           Self.wallpaperChoiceCounts(in: currentDictionary, matching: record.request.assetID.uuidString, scope: .linked).matching == 0 {
+            // Bootstrap may have committed an Apple seed before any Hikari
+            // choice was applied. That seed is not Hikari-owned. Cross-version
+            // cleanup cannot undo it by asset ID or replay the old whole index.
+            // Keep recovery pending; the original runtime can use its verified
+            // materialized hash for an exact restore.
+            throw NativeLockTransactionError.transactionMismatch
+        }
         if !forceSelective, record.journal.requiresSelectiveWallpaperRestore != true,
            let appliedHash = record.journal.appliedWallpaperIndexSHA256,
            currentHash == appliedHash {
