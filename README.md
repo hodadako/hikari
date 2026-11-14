@@ -34,8 +34,8 @@ macOS Native Lock Screen path.
   and thumbnails
 - Low-overhead looping playback across connected displays and Spaces
 - Fill and Fit scaling, mute, battery pause, launch at login, and library management
-- Library title editing, favorites and search, with a favorites-only filter (unreleased)
-- Lock Screen video conversion progress, cancellation and explicit retry on macOS 26/27 (unreleased)
+- Library title editing, favorites and search, with a favorites-only filter
+- Lock Screen video conversion progress, cancellation and explicit retry on macOS 26/27
 - Menu bar playback and content controls
 - Automatic macOS 26 Native Lock Screen updates when the selected video changes,
   plus transaction recovery and Restore
@@ -51,7 +51,7 @@ macOS Native Lock Screen path.
 
 The full Xcode installation is required for the Xcode scheme and XCTest suite.
 
-## Library and conversion controls (unreleased)
+## Library and conversion controls (0.5.6+)
 
 In General, use the star to mark favorites, the pencil to edit a display title,
 and the search field to filter videos. Renaming never changes the media file or

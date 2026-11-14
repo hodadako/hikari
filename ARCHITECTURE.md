@@ -37,7 +37,7 @@ The canonical user container is:
 └── CustomMenuBarIcon.png
 ```
 
-## Library metadata and conversion controls (unreleased)
+## Library metadata and conversion controls (0.5.6+)
 
 Display titles remain in `LiveContent.title` in `contents.json`. Renaming saves
 metadata without changing IDs, filenames, preparation cache identities, playback

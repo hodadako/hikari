@@ -2,7 +2,18 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — 영상 변환 상태와 라이브러리 관리 (2026-11-14)
+## Hikari v0.5.6 (27) — 영상 변환 상태와 라이브러리 관리 (2026-11-14)
+
+- 사용자 요청으로 PR #81을 병합하고 0.5.6 (27) 및 새 태그 v0.5.6으로 배포 준비한다.
+  기존 0.5.5 태그·asset을 유지하며 최소 macOS 15.0, bundle identity, Universal 앱/helper,
+  portable ZIP·checksum 형식과 27 Native Lock 기본 활성화 정책을 유지한다.
+- 기능 구현 head 38aca21의 PR CI(43595853311)와 CodeQL(43595853310)이 통과했다.
+  CodeRabbit은 actionable comment가 없다고 보고했다. 실제 UI/취소 경로의 실기기 검증
+  완료를 의미하지 않으며 아래 미검증 항목은 유지한다.
+- 0.5.6 metadata로 XcodeGen 재생성 후 로컬 Release Universal build가 성공했다.
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Hikari.xcodeproj -scheme Hikari -configuration Release -destination 'generic/platform=macOS' -derivedDataPath /private/tmp/hikari-v056-release ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build`.
+  실제 plist의 0.5.6 (27)·최소 15.0·bundle ID, 앱/helper 두 slice의 최소 15.0,
+  두 앱 slice의 goldenGateNativeLockEnabled=true를 앱 실행 없이 확인했다.
 
 - 사용자가 제안 중 2번(변환 진행률·취소)과 4번(즐겨찾기·제목 변경·검색)만 요청했다.
   General/About 구조 안에서 구현하며 Native Lock 켜기/끄기, 재생목록, 자동 전환은 추가하지 않는다.
@@ -21,7 +32,7 @@
   `git diff --check` 및 한국어·영어 문자열의 `plutil -lint`도 통과했다. 테스트는 추가하거나
   실행하지 않았다. 실제 취소·재시도·재실행·검색·제목 저장·VoiceOver·구형 settings 로드와
   macOS 15/26 런타임 회귀 확인은 남아 있다. 설치 앱·실제 wallpaper 저장소는 변경하지 않았다.
-  이번 변경은 미출시이며 버전·태그는 올리지 않는다.
+  위 결과는 기능 구현 당시 기록이며, 0.5.6 metadata 빌드 및 태그 CI는 별도로 확인한다.
 
 ## Hikari v0.5.5 (26) — 메뉴 팝오버·설정 화면 시각 정리 (2026-11-14)
 
