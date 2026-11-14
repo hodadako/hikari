@@ -83,3 +83,48 @@ Timing changes are not used as a substitute for preparing a compatible movie.
 Repeated-lock user confirmation, post-unlock sample-reader logs, reboot and
 physical display/Spaces checks remain necessary. Production's 27 gate stays
 false; no tag or GitHub Release is created from this investigation.
+
+## Follow-up: rapid shortcut lock cycles still fail
+
+The user reported intermittent black Lock Screens again after the temporal
+movie was applied. Do not consider the encoding change a complete resolution.
+Read-only logs from 14:01:09–14:01:38 KST show repeated real lock/unlock cycles:
+
+- No `VideoSampleReadingErrors Code=4` in the captured post-apply interval.
+  That is limited evidence, not proof of reliable playback.
+- The last unlock notification was at 14:01:24.162; Hikari refreshed at
+  14:01:24.814, only about 0.65 seconds later. Another refresh at 14:01:14.716
+  preceded the next lock at 14:01:15.197. Recreated extensions logged invalid
+  XPC connections and ML enhancement/download errors; these logs alone do not
+  establish which error caused the black surface.
+- Code allowed a timer from an earlier unlock to set a pending Boolean while
+  locked. The periodic five-second pass could consume it after a subsequent
+  unlock, bypassing that unlock's two-second timer. Lock notifications did not
+  cancel the timer or clear the pending request.
+
+The scheduler now stores a monotonic deadline for the most recent unlock.
+Both the timer and periodic maintenance consult that deadline, including mapping
+reconciliation. An immediate lock callback cancels old work. Stopping maintenance
+also cancels its refresh task. Immediately before process control the controller
+rechecks both the scheduler and a fresh session-lock snapshot; a changed session
+is an expected deferral and does not mark the transaction damaged. A missing
+session key retains notification state rather than asserting unlock.
+
+Fixture tests cover rapid relock, pending-request/retry delay bypass, one-shot
+consumption and stop cancellation. Monitor tests use an isolated notification
+center (never real lock notifications) and injected session snapshots. They cover
+lock cancellation before playback debounce, a lock preceding notification delivery,
+missing session values and sleep. This reduces an observed timing hazard; macOS
+provides no atomic lock-and-process-control operation, and repeated manual lock
+checks are still required. The media, catalog selection and existing transaction
+backups are unchanged by this scheduling correction.
+
+Follow-up validation: `swift test --parallel` passed all 132 tests. The initial
+sandboxed Xcode attempt could not contact testmanagerd (sandbox restriction), so
+no test success is attributed to that attempt. The subsequent normal-permission
+`xcodebuild ... CODE_SIGNING_ALLOWED=NO test` passed all 159 tests, zero failures
+and zero skips, on macOS 27.2.1 using local Xcode 26.6 / SDK 26.5. The isolated
+rapid-lock notification test executed. These results do not prove Lock Screen
+presentation or Xcode 27 SDK behavior. The earlier encoder commit's full CI
+passed on macOS 15/26 ARM64 and Intel plus `xcode-27`; it does not cover this
+new scheduling change until a new CI run finishes.

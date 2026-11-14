@@ -14,6 +14,8 @@ final class SystemStateMonitor {
     /// unlock cannot depend only on the latter: a fast lock/unlock transition
     /// can coalesce the intermediate locked state out of that callback.
     var onScreenUnlocked: (() -> Void)?
+    /// Cancels pending process recovery before the debounced playback callback.
+    var onScreenLocked: (() -> Void)?
     var onDisplaysChanged: (() -> Void)?
     var onDisplaysSettled: (() -> Void)?
     var onWakeSettled: (() -> Void)?
@@ -24,6 +26,23 @@ final class SystemStateMonitor {
     private(set) var isScreenLocked = false
     private(set) var isScreenSaverRunning = false
     private(set) var isOnBattery = false
+
+    private let sessionLockState: () -> Bool?
+    private let lockNotificationCenter: NotificationCenter
+
+    init(
+        sessionLockState: @escaping () -> Bool? = SystemStateMonitor.currentSessionLockState,
+        lockNotificationCenter: NotificationCenter = DistributedNotificationCenter.default()
+    ) {
+        self.sessionLockState = sessionLockState
+        self.lockNotificationCenter = lockNotificationCenter
+    }
+
+    /// Recheck WindowServer immediately before process control. A notification
+    /// queued behind file inspection may still describe the previous session.
+    var permitsNativeMaintenance: Bool {
+        !isSleeping && !isScreenLocked && sessionLockState() != true
+    }
 
     private var notificationTokens: [NSObjectProtocol] = []
     private var stateTask: Task<Void, Never>?
@@ -113,10 +132,11 @@ final class SystemStateMonitor {
             scheduleStateChanged()
         }
 
-        let distributed = DistributedNotificationCenter.default()
+        let distributed = lockNotificationCenter
         observe(distributed, name: Notification.Name("com.apple.screenIsLocked")) { [weak self] in
             guard let self else { return }
             isScreenLocked = true
+            onScreenLocked?()
             scheduleStateChanged()
         }
         observe(distributed, name: Notification.Name("com.apple.screenIsUnlocked")) { [weak self] in
@@ -164,7 +184,7 @@ final class SystemStateMonitor {
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
             NSWorkspace.shared.notificationCenter.removeObserver(token)
-            DistributedNotificationCenter.default().removeObserver(token)
+            lockNotificationCenter.removeObserver(token)
         }
         notificationTokens.removeAll()
     }
@@ -181,18 +201,15 @@ final class SystemStateMonitor {
     }
 
     private func refreshLockState() {
-        // This value is authoritative when available and does not assume that
-        // app activation implies unlock. The distributed notifications remain
-        // the fallback on systems where the session dictionary is unavailable.
+        if let locked = sessionLockState() { isScreenLocked = locked }
+    }
+
+    nonisolated static func currentSessionLockState() -> Bool? {
+        // Missing keys retain notification state; absence is not proof of unlock.
         guard let values = CGSessionCopyCurrentDictionary() as? [String: Any],
-              let value = values["CGSSessionScreenIsLocked"] else {
-            return
-        }
-        if let locked = value as? Bool {
-            isScreenLocked = locked
-        } else if let locked = value as? NSNumber {
-            isScreenLocked = locked.boolValue
-        }
+              let value = values["CGSSessionScreenIsLocked"] else { return nil }
+        if let locked = value as? Bool { return locked }
+        return (value as? NSNumber)?.boolValue
     }
 
     private func refreshScreenSaverState() {
@@ -302,7 +319,7 @@ final class SystemStateMonitor {
         for token in notificationTokens {
             NotificationCenter.default.removeObserver(token)
             NSWorkspace.shared.notificationCenter.removeObserver(token)
-            DistributedNotificationCenter.default().removeObserver(token)
+            lockNotificationCenter.removeObserver(token)
         }
     }
 }

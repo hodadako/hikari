@@ -103,6 +103,11 @@ VideoToolbox hierarchical HEVC, compressed-sample MOV writing and bounded
 identity differs from the unchanged 26 Main10 path. The desktop player never
 uses this derivative. See [the black-screen investigation](docs/NATIVE_LOCK_BLACK_SCREEN.md).
 
+`NativeLockMaintenanceSchedule` shares the latest unlock's monotonic two-second
+deadline between periodic reconciliation and one-shot refresh. An immediate lock
+callback cancels stale work; session state is checked again before process control.
+A deferred session transition preserves the request without reporting corruption.
+
 Restore verifies hashes and selectively preserves external wallpaper changes.
 Hikari never runs a persistent privileged helper. Periodic maintenance is
 user-level only and does not repeat root operations.
