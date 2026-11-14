@@ -2,6 +2,56 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 macOS 26 bootstrap 기록의 선택 복원 누락
+
+- CodeRabbit 후속 리뷰에서 원본 Index에 Linked가 없는 26 bootstrap transaction은
+  forceSelective 복원 시 대체할 원본 choice가 없어 소유 asset이 남는 것을 확인했다.
+  기존 guard가 공유 파일 쓰기 전에 차단하므로 손상은 없지만 27 복원이 불가능했다.
+- journal에 materialized hash가 있고 원본 Linked가 없는 경우만 별도로 처리한다.
+  대체되지 않은 소유 choice를 제거하고 현재 topology·외부 choice를 유지한다.
+  비어 있는 Hikari 생성 Linked는 제거하며 누락된 원본 Desktop/Idle와 Type만 복구한다.
+  인식할 수 없는 container metadata는 삭제하지 않고 복구 상태를 유지한다.
+- 임시 저장소 회귀 테스트로 bootstrap → Apply → 외부 topology 변경 → 선택 Restore를
+  확인했다. 검증된 Apple 원본 choice를 새로 만들거나 이전 Index 전체를 replay하지 않는다.
+- 추가 경계: Hikari 선택 적용 전 Apple seed만 남은 중단 기록은 소유 choice가 아니므로
+  27 선택 Restore의 완료 처리를 거부한다. 원래 26의 exact-hash Restore만 허용하고,
+  공유 파일과 journal은 변경하지 않는 회귀 테스트를 추가했다.
+
+## 2026-11-13 macOS 27 기본 잠금 화면이 유지된 실제 실패
+
+- 사용자 cache의 schema 1과 54/54 Linked 선택이 30초 유지된 것만으로 실제 렌더러가
+  그 catalog를 사용한다고 판단할 수 없었다. 사용자 잠금 검증은 기본 화면으로 실패했다.
+  로그는 fallback catalog 로딩, 열린 파일은 Golden Gate.mov를 나타냈다. 시스템 번들의
+  실제 catalog는 schema 2였다. 실패 transaction과 로그를 보관한 뒤 Restore했다.
+- 27은 별도 schema 2 사용자 catalog와 소유권·원본 hash를 journal에 기록한 두 catalog
+  선택 설정으로 분리한다. 외부 프로젝트의 override 방법은 참고 관찰이며 Apple 계약이
+  아니다. 실제 파일 선택과 반복 잠금 재생을 확인하기 전 production gate를 열지 않는다.
+- 첫 schema 2 재시도는 이전 다른 앱의 영상이 bundled catalog에 없어 사전 검증에서
+  중단됐다. 공유 설정·Index 쓰기 전에 멈추고 준비 기록을 Restore했다. 이전 선택 UUID는
+  별도의 인식된 schema 1 cache에서 확인할 수 있게 분리했으며 그 기록을 새 catalog에
+  복사하지 않는다. 알 수 없는 UUID·잘못된 cache는 계속 차단한다.
+- CodeRabbit이 확인한 maintenance의 누락 asset 재참조와, 사진/no-Linked 외부 선택 때문에
+  Restore가 막히는 경로를 수정했다. Apply 구조 검증과 Restore 읽기 검증을 분리하고,
+  외부 선택에 소유 choice가 없으면 Index bytes를 다시 쓰지 않는다. fixture로 재현했다.
+- 새 photo/no-Linked 회귀 테스트의 첫 실패는 선택 내용이 아닌 binary plist 재직렬화 순서
+  차이였다. 내용이 동일한 selective restore는 원본 current bytes를 유지하도록 고쳤다.
+
+## 2026-11-13 macOS 27 Native Lock 후속 조사
+
+- schema 1을 읽을 수 있다는 이유만으로 26 journal을 27에서 자동 인계하는 접근은
+  사용하지 않는다. 생성 OS를 새 journal에 기록하고, 기존 userAerials의 누락 값은
+  26으로 취급한다. upgrade Restore를 자동 적용과 분리하고 원본 전체 replay를 금지한다.
+- Restore의 manifest backup hash 검증이 index 복원보다 늦었다. 두 rollback 입력의
+  사전 검증을 journal/agent 변경 앞으로 옮겨 손상된 backup의 부분 복원을 방지한다.
+- 공통 Aerial 안내 문구에서 26 전용 표기를 없앤 첫 테스트는 기존 문자열 기대값 때문에
+  실패했다. 공통 문구의 영어·한국어 번역과 기대값을 함께 갱신했다. OS별 쓰기 정책과
+  저장소 형식 검증은 계속 별도로 유지한다.
+- 후보 빌드의 plist 검사에서 `MARKETING_VERSION` 들여쓰기 오류로 버전 키가 빠진 것을
+  발견했다. XcodeGen base 설정으로 수정하고 생성 프로젝트와 실제 bundle의 0.5.1 (22)를
+  다시 검사한다. 버전이 없는 후보는 설치하지 않았다.
+- 27 후보의 fixture/build 성공은 실제 service lifecycle 증거가 아니다. 읽기 전용
+  실기기 preflight와 원본 backup 검증까지만 수행했으며 승인 전 실기기 쓰기는 보류한다.
+
 ## 2026-11-11 macOS 27에서 기존 Aerial 경로 재사용 검토
 
 - macOS 27.2.1에서 macOS 26과 같은 경로의 schema 1 manifest, 로컬 media·thumbnail,

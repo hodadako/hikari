@@ -42,23 +42,25 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertFalse(tahoe.canModifyTransaction(backend: nil))
         XCTAssertFalse(tahoe.canModifyTransaction(backend: .systemCatalog))
 
-        let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27)
-        XCTAssertNil(goldenGate.writeBackend)
+        let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
+        XCTAssertEqual(goldenGate.writeBackend, .userAerials27)
+        XCTAssertTrue(goldenGate.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: 27))
         for backend: NativeLockTransactionBackend? in [nil, .systemCatalog, .userAerials] {
             XCTAssertFalse(goldenGate.canModifyTransaction(backend: backend))
         }
+        XCTAssertFalse(tahoe.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 27))
     }
 
-    /// Verifies a recognized fixture manifest cannot enable writes on macOS 27
+    /// Verifies a recognized fixture manifest cannot enable writes on an unreviewed OS
     /// and all unfinished phases remain visible as preserved transactions.
-    func testGoldenGatePreservesUnfinishedTransactionsEvenWithRecognizedManifest() throws {
+    func testFutureOSPreservesUnfinishedTransactionsEvenWithRecognizedManifest() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let manifestURL = directory.appendingPathComponent("entries.json")
         try Data(#"{"version":1,"assets":[],"categories":[]}"#.utf8).write(to: manifestURL)
-        let goldenGate = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
+        let goldenGate = OperatingSystemVersion(majorVersion: 28, minorVersion: 0, patchVersion: 0)
         XCTAssertEqual(NativeLockSafetyInspector.aerialManifestState(manifestURL: manifestURL), .ready)
 
         for phase: NativeLockTransactionPhase? in [nil, .restored] {
@@ -141,7 +143,7 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertEqual(report.state, .ready)
         XCTAssertEqual(
             report.detail,
-            "Applying uses the verified macOS 26 user Aerial catalog and creates rollback records without administrator approval."
+            "Applying uses the verified user Aerial catalog and creates rollback records without administrator approval."
         )
     }
 

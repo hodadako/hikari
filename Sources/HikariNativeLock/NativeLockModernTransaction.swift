@@ -10,6 +10,8 @@ public struct NativeLockModernEnvironment: Sendable {
     public let previewDirectoryURL: URL
     public let supportedOperatingSystemMajorVersions: Set<Int>
     public let operatingSystemMajorVersion: Int
+    public let manifestSchemaVersion: Int
+    public let previousSelectionManifestURL: URL?
 
     public init(
         wallpaperRootURL: URL,
@@ -17,7 +19,9 @@ public struct NativeLockModernEnvironment: Sendable {
         mediaDirectoryURL: URL,
         previewDirectoryURL: URL,
         supportedOperatingSystemMajorVersions: Set<Int>,
-        operatingSystemMajorVersion: Int
+        operatingSystemMajorVersion: Int,
+        manifestSchemaVersion: Int = 1,
+        previousSelectionManifestURL: URL? = nil
     ) {
         self.wallpaperRootURL = wallpaperRootURL
         self.manifestURL = manifestURL
@@ -25,6 +29,8 @@ public struct NativeLockModernEnvironment: Sendable {
         self.previewDirectoryURL = previewDirectoryURL
         self.supportedOperatingSystemMajorVersions = supportedOperatingSystemMajorVersions
         self.operatingSystemMajorVersion = operatingSystemMajorVersion
+        self.manifestSchemaVersion = manifestSchemaVersion
+        self.previousSelectionManifestURL = previousSelectionManifestURL
     }
 
     public static var live: NativeLockModernEnvironment {
@@ -90,7 +96,7 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
             throw NativeLockTransactionError.aerialCatalogMissing
         }
         let data = try Data(contentsOf: environment.manifestURL)
-        let manifest = try NativeLockSafetyInspector.aerialManifest(from: data)
+        let manifest = try NativeLockSafetyInspector.aerialManifest(from: data, schemaVersion: environment.manifestSchemaVersion)
         guard let assets = manifest["assets"] as? [[String: Any]] else {
             throw NativeLockTransactionError.invalidWallpaperStore
         }
@@ -122,7 +128,7 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         return candidate.1
     }
 
-    /// Stages verified media and preview copies and atomically replaces a schema 1
+    /// Stages verified media and preview copies and atomically replaces a recognized
     /// user manifest. Saves its original bytes and returns both manifest digests.
     /// Pre-commit failures remove copies created by this attempt.
     public func apply(
@@ -132,12 +138,16 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         try validateOperatingSystem()
         try validate(request)
 
+        if environment.operatingSystemMajorVersion == 27 {
+            _ = try inspectStore()
+        }
+
         guard FileManager.default.fileExists(atPath: environment.manifestURL.path) else {
             throw NativeLockTransactionError.aerialCatalogMissing
         }
         let originalManifest = try Data(contentsOf: environment.manifestURL)
         let originalManifestSHA256 = NativeLockDigest.sha256(of: originalManifest)
-        var manifest = try NativeLockSafetyInspector.aerialManifest(from: originalManifest)
+        var manifest = try NativeLockSafetyInspector.aerialManifest(from: originalManifest, schemaVersion: environment.manifestSchemaVersion)
         try validateManifest(manifest, assetID: request.assetID.uuidString)
 
         let originalURL = sourceTransactionURL.appendingPathComponent(
@@ -219,7 +229,8 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         request: NativeLockRequest,
         sourceTransactionURL: URL,
         originalManifestSHA256: String,
-        appliedManifestSHA256: String?
+        appliedManifestSHA256: String?,
+        forceSelective: Bool = false
     ) throws {
         try validateOperatingSystem()
         try validate(request)
@@ -233,11 +244,11 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         guard NativeLockDigest.sha256(of: original) == originalManifestSHA256 else {
             throw NativeLockTransactionError.invalidHash
         }
-        _ = try NativeLockSafetyInspector.aerialManifest(from: original)
+        _ = try NativeLockSafetyInspector.aerialManifest(from: original, schemaVersion: environment.manifestSchemaVersion)
         let current = try Data(contentsOf: environment.manifestURL)
-        var manifest = try NativeLockSafetyInspector.aerialManifest(from: current)
+        var manifest = try NativeLockSafetyInspector.aerialManifest(from: current, schemaVersion: environment.manifestSchemaVersion)
         let restored: Data
-        if let appliedManifestSHA256,
+        if !forceSelective, let appliedManifestSHA256,
            NativeLockDigest.sha256(of: current) == appliedManifestSHA256 {
             restored = original
         } else {
@@ -271,6 +282,10 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
                 options: [.sortedKeys]
             )
         }
+        guard NativeLockDigest.sha256(of: try Data(contentsOf: environment.manifestURL))
+                == NativeLockDigest.sha256(of: current) else {
+            throw NativeLockTransactionError.systemManifestChanged
+        }
         try writeShared(restored, to: environment.manifestURL)
         try removeOwnedFile(
             mediaURL(for: request.assetID),
@@ -279,6 +294,40 @@ public final class NativeLockModernTransactionManager: @unchecked Sendable {
         try removeOwnedFile(
             previewURL(for: request.assetID),
             expectedHash: request.previewSHA256
+        )
+    }
+
+    /// Validates the readable live manifest/index and the original manifest
+    /// backup before the controller changes a journal or stops WallpaperAgent.
+    public func validateRestore(
+        originalManifestSHA256: String,
+        sourceTransactionURL: URL
+    ) throws {
+        try validateOperatingSystem()
+        let original = try Data(contentsOf: sourceTransactionURL.appendingPathComponent(
+            NativeLockPaths.originalModernManifestFilename
+        ))
+        guard NativeLockDigest.isValidSHA256(originalManifestSHA256),
+              NativeLockDigest.sha256(of: original) == originalManifestSHA256 else {
+            throw NativeLockTransactionError.invalidHash
+        }
+        _ = try NativeLockSafetyInspector.aerialManifest(from: original, schemaVersion: environment.manifestSchemaVersion)
+        _ = try NativeLockSafetyInspector.aerialManifest(from: Data(contentsOf: environment.manifestURL), schemaVersion: environment.manifestSchemaVersion)
+        if environment.operatingSystemMajorVersion == 27 {
+            try NativeLockAerialCompatibility.validateRestoreIndex(
+                Data(contentsOf: environment.wallpaperRootURL.appendingPathComponent("Store/Index.plist"))
+            )
+        }
+    }
+
+    public func inspectStore(requiredAssetID: String? = nil) throws -> NativeLockAerialCompatibility.Snapshot {
+        try NativeLockAerialCompatibility.inspect(
+            manifest: Data(contentsOf: environment.manifestURL),
+            wallpaperIndex: Data(contentsOf: environment.wallpaperRootURL.appendingPathComponent("Store/Index.plist")),
+            schemaVersion: environment.manifestSchemaVersion,
+            requiredAssetID: requiredAssetID,
+            previousSelectionManifest: requiredAssetID == nil
+                ? try environment.previousSelectionManifestURL.map { try Data(contentsOf: $0) } : nil
         )
     }
 

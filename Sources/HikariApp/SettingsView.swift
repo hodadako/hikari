@@ -372,7 +372,7 @@ private struct NativeLockStatusSection: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            if backend == .userAerials,
+            if backend?.isUserAerials == true,
                report.state != .recoveryRequired,
                report.state != .transactionPreserved {
                 Text(

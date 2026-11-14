@@ -55,7 +55,7 @@ final class NativeLockController {
         let savedRecord: NativeLockTransactionRecord?
         do {
             savedRecord = try store.activeOrPendingTransaction(
-                removeStaleMarker: policy.writeBackend != nil
+                removeStaleMarker: policy.majorVersion == 15 || policy.majorVersion == 26
             )
             transactionReadError = nil
         } catch {
@@ -92,7 +92,7 @@ final class NativeLockController {
     /// changes the wallpaper store; it only creates an atomically-published
     /// cache in Hikari's private support directory.
     func prepareMediaForNativeLock(content: LiveContent) async throws {
-        guard NativeLockOperatingSystemPolicy.current.writeBackend == .userAerials,
+        guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               cachedPreparationURLs(for: content) == nil else {
             return
         }
@@ -178,7 +178,7 @@ final class NativeLockController {
     /// or discard a real Native Lock transaction.
     func discardKnownNoopLegacyPreflight() throws {
         let policy = NativeLockOperatingSystemPolicy.current
-        guard policy.writeBackend == .userAerials,
+        guard policy.writeBackend?.isUserAerials == true,
               let record = try store.activeOrPendingTransaction(),
               NativeLockRecovery.canDiscardKnownNoopLegacyPreflight(
                 record.journal,
@@ -206,13 +206,29 @@ final class NativeLockController {
         guard policy.writeBackend != nil,
               let current = try store.activeOrPendingTransaction(),
               current.journal.phase == .active,
-              policy.canModifyTransaction(backend: current.journal.backend) else {
+              policy.canModifyTransaction(
+                backend: current.journal.backend,
+                operatingSystemMajorVersion: current.journal.operatingSystemMajorVersion
+              ) else {
             return currentRecord()
         }
 
+        if current.journal.backend == .userAerials27 {
+            do {
+                let activation = NativeLockGoldenGateActivation.live
+                guard activation.selectionMatches(request: current.request) else {
+                    throw NativeLockTransactionError.transactionMismatch
+                }
+                _ = try NativeLockModernTransactionManager(environment: activation.environment(for: current.request))
+                    .inspectStore(requiredAssetID: current.request.assetID.uuidString)
+            } catch {
+                try store.markRecoveryRequired(transactionID: current.request.transactionID, error: error.localizedDescription)
+                throw error
+            }
+        }
         var record = current
         var restartedAgent = false
-        let usesModernAerials = current.journal.backend == .userAerials
+        let usesModernAerials = current.journal.backend?.isUserAerials == true
         let mappingMatches = try usesModernAerials
             ? store.linkedWallpaperMappingMatches(
                 transactionID: current.request.transactionID
@@ -265,14 +281,15 @@ final class NativeLockController {
         guard let backend = policy.writeBackend else {
             throw NativeLockTransactionError.unsupportedOperatingSystem(policy.majorVersion)
         }
-        let usesModernAerials = backend == .userAerials
-        if usesModernAerials {
-            try validateAerialManifest()
-        }
+        let usesModernAerials = backend.isUserAerials
+        if backend == .userAerials { try validateAerialManifest() }
         if let current = try store.activeOrPendingTransaction() {
             guard usesModernAerials,
                   current.journal.phase == .active,
-                  current.journal.backend == .userAerials else {
+                  policy.canModifyTransaction(
+                    backend: current.journal.backend,
+                    operatingSystemMajorVersion: current.journal.operatingSystemMajorVersion
+                  ) else {
                 throw NativeLockTransactionError.activeTransactionExists
             }
             if current.request.sourceContentID == content.id {
@@ -280,12 +297,14 @@ final class NativeLockController {
             }
             try restore()
         }
-        let modernManager = usesModernAerials
+        if backend == .userAerials27 { try NativeLockGoldenGateActivation.live.preflight() }
+        var modernManager = usesModernAerials
             ? NativeLockModernTransactionManager(environment: .live)
             : nil
         let linkedInitialization: (assetID: String, topology: NativeLockLinkedWallpaperTopology)?
         if let modernManager,
            try !store.hasLinkedWallpaperChoices() {
+            guard backend == .userAerials else { throw NativeLockTransactionError.noWallpaperChoices }
             linkedInitialization = (
                 try modernManager.firstUsableAppleAerialAssetID(),
                 try currentLinkedWallpaperTopology()
@@ -335,12 +354,22 @@ final class NativeLockController {
             sourceContentID: content.id,
             title: content.title,
             preparedMediaURL: mediaURL,
-            preparedPreviewURL: previewURL
+            preparedPreviewURL: previewURL,
+            operatingSystemMajorVersion: policy.majorVersion
         )
         nativeLockLogger.notice(
             "Prepared transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
         )
         do {
+            var activationHash: String?
+            if backend == .userAerials27 {
+                let activation = NativeLockGoldenGateActivation.live
+                let hash = try activation.prepare(request: prepared.request,
+                    transactionURL: store.transactionDirectoryURL(for: prepared.request.transactionID))
+                try store.markAerialActivationPrepared(transactionID: prepared.request.transactionID, sha256: hash)
+                activationHash = hash
+                modernManager = NativeLockModernTransactionManager(environment: activation.environment(for: prepared.request))
+            }
             if usesModernAerials {
                 // Backdrop keeps a separate wallpaper renderer alive and can
                 // immediately write its previous Aerial choice back over the
@@ -367,9 +396,14 @@ final class NativeLockController {
                     _ = try store.markSystemApplied(
                         transactionID: prepared.request.transactionID,
                         manifestSHA256: result.manifestSHA256,
-                        backend: .userAerials,
+                        backend: backend,
                         originalModernManifestSHA256: result.originalManifestSHA256
                     )
+                    if let activationHash {
+                        try NativeLockGoldenGateActivation.live.activate(request: prepared.request,
+                            transactionURL: store.transactionDirectoryURL(for: prepared.request.transactionID),
+                            backupSHA256: activationHash)
+                    }
                     return try store.applyLinkedWallpaperMapping(
                         transactionID: prepared.request.transactionID
                     )
@@ -379,7 +413,7 @@ final class NativeLockController {
                     modernAerials: true
                 )
                 nativeLockLogger.notice(
-                    "Activated macOS 26 user Aerial transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
+                    "Activated user Aerial transaction \(prepared.request.transactionID.uuidString, privacy: .public)"
                 )
                 return active
             }
@@ -427,59 +461,76 @@ final class NativeLockController {
     /// Rejects unsupported recovery before journal changes or wallpaper process control.
     func restore() throws {
         let policy = NativeLockOperatingSystemPolicy.current
-        guard let backend = policy.writeBackend else {
+        guard let runtimeBackend = policy.writeBackend else {
             throw NativeLockTransactionError.transactionRestoreUnavailable(policy.majorVersion)
         }
         guard let record = try store.activeOrPendingTransaction(removeStaleMarker: false) else {
             throw NativeLockTransactionError.transactionNotFound
         }
-        guard policy.canModifyTransaction(backend: record.journal.backend) else {
+        let upgradeRestore = policy.requiresUpgradeRestore(
+            backend: record.journal.backend,
+            operatingSystemMajorVersion: record.journal.operatingSystemMajorVersion
+        )
+        guard policy.canModifyTransaction(backend: record.journal.backend,
+            operatingSystemMajorVersion: record.journal.operatingSystemMajorVersion) || upgradeRestore else {
             throw NativeLockTransactionError.transactionRestoreUnavailable(policy.majorVersion)
         }
-        if backend == .userAerials, record.journal.originalModernManifestSHA256 != nil {
-            try validateAerialManifest()
+        let transactionURL = store.transactionDirectoryURL(for: record.request.transactionID)
+        let backend = record.journal.backend ?? runtimeBackend
+        let activation = backend == .userAerials27 ? NativeLockGoldenGateActivation.live : nil
+        var originalManifestHash = record.journal.originalModernManifestSHA256
+        if let activation, let hash = record.journal.aerialActivationSHA256 {
+            try activation.validateRestore(request: record.request, transactionURL: transactionURL, backupSHA256: hash)
+            // A crash after catalog commit but before markSystemApplied still
+            // has the prepared activation digest and the original manifest copy.
+            if originalManifestHash == nil,
+               FileManager.default.fileExists(atPath: transactionURL.appendingPathComponent(NativeLockPaths.originalModernManifestFilename).path) {
+                originalManifestHash = try activation.originalCatalogSHA256(request: record.request,
+                    transactionURL: transactionURL, backupSHA256: hash)
+            }
+        } else if backend == .userAerials27, record.journal.systemManifestAppliedSHA256 != nil {
+            throw NativeLockTransactionError.invalidHash
+        }
+        let manager: NativeLockModernTransactionManager?
+        if let activation {
+            manager = NativeLockModernTransactionManager(environment: activation.environment(for: record.request))
+        } else if backend == .userAerials {
+            let legacy = NativeLockModernEnvironment.live
+            manager = NativeLockModernTransactionManager(environment: NativeLockModernEnvironment(
+                wallpaperRootURL: legacy.wallpaperRootURL, manifestURL: legacy.manifestURL,
+                mediaDirectoryURL: legacy.mediaDirectoryURL, previewDirectoryURL: legacy.previewDirectoryURL,
+                supportedOperatingSystemMajorVersions: upgradeRestore ? [27] : [26],
+                operatingSystemMajorVersion: policy.majorVersion))
+        } else { manager = nil }
+        // Validate both rollback inputs before journal, agent, or shared writes.
+        try store.validateWallpaperRestore(transactionID: record.request.transactionID, forceSelective: upgradeRestore)
+        if let manager, let originalManifestHash {
+            try manager.validateRestore(originalManifestSHA256: originalManifestHash, sourceTransactionURL: transactionURL)
+        } else if upgradeRestore {
+            throw NativeLockTransactionError.transactionRestoreUnavailable(policy.majorVersion)
         }
         _ = try store.beginRestore(transactionID: record.request.transactionID)
         do {
-            // Restore the user mapping first. If the helper is unavailable,
-            // the Lock Screen no longer points at the custom asset even though
-            // root cleanup may still require repair.
             try withWallpaperAgentSuspended {
-                try store.restoreWallpaperMapping(
-                    transactionID: record.request.transactionID
-                )
-            }
-            switch backend {
-            case .userAerials:
-                if let originalManifestSHA256 = record.journal.originalModernManifestSHA256 {
-                    try NativeLockModernTransactionManager(environment: .live).restore(
-                        request: record.request,
-                        sourceTransactionURL: store.transactionDirectoryURL(
-                            for: record.request.transactionID
-                        ),
-                        originalManifestSHA256: originalManifestSHA256,
-                        appliedManifestSHA256: record.journal.systemManifestAppliedSHA256
-                    )
+                try store.restoreWallpaperMapping(transactionID: record.request.transactionID, forceSelective: upgradeRestore)
+                if let manager, let originalManifestHash {
+                    try manager.restore(request: record.request, sourceTransactionURL: transactionURL,
+                        originalManifestSHA256: originalManifestHash,
+                        appliedManifestSHA256: record.journal.systemManifestAppliedSHA256,
+                        forceSelective: upgradeRestore)
                 }
-            case .systemCatalog:
-                _ = try runPrivilegedTool(
-                    operation: "restore",
-                    transactionID: record.request.transactionID,
-                    assetID: record.request.assetID
-                )
+                if let activation, let hash = record.journal.aerialActivationSHA256 {
+                    try activation.restore(request: record.request, transactionURL: transactionURL, backupSHA256: hash)
+                }
+            }
+            if backend == .systemCatalog {
+                _ = try runPrivilegedTool(operation: "restore", transactionID: record.request.transactionID,
+                                          assetID: record.request.assetID)
             }
             try store.markRestored(transactionID: record.request.transactionID)
-            nativeLockLogger.notice(
-                "Restored transaction \(record.request.transactionID.uuidString, privacy: .public)"
-            )
+            nativeLockLogger.notice("Restored transaction \(record.request.transactionID.uuidString, privacy: .public)")
         } catch {
-            nativeLockLogger.error(
-                "Restore failed for \(record.request.transactionID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
-            )
-            try? store.markRecoveryRequired(
-                transactionID: record.request.transactionID,
-                error: error.localizedDescription
-            )
+            try? store.markRecoveryRequired(transactionID: record.request.transactionID, error: error.localizedDescription)
             throw error
         }
     }

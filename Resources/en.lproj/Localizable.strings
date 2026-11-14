@@ -211,3 +211,9 @@
 "Saved Lock Screen transaction could not be read" = "Saved Lock Screen transaction could not be read";
 "Hikari could not read the saved Lock Screen transaction: %@" = "Hikari could not read the saved Lock Screen transaction: %@";
 "Saved video" = "Saved video";
+
+"Applying uses the verified user Aerial catalog and creates rollback records without administrator approval." = "Applying uses the verified user Aerial catalog and creates rollback records without administrator approval.";
+
+"Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout." = "Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout.";
+
+"Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout." = "Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout.";

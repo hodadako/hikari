@@ -2,6 +2,60 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.5.1 (22) — macOS 27 Native Lock 후보 (미릴리스)
+
+- 2026-11-14 추가 리뷰: 원본 Linked가 없는 macOS 26 bootstrap 기록의 선택 Restore가
+  남은 소유 choice 때문에 중단되는 경로를 수정했다. 원본 값이 없는 소유 Linked만 제거하고
+  현재 topology·외부 선택·원본 Desktop/Idle를 보존하는 fixture를 추가했다.
+  Hikari 적용 전에 Apple seed만 materialize하고 중단된 기록은 별도로 차단한다.
+  이 seed를 소유 asset으로 간주하거나 27에서 이전 Index 전체를 replay하지 않는다.
+  원래 OS의 검증된 materialized hash 복원은 유지한다.
+
+- 27.2.1의 실제 사용자 Aerial 저장소와 기존 transaction 백업을 읽기 전용으로
+  조사했다. schema/provider/Linked/configuration/placement를 검사하는 별도 preflight와
+  익명화 fixture를 추가했다. [조사와 검증 계획](NATIVE_LOCK_MACOS27.md)을 참고한다.
+- 새 journal에 생성 OS를 기록한다. 26 기록은 27의 자동 적용·유지보수가 인계하지
+  않는다. 명시적 upgrade Restore는 원본·현재 구조와 두 backup hash를 먼저 검사하고,
+  현재 topology에 소유 Linked choice만 병합한다. 이전 OS 전체 snapshot은 덮어쓰지 않는다.
+- Restore 전 원본 index/manifest를 모두 사전 검증하고 공유 파일의 입력 hash를 재확인한다.
+  macOS 15 root 경로, macOS 26 초기화, 사용자 데이터 및 기존 backup 보존 규칙을 유지한다.
+- `xcode-27` fixture 검증·xcresult 보관·release coverage를 보강한다. 기존 네 runner와
+  checksum/Universal/minimum 15.0 배포 검사는 유지한다. 버전은 0.5.1 (22) 후보다.
+- 로컬 SwiftPM 106개와 Xcode 126개 테스트, Debug Universal build가 통과했다.
+  추가 SwiftPM 경계 테스트 3개는 별도로 통과했다. 최초 후보의
+  [전체 CI](https://github.com/hodadako/hikari/actions/runs/43347393969)는 macOS 15/26
+  ARM64·Intel 및 27 빌드·테스트를 통과했고,
+  [CodeQL](https://github.com/hodadako/hikari/actions/runs/43347377809)도 성공했다. 초기 읽기 전용 단계에서는 실제 Apply/Restore·agent restart·잠금/해제·재부팅을
+  수행하지 않았다. 아래 승인된 실기기 검증과 구분한다. production gate는 false이며
+  fixture에서 후보 capability를 주입한다. 잠금 화면 재생 확인 전 지원 완료로
+  릴리스하지 않는다.
+- 이후 사용자가 현재 Mac의 실제 Apply/Restore 검증을 명시적으로 승인했다. 앱·Hikari
+  128개 파일·사용자 wallpaper store 245개 파일을 백업하고 hash를 검증했다.
+  0.5.1 (22) 검증용 빌드의 최초 실행은 기존 파일을 변경하지 않았다.
+- 기존 26 기록의 선택적 Restore와 새 27 기록의 Apply → 30초 54/54 Linked 유지 →
+  Restore가 성공했다. manifest는 원본 bytes로 복원됐고 Index는 LastSet/LastUse
+  timestamp 108개만 달랐다. 외부 asset과 54개 topology 경로, 원본 백업을 보존했다.
+  현재 영상을 재적용해 두 번째 안정화도 통과했다. 설정·콘텐츠·아이콘·미디어·기존
+  backup과 root catalog hash는 유지됐다. sudo/root 작업은 수행하지 않았다.
+- **실제 잠금 화면 검증은 실패했다.** 사용자는 기본 화면이 그대로라고 확인했다.
+  30초 Index 유지 결과를 실제 재생 성공으로 해석하지 않는다. 렌더러는 stale schema 1
+  사용자 catalog 대신 schema 2 fallback을 읽고 Golden Gate.mov를 열었다. 실패 기록을
+  보관하고 마지막 trial transaction을 Restore했으며 gated 후보로 되돌렸다.
+- 27 전용 userAerials27 backend는 bundled schema 2를 별도 사용자 catalog로 복사하고,
+  catalog 선택 설정 두 개를 원본·hash와 함께 journal에 보관한다. 외부 override는 차단하며
+  Restore는 소유 설정만 되돌린다. 26의 공유 schema 1 파일과 15 root 경로는 유지한다.
+- CodeRabbit 지적을 반영해 maintenance 전에 소유 asset이 남아 있는지 검사하고,
+  사진 또는 Linked 없는 외부 선택을 유지한 채 Restore할 수 있도록 분리했다.
+- 새 schema 2 경로의 SwiftPM 123개, 로컬 Xcode 146개 테스트가 통과했다. 실제 재시도 전
+  앱·설정·wallpaper 파일과 Aerial 설정을 다시 백업했고 388개 파일 hash를 검증했다.
+  재부팅·다중 디스플레이·교체·반복 잠금 및 새 catalog 설정 복원 실기기 확인은 남아 있다.
+  production gate는 false이고 0.5.1 tag/Release는 만들지 않았다.
+- 보완한 검증 빌드가 새 schema 2 override를 읽고 실제 Hikari 영상 파일을 여는 것을
+  renderer 로그와 lsof로 확인했다. 54/54 선택, 원본 Apple asset 164개 보존, activation
+  backup hash, 공유 schema 1·root catalog 무변경을 확인했다. 현재 사용자 반복 잠금 확인을
+  기다리며 활성 상태로 두었다. 실제 움직이는 재생 성공과 catalog 설정 Restore 성공은
+  아직 선언하지 않는다.
+
 <a id="unreleased--macos-27-golden-gate"></a>
 
 ## Hikari v0.5.0 (21) — macOS 27 Golden Gate (2026-11-13)

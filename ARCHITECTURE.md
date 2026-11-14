@@ -85,6 +85,18 @@ leaves the journal, marker and backups intact. Apply, Restore, reconciliation
 and renderer refresh are disabled on this runtime. Desktop video follows its
 own playback policy.
 
+The 0.5.1 candidate separates `userAerials27` from 26's shared catalog. Its
+`NativeLockGoldenGateActivation` copies the bundled schema-2 catalog to a
+transaction-specific user path and journals the original two catalog-selection
+preferences and their digest before activation. The shared engine receives the
+schema/locations explicitly. Maintenance checks preference ownership and the
+owned asset before reconciliation; Restore preserves foreign selections.
+New journals record their originating OS before shared writes. Explicit 26 → 27
+recovery uses validated backups and a Linked-only merge into the current topology.
+The first schema-1 trial failed actual playback despite stable Index choices;
+the production 27 gate stays disabled pending schema-2 live validation. See
+[the evidence and release gate](docs/NATIVE_LOCK_MACOS27.md).
+
 Restore verifies hashes and selectively preserves external wallpaper changes.
 Hikari never runs a persistent privileged helper. Periodic maintenance is
 user-level only and does not repeat root operations.
@@ -109,5 +121,6 @@ CI retains the macOS 15/26 ARM64 and Intel matrix. A separate ARM64
 macOS 15.0 minimum on the app and helper, and runs the SwiftPM and Xcode tests
 on macOS 27. The existing macOS 15/26 matrix exercises its own builds on the
 older runtimes. The macOS 15 release job still produces the portable ZIP and
-checksum, and the four matrix results retain their Codecov flags. Only normal
+checksum, and the four matrix results retain their Codecov flags. The 27 job adds its own
+`macos-27-arm64` release coverage flag and retains xcresult diagnostics. Only normal
 `vX.Y.Z` tags package and publish releases after the required checks pass.

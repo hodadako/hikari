@@ -211,3 +211,9 @@
 "Saved Lock Screen transaction could not be read" = "보존된 잠금 화면 변경 기록을 읽을 수 없습니다";
 "Hikari could not read the saved Lock Screen transaction: %@" = "Hikari가 보존된 잠금 화면 변경 기록을 읽을 수 없습니다: %@";
 "Saved video" = "보존된 영상";
+
+"Applying uses the verified user Aerial catalog and creates rollback records without administrator approval." = "검증된 사용자 Aerial 카탈로그에 적용하며, 관리자 승인 없이 복구 기록을 만듭니다.";
+
+"Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout." = "다른 잠금 화면 영상을 선택하기 전에 이전 macOS의 변경 기록을 복원하세요. Hikari는 백업을 검증하고 현재 디스플레이 및 Space 구성을 보존합니다.";
+
+"Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout." = "시스템 설정에서 Apple Aerial 배경화면을 선택해 잠금 화면 구성을 초기화하세요. Hikari는 검증되지 않은 배경화면 구성을 만들지 않습니다.";
