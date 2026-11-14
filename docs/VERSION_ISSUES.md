@@ -2,7 +2,20 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Hikari v0.5.1 (22) — macOS 27 Native Lock 후보 (미릴리스)
+## Hikari v0.5.1 (23) — 릴리스 준비 (미게시)
+
+- PR #75·#76을 main에 병합한 뒤 0.5.1 릴리스 준비용 build number를 22에서 23으로
+  올렸다. 기존 0.5.1 (22) 로컬 검증 앱과 구분한다. 마케팅 버전은 0.5.1이며
+  최소 macOS 15.0, bundle identifier, Universal·ZIP/checksum 형식은 유지한다.
+- PR #76 최종 커밋 b0a002a의 macOS 15/26 ARM64·Intel 및 xcode-27 전체 CI와
+  CodeQL이 통과했다. 이는 마지막 타이밍 수정 뒤 실제 잠금 화면 재생 확인을
+  대신하지 않는다. 사용자 반복 잠금 결과 확인 전 production 27 gate는 false이며
+  v0.5.1 태그와 GitHub Release는 게시하지 않았다.
+- 0.5.1 (23) Release Universal 빌드가 성공했다. 생성된 앱 Info.plist의 버전·build·
+  bundle identifier·minimum OS와 앱/helper의 arm64·x86_64 minimum 15.0을 확인했다.
+  현재 Mac의 활성 transaction을 보존하기 위해 gate가 꺼진 이 빌드를 설치하지 않았다.
+
+### 0.5.1 (22) 후보 조사 및 검증 기록
 
 - 계층 인코딩 적용 뒤에도 단축키 잠금에서 검은 화면이 재보고됐다. 14:01:24.162
   unlock 뒤 14:01:24.814 refresh로 기존 2초 대기를 우회한 실제 로그를 확인했다.
