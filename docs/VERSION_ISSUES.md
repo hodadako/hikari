@@ -2,18 +2,19 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Hikari v0.5.1 (23) — 릴리스 준비 (미게시)
+## Hikari v0.5.2 (23) — 릴리스 준비 (미게시)
 
-- PR #75·#76을 main에 병합한 뒤 0.5.1 릴리스 준비용 build number를 22에서 23으로
-  올렸다. 기존 0.5.1 (22) 로컬 검증 앱과 구분한다. 마케팅 버전은 0.5.1이며
+- 사용자 요청에 따라 PR #75·#76의 변경을 포함하는 다음 릴리스 버전을 0.5.2로
+  지정했다. build number는 23으로 기존 0.5.1 (22) 로컬 검증 앱과 구분한다.
   최소 macOS 15.0, bundle identifier, Universal·ZIP/checksum 형식은 유지한다.
 - PR #76 최종 커밋 b0a002a의 macOS 15/26 ARM64·Intel 및 xcode-27 전체 CI와
   CodeQL이 통과했다. 이는 마지막 타이밍 수정 뒤 실제 잠금 화면 재생 확인을
   대신하지 않는다. 사용자 반복 잠금 결과 확인 전 production 27 gate는 false이며
-  v0.5.1 태그와 GitHub Release는 게시하지 않았다.
-- 0.5.1 (23) Release Universal 빌드가 성공했다. 생성된 앱 Info.plist의 버전·build·
-  bundle identifier·minimum OS와 앱/helper의 arm64·x86_64 minimum 15.0을 확인했다.
-  현재 Mac의 활성 transaction을 보존하기 위해 gate가 꺼진 이 빌드를 설치하지 않았다.
+  v0.5.2 태그와 GitHub Release는 게시하지 않았다.
+- 0.5.2 Release Universal 빌드가 성공했다. 생성 앱 Info.plist에서 0.5.2 (23),
+  minimum 15.0, 기존 bundle identifier를 확인했다. 구현 변경 없이 버전 metadata만
+  바꾼 작업이며 테스트를 새로 실행하지 않았다. 현재 Mac의 활성 transaction을
+  보존하기 위해 gate가 꺼진 릴리스 준비 빌드로 로컬 검증 앱을 교체하지 않는다.
 
 ### 0.5.1 (22) 후보 조사 및 검증 기록
 
