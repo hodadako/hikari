@@ -195,29 +195,14 @@ private struct GeneralSettingsView: View {
                                 model.setAppIconStyle(style)
                             }
                         } label: {
-                            VStack(spacing: 8) {
+                            IconPickerTile(
+                                title: appIconDisplayName(for: style),
+                                isSelected: model.settings.appIconStyle == style
+                            ) {
                                 HikariIconPreview(
                                     image: model.appIconImage(for: style),
                                     size: 64
                                 )
-                                Text(appIconDisplayName(for: style))
-                                    .font(.caption)
-                            }
-                            .padding(8)
-                            .background(
-                                model.settings.appIconStyle == style
-                                    ? Color.accentColor.opacity(0.16)
-                                    : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 20)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(
-                                        model.settings.appIconStyle == style
-                                            ? Color.accentColor
-                                            : Color.clear,
-                                        lineWidth: 2
-                                    )
                             }
                         }
                         .buttonStyle(.plain)
@@ -226,10 +211,7 @@ private struct GeneralSettingsView: View {
             }
 
             Section("Menu Bar Icon") {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 92), spacing: 12)],
-                    spacing: 12
-                ) {
+                HStack(spacing: 16) {
                     ForEach(MenuBarIconStyle.allCases) { style in
                         Button {
                             if style == .custom {
@@ -238,32 +220,15 @@ private struct GeneralSettingsView: View {
                                 model.setMenuBarIconStyle(style)
                             }
                         } label: {
-                            VStack(spacing: 8) {
+                            IconPickerTile(
+                                title: menuBarIconDisplayName(for: style),
+                                isSelected: model.settings.menuBarIconStyle == style
+                            ) {
                                 MenuBarIconPreview(
                                     image: model.menuBarIconImage(for: style),
                                     size: 58,
                                     isTemplate: style.isTemplate
                                 )
-                                Text(menuBarIconDisplayName(for: style))
-                                    .font(.caption)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(8)
-                            .background(
-                                model.settings.menuBarIconStyle == style
-                                    ? Color.accentColor.opacity(0.16)
-                                    : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 20)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(
-                                        model.settings.menuBarIconStyle == style
-                                            ? Color.accentColor
-                                            : Color.clear,
-                                        lineWidth: 2
-                                    )
                             }
                         }
                         .buttonStyle(.plain)
@@ -454,6 +419,41 @@ private struct GeneralSettingsView: View {
 
     private func menuBarIconDisplayName(for style: MenuBarIconStyle) -> String {
         style == .hikari ? model.appDisplayName : style.localizedName
+    }
+}
+
+/// Both icon pickers share geometry while retaining their own preview rendering.
+private struct IconPickerTile<Preview: View>: View {
+    let title: String
+    let isSelected: Bool
+    let preview: Preview
+
+    init(title: String, isSelected: Bool, @ViewBuilder preview: () -> Preview) {
+        self.title = title
+        self.isSelected = isSelected
+        self.preview = preview()
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            preview
+                .frame(width: 64, height: 64)
+            Text(title)
+                .font(.caption)
+                .lineLimit(2, reservesSpace: true)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .frame(width: 76)
+        .padding(8)
+        .background(
+            isSelected ? Color.accentColor.opacity(0.16) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 20)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+        }
     }
 }
 

@@ -2,6 +2,28 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.5.7 (28) — 설정 아이콘 선택 타일 간격 통일 (2026-11-15)
+
+- 앱 아이콘은 `HStack(spacing: 16)`, 메뉴 막대 아이콘은 adaptive grid여서 설정 창 너비에
+  따라 두 선택 영역의 아이콘 간 거리가 달랐다. preview 크기(64/58)와 제목 줄 제한도 달랐다.
+- 두 영역을 같은 가로 배치와 공용 `IconPickerTile`로 맞춘다. 타일 폭 92pt, 타일 간격 16pt,
+  preview 영역 64×64pt, 제목 두 줄 공간, padding 8과 선택 테두리를 공유한다.
+  앱 preview의 fill과 메뉴 preview의 fit·58pt 렌더링을 유지한다.
+- 실제 메뉴 막대 status item 크기, 아이콘 선택·파일 가져오기, General/About 구성과
+  Native Lock은 변경하지 않는다. 사용자 요청으로 0.5.7 (28)·새 태그 v0.5.7로 배포 준비하며,
+  기존 태그·asset, 최소 macOS 15.0, bundle identity와 Universal 배포를 유지한다.
+  설치 앱·사용자 wallpaper 저장소는 변경하지 않는다.
+- 기능 head 0a30041의 PR CI(43614557342)와 CodeQL(43614557307)이 통과했다.
+  CodeRabbit의 actionable comment와 미해결 review thread는 없었다.
+- 검증: XcodeGen 재생성 후 Debug build가 성공했다(`** BUILD SUCCEEDED **`).
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Hikari.xcodeproj -scheme Hikari -configuration Debug -destination 'generic/platform=macOS' -derivedDataPath /private/tmp/hikari-icon-picker-build CODE_SIGNING_ALLOWED=NO build`.
+  `git diff --check`도 통과했다. 테스트는 추가하거나 실행하지 않았다. 실제 설정 화면의
+  라이트/다크 모드·배율·긴 이름 표시 확인은 남아 있다.
+
+- 0.5.7 metadata로 같은 Debug build를 다시 실행해 성공했다. 생성 앱 plist의
+  0.5.7 (28)·최소 15.0과 앱/helper의 arm64·x86_64 및 각 최소 15.0을 확인했다.
+  최종 PR 검사와 태그 CI·배포 ZIP 검증은 별도로 수행한다.
+
 ## Hikari v0.5.6 (27) — 영상 변환 상태와 라이브러리 관리 (2026-11-14)
 
 - 사용자 요청으로 PR #81을 병합하고 0.5.6 (27) 및 새 태그 v0.5.6으로 배포 준비한다.
