@@ -164,6 +164,10 @@
 "Preparing Update…" = "Preparing Update…";
 "Install Hikari update?" = "Install Hikari update?";
 "Hikari will download %@, replace the current app, and relaunch." = "Hikari will download %@, replace the current app, and relaunch.";
+"Hikari will restore the previous wallpaper automatically before installing the update. If Restore fails, the update will stop." = "Hikari will restore the previous wallpaper automatically before installing the update. If Restore fails, the update will stop.";
+"Hikari will download and verify %@, restore the previous wallpaper, then replace the app and relaunch. If Restore fails or is cancelled, the update will stop. macOS 15 may request administrator approval." = "Hikari will download and verify %@, restore the previous wallpaper, then replace the app and relaunch. If Restore fails or is cancelled, the update will stop. macOS 15 may request administrator approval.";
+"Wait for the current Lock Screen operation to finish before updating Hikari." = "Wait for the current Lock Screen operation to finish before updating Hikari.";
+"Unlock and wake this Mac before updating Hikari so the previous wallpaper can be restored safely." = "Unlock and wake this Mac before updating Hikari so the previous wallpaper can be restored safely.";
 "The selected menu bar icon could not be read." = "The selected menu bar icon could not be read.";
 "The custom menu bar icon could not be prepared." = "The custom menu bar icon could not be prepared.";
 "Hikari could not check for updates right now." = "Hikari could not check for updates right now.";

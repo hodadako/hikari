@@ -61,7 +61,13 @@ Restore an active Native Lock transaction before upgrading macOS. If the Mac
 has already been upgraded, keep the transaction files. Restoring requires the
 matching supported backend and wallpaper store. Explicit 26 → 27 recovery validates
 backups and selectively restores owned choices; automatic adoption is blocked.
-Hikari blocks its own update installer while an unfinished transaction is present.
+When updating Hikari, confirm **Update and Relaunch** to download and verify the
+replacement first. Hikari then restores a supported unfinished Native Lock
+transaction before replacing the app. A failed or cancelled Restore stops the
+update; unreadable or unsupported transactions and failed storage migrations
+still block it. macOS 15 Restore may request administrator approval. Transaction
+backups and the selected video remain saved. This automatic Restore flow is an
+unreleased change; installed versions through 0.5.3 require manual Restore first.
 
 See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md).
 

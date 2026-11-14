@@ -291,9 +291,44 @@ final class AppModel: ObservableObject {
             ?? nativeLockRecord?.request.title
     }
 
-    /// Any unfinished Native Lock transaction may still own macOS wallpaper
-    /// state. Updating the app is therefore disabled until Restore completes.
+    var updateRequiresNativeLockRestore: Bool {
+        nativeLockPhase.map { $0 != .restored } ?? false
+    }
+
+    /// Failures that automatic Restore cannot safely resolve. A supported
+    /// unfinished transaction is handled just before app replacement instead.
+    var updatePreparationBlockedReason: String? {
+        if isNativeLockWorking || nativeLockMaintenanceInProgress {
+            return NSLocalizedString(
+                "Wait for the current Lock Screen operation to finish before updating Hikari.",
+                comment: "Native Lock busy update block"
+            )
+        }
+        if let reason = updateStorageBlockedReason { return reason }
+        if updateRequiresNativeLockRestore,
+           nativeLockSafetyReport.state == .transactionPreserved {
+            return NSLocalizedString(nativeLockSafetyReport.detail, comment: "Preserved Native Lock transaction")
+        }
+        if updateRequiresNativeLockRestore, !stateMonitor.permitsNativeMaintenance {
+            return NSLocalizedString(
+                "Unlock and wake this Mac before updating Hikari so the previous wallpaper can be restored safely.",
+                comment: "Native Lock session update block"
+            )
+        }
+        return nil
+    }
+
+    /// The installer still cannot replace the app until Restore has completed.
     var updateBlockedReason: String? {
+        if let reason = updatePreparationBlockedReason { return reason }
+        guard updateRequiresNativeLockRestore else { return nil }
+        return NSLocalizedString(
+            "Restore Native Lock before updating Hikari.",
+            comment: "Native Lock update block"
+        )
+    }
+
+    private var updateStorageBlockedReason: String? {
         if let storageMigrationErrorMessage {
             return String(
                 format: NSLocalizedString(
@@ -313,22 +348,13 @@ final class AppModel: ObservableObject {
         if let error = nativeLockController.transactionReadError {
             return error
         }
-        guard let phase = nativeLockPhase, phase != .restored else {
-            return nil
-        }
-        if nativeLockSafetyReport.state == .transactionPreserved {
-            return NSLocalizedString(nativeLockSafetyReport.detail, comment: "Preserved Native Lock transaction")
-        }
-        return NSLocalizedString(
-            "Restore Native Lock before updating Hikari.",
-            comment: "Native Lock update block"
-        )
+        return nil
     }
 
     /// Prepares and applies the selected video, then refreshes the saved transaction
     /// and its maintenance task after either success or failure.
     func applySelectedVideoToNativeLock() {
-        guard !isNativeLockWorking, let content = selectedContent else { return }
+        guard !isApplyingUpdate, !isNativeLockWorking, let content = selectedContent else { return }
         if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
            (nativeLockRecord?.journal.phase != .active
                || nativeLockRecord?.request.sourceContentID != content.id),
@@ -358,22 +384,26 @@ final class AppModel: ObservableObject {
     }
 
     func restoreNativeLock() {
-        guard !isNativeLockWorking else { return }
+        guard !isApplyingUpdate, !isNativeLockWorking else { return }
         isNativeLockWorking = true
         do {
-            try nativeLockController.restore()
-            nativeLockRecord = nativeLockController.currentRecord()
-            nativeRendererRefreshTask?.cancel()
-            nativeRendererRefreshTask = nil
-            nativeMaintenanceSchedule.cancel()
-            updateNativeLockMaintenance()
+            try restoreNativeLockTransaction()
         } catch {
-            nativeLockRecord = nativeLockController.currentRecord()
-            updateNativeLockMaintenance()
             presentedError = error.localizedDescription
         }
         isNativeLockWorking = false
         objectWillChange.send()
+    }
+
+    /// Shared throwing Restore path: update installation must never continue
+    /// after the manual UI's error handler has consumed a Restore failure.
+    private func restoreNativeLockTransaction() throws {
+        defer {
+            nativeLockRecord = nativeLockController.currentRecord()
+            updateNativeLockMaintenance()
+        }
+        try nativeLockController.restore()
+        cancelNativeRendererRefresh()
     }
 
     var canDiscardKnownNoopNativeLockPreflight: Bool {
@@ -386,7 +416,7 @@ final class AppModel: ObservableObject {
     }
 
     func discardKnownNoopNativeLockPreflight() {
-        guard !isNativeLockWorking else { return }
+        guard !isApplyingUpdate, !isNativeLockWorking else { return }
         isNativeLockWorking = true
         defer { isNativeLockWorking = false }
         do {
@@ -636,11 +666,12 @@ final class AppModel: ObservableObject {
 
     func applyLatestUpdate() {
         guard variant.supportsAutomaticUpdates else { return }
-        guard updateBlockedReason == nil else {
-            presentedError = updateBlockedReason
+        guard !isApplyingUpdate, !isShuttingDown else { return }
+        nativeLockRecord = nativeLockController.currentRecord()
+        if let reason = updatePreparationBlockedReason {
+            presentedError = reason
             return
         }
-        guard !isApplyingUpdate else { return }
         guard let release = latestRelease,
               updateCheckState == .updateAvailable else {
             checkForUpdates()
@@ -648,18 +679,39 @@ final class AppModel: ObservableObject {
         }
         isApplyingUpdate = true
         updateMonitor.stop()
+        nativeLockAutoApplyTask?.cancel()
+        nativeLockAutoApplyTask = nil
+        stopNativeLockMaintenance()
         let installer = appUpdateInstaller
         updateTask?.cancel()
         updateTask = Task { [weak self, installer] in
             do {
-                try await installer.install(release)
+                try await installer.install(release) { [weak self] in
+                    guard let self, !self.isShuttingDown else { throw CancellationError() }
+                    self.nativeLockRecord = self.nativeLockController.currentRecord()
+                    if let reason = self.updatePreparationBlockedReason {
+                        throw AppUpdatePreparationError(message: reason)
+                    }
+                    if self.updateRequiresNativeLockRestore {
+                        // The existing Restore validates backups, ownership and
+                        // OS provenance. Its error must abort app replacement.
+                        self.isNativeLockWorking = true
+                        defer { self.isNativeLockWorking = false }
+                        try self.restoreNativeLockTransaction()
+                    }
+                    if let reason = self.updateBlockedReason {
+                        throw AppUpdatePreparationError(message: reason)
+                    }
+                }
             } catch is CancellationError {
                 guard let self else { return }
                 self.isApplyingUpdate = false
+                self.updateNativeLockMaintenance()
                 self.startUpdateMonitoring()
             } catch {
                 guard let self else { return }
                 self.isApplyingUpdate = false
+                self.updateNativeLockMaintenance()
                 self.startUpdateMonitoring()
                 self.presentedError = error.localizedDescription
             }
@@ -754,6 +806,7 @@ final class AppModel: ObservableObject {
     /// debounces automatic application on a supported user Aerial backend.
     /// A recovered active journal also resumes its eligible maintenance task.
     private func scheduleNativeLockAutoApply() {
+        guard !isApplyingUpdate, !isShuttingDown else { return }
         if nativeLockController.transactionReadError != nil {
             nativeLockRecord = nativeLockController.currentRecord()
             updateNativeLockMaintenance()
@@ -776,7 +829,9 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
             defer { self.nativeLockAutoApplyTask = nil }
-            guard !self.stateMonitor.isScreenLocked,
+            guard !self.isApplyingUpdate,
+                  !self.isShuttingDown,
+                  !self.stateMonitor.isScreenLocked,
                   !self.stateMonitor.isSleeping,
                   self.nativeLockController.transactionReadError == nil,
                   self.nativeLockRecord == nil || self.canMaintainNativeLock,
@@ -831,7 +886,8 @@ final class AppModel: ObservableObject {
     /// Starts one maintenance task for an active transaction on its supported backend.
     /// The suspending clock avoids accumulating work while the Mac sleeps.
     private func startNativeLockMaintenance() {
-        guard nativeLockMaintenanceTask == nil,
+        guard !isApplyingUpdate,
+              nativeLockMaintenanceTask == nil,
               canMaintainNativeLock else {
             return
         }
@@ -873,7 +929,7 @@ final class AppModel: ObservableObject {
     /// Schedules one renderer refresh after the outgoing Lock Screen has settled.
     /// Transactions without a supported runtime backend cannot schedule a refresh.
     private func requestNativeRendererRefreshAfterUnlock() {
-        guard canMaintainNativeLock else { return }
+        guard !isApplyingUpdate, canMaintainNativeLock else { return }
         nativeRendererRefreshTask?.cancel()
         nativeMaintenanceSchedule.didUnlock(at: ProcessInfo.processInfo.systemUptime)
         nativeRendererRefreshTask = Task { [weak self] in
@@ -929,7 +985,8 @@ final class AppModel: ObservableObject {
         }
     }
     private var permitsNativeMaintenance: Bool {
-        !Task.isCancelled
+        !isApplyingUpdate
+            && !Task.isCancelled
             && stateMonitor.permitsNativeMaintenance
             && nativeMaintenanceSchedule.permitsMaintenance(
                 at: ProcessInfo.processInfo.systemUptime
@@ -998,4 +1055,9 @@ final class AppModel: ObservableObject {
         )
         LSRegisterURL(appURL as CFURL, true)
     }
+}
+
+private struct AppUpdatePreparationError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }

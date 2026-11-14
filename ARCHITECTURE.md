@@ -52,7 +52,10 @@ the source root is moved to a recoverable `.archived` sibling. The
 migration is idempotent and writes `hikari-storage-migration.json`. An active,
 prepared, restoring, or recovery-required journal continues to be visible to
 Hikari, so the app can offer Restore and blocks app updates until the journal
-is `restored`.
+is `restored`. The unreleased update flow permits downloading and validating a
+replacement with a supported unfinished transaction, then restores it before
+starting the replacement helper. Failed migration and unreadable or unsupported
+transactions still block update preparation.
 
 If migration fails, the source directory is not removed or overwritten. Hikari
 keeps updates blocked and shows the migration error so the user can recover
@@ -86,6 +89,30 @@ separate userAerials27 backend for Apply, matching-journal Restore and maintenan
 Product enablement is independent of store/schema preflight and does not assert
 that every Lock Screen presentation scenario is validated. Desktop video follows
 its own playback policy.
+
+### Restore during an app update (unreleased)
+
+`AppModel` separates update preparation eligibility from the final replacement
+guard. The confirmation dialog discloses automatic Restore, failure/cancellation
+behavior, and macOS 15 administrator authorization. `AppUpdateInstaller` first
+downloads the archive/checksum, checks SHA-256, extracts the app, verifies its
+bundle identity/version/signature and destination writability, and prepares the
+helper. Its required `beforeReplacingApp` callback then reloads the journal,
+checks runtime/session/migration eligibility, calls the same throwing Restore
+path as General, and rechecks that no unfinished transaction or read error
+remains. It starts the helper only after the callback returns successfully.
+Cancellation is checked before and after that callback.
+
+`isApplyingUpdate` gates Native Lock Apply, auto-apply, Restore/discard buttons,
+maintenance and renderer refresh for the entire download/restore/handoff period.
+Pending auto-apply and maintenance tasks are cancelled before downloading; an
+already running Native Lock operation blocks the update. On failure the app
+stays open and resumes eligible maintenance without automatically applying a new
+transaction. Journals/backups remain governed by the existing Restore engine;
+the updater neither deletes nor rewrites them. A failure after successful Restore
+may leave the old app running with the previous wallpaper restored. Selected
+content/settings are retained. Normal selected-video auto-apply behavior on a
+subsequent launch is unchanged.
 
 The 0.5.1 candidate separates `userAerials27` from 26's shared catalog. Its
 `NativeLockGoldenGateActivation` copies the bundled schema-2 catalog to a

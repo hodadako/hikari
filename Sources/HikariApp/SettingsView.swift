@@ -425,20 +425,20 @@ private struct NativeLockStatusSection: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(report.state != .ready || model.isNativeLockWorking)
+                    .disabled(report.state != .ready || model.isNativeLockWorking || model.isApplyingUpdate)
                 }
 
                 if model.canDiscardKnownNoopNativeLockPreflight {
                     Button("Clear Failed Preparation") {
                         model.discardKnownNoopNativeLockPreflight()
                     }
-                    .disabled(model.isNativeLockWorking)
+                    .disabled(model.isNativeLockWorking || model.isApplyingUpdate)
                 } else if model.nativeLockPhase != nil,
                           model.nativeLockPhase != .restored {
                     Button("Restore Previous Wallpaper") {
                         model.restoreNativeLock()
                     }
-                    .disabled(model.isNativeLockWorking || report.state == .transactionPreserved)
+                    .disabled(model.isNativeLockWorking || model.isApplyingUpdate || report.state == .transactionPreserved)
                 }
             }
         } header: {
@@ -485,11 +485,16 @@ private struct AboutView: View {
             .foregroundStyle(.secondary)
             Divider()
 
-            if let reason = model.updateBlockedReason {
+            if let reason = model.updatePreparationBlockedReason {
                 Label(reason, systemImage: "lock.shield")
                     .font(.caption)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.orange)
+            } else if model.updateRequiresNativeLockRestore {
+                Text("Hikari will restore the previous wallpaper automatically before installing the update. If Restore fails, the update will stop.")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             }
             updateControls
             Spacer()
@@ -507,7 +512,9 @@ private struct AboutView: View {
                 Text(
                     String(
                         format: NSLocalizedString(
-                            "Hikari will download %@, replace the current app, and relaunch.",
+                            model.updateRequiresNativeLockRestore
+                                ? "Hikari will download and verify %@, restore the previous wallpaper, then replace the app and relaunch. If Restore fails or is cancelled, the update will stop. macOS 15 may request administrator approval."
+                                : "Hikari will download %@, replace the current app, and relaunch.",
                             comment: "App update confirmation message"
                         ),
                         release.displayVersion
@@ -539,7 +546,7 @@ private struct AboutView: View {
                         showingUpdateConfirmation = true
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.isApplyingUpdate || model.updateBlockedReason != nil)
+                    .disabled(model.isApplyingUpdate || model.updatePreparationBlockedReason != nil)
                 }
             case .upToDate:
                 Text("Hikari is up to date.").foregroundStyle(.secondary)

@@ -2,6 +2,26 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — 앱 업데이트 직전 Native Lock 자동 복원 (2026-11-14)
+
+- 0.5.1 로컬 앱은 Native Lock이 active인 동안 About의 업데이트 버튼을 비활성화했다.
+  화면의 Restore 안내와 `AppModel.updateBlockedReason`을 대조해 기존 안전 정책에 따른
+  차단임을 확인했다. 사용자는 업데이트 시 자동 복원을 요청했다.
+- 업데이트 준비 차단과 최종 앱 교체 차단을 분리한다. 새 앱 다운로드·checksum·bundle·
+  signature·설치 경로 검증 뒤 기존 Restore 엔진을 호출하고, 성공 및 최종 journal 검사를
+  통과한 경우에만 helper를 실행한다. 실패·취소 시 기존 앱을 유지하고 오류를 표시한다.
+- 업데이트 중 Native Lock 자동 적용·유지보수·renderer refresh를 중단하고, 진행 중 작업과
+  잠금/잠자기 상태에서는 복원을 시작하지 않는다. 미지원 기록·백업 손상·migration 실패는
+  계속 차단한다. macOS 15 관리자 승인은 우회하지 않는다. 한국어·영어 안내를 추가했다.
+- macOS 27.2.1 / Xcode 26.6·SDK 26.5에서 다음 Debug build가 성공했다:
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Hikari.xcodeproj -scheme Hikari -configuration Debug -derivedDataPath /private/tmp/hikari-auto-restore-build CODE_SIGNING_ALLOWED=NO build`.
+  기본 `xcode-select`는 CommandLineTools를 가리켜 첫 시도는 시작하지 못했고, 전역 설정을
+  바꾸지 않고 명령 범위의 `DEVELOPER_DIR`로 해결했다. 기존 AVFoundation deprecated API와
+  Sendable 경고는 남아 있다. 이 변경에서 테스트를 추가·실행하지 않았다.
+- 실제 updater의 자동 Restore→앱 교체, macOS 15 승인 취소, 다운로드 중 잠금 및 실패 후
+  재시도 실기기 검증은 미실행이다. 현재 로컬 앱과 실제 wallpaper 저장소를 변경하지 않았다.
+  버전·태그·릴리스 asset은 갱신하지 않았으며 0.5.3까지의 수동 복원 정책은 그대로다.
+
 ## Hikari v0.5.3 (24) — macOS 27 Native Lock 활성화
 
 - 사용자가 비활성화된 0.5.2 대신 활성화된 버전 게시를 명시적으로 요청했다.
