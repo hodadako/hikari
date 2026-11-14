@@ -62,7 +62,7 @@ has already been upgraded, keep the transaction files. Restoring requires the
 original supported macOS version and matching wallpaper store. Hikari blocks
 its own update installer while an unfinished transaction is present.
 
-See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate).
+See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md).
 
 The first 0.5.1 live trial kept the Index mapping but failed actual Lock Screen
 playback. The candidate now has a separate schema-2 catalog and journaled catalog

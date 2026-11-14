@@ -58,7 +58,7 @@ macOS를 업그레이드하기 전에 활성 Native Lock을 Restore하세요. �
 변경 기록을 보존하세요. 복원에는 기록이 생성된 지원 macOS 버전과 일치하는 배경화면
 저장소가 필요합니다. 미완료 기록이 있으면 Hikari 자체 업데이트 설치도 차단됩니다.
 
-[macOS 27 검증 결과와 남은 항목](docs/VERSION_ISSUES.md#unreleased--macos-27-golden-gate)을 참고하세요.
+[macOS 27 검증 결과와 남은 항목](docs/VERSION_ISSUES.md)을 참고하세요.
 
 0.5.1 후보는 실제 저장소 구조 검사, transaction 생성 OS 기록, 선택적 26 → 27
 복구와 macOS 27 fixture·coverage 검증을 추가합니다. 실제 Native Lock 검증이
