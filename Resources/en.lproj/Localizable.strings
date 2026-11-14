@@ -3,7 +3,7 @@
 "Appearance" = "Appearance";
 "Blue" = "Blue";
 "Blue remains the Finder icon. Your choice is used by Hikari while it is running and in the menu bar." = "Blue remains the Finder icon. Your choice is used by Hikari while it is running and in the menu bar.";
-"Bring your desktop to life" = "Bring your desktop to life";
+"No video yet" = "No video yet";
 "Cancel" = "Cancel";
 "Change Content" = "Change Content";
 "Choose a video and Hikari will copy it into a managed library,\nthen play it quietly behind your desktop." = "Choose a video and Hikari will copy it into a managed library,\nthen play it quietly behind your desktop.";
@@ -42,7 +42,7 @@
 "Choose a video file that macOS recognizes as a movie." = "Choose a video file that macOS recognizes as a movie.";
 "Hikari opens the macOS Screen Saver panel." = "Hikari opens the macOS Screen Saver panel.";
 "Mute video" = "Mute video";
-"Live wallpaper for macOS." = "Live wallpaper for macOS.";
+"Native live wallpaper for macOS" = "Native live wallpaper for macOS";
 "Not installed" = "Not installed";
 "OK" = "OK";
 "Open System Settings" = "Open System Settings";
@@ -81,7 +81,7 @@
 "Video scaling" = "Video scaling";
 "Welcome to Hikari" = "Welcome to Hikari";
 "You do not need to move it manually. Hikari stores its copy in:" = "You do not need to move it manually. Hikari stores its copy in:";
-"Your original file is never modified." = "Your original file is never modified.";
+"Your original file is never modified" = "Your original file is never modified";
 "macOS requires you to confirm the screen saver selection. Immediately after locking, the existing Lock Screen background may remain visible until the screen saver starts." = "macOS requires you to confirm the screen saver selection. Immediately after locking, the existing Lock Screen background may remain visible until the screen saver starts.";
 "%@ app icon" = "%@ app icon";
 "After %d minutes" = "After %d minutes";
@@ -158,7 +158,7 @@
 "Checking for updates…" = "Checking for updates…";
 "Version %@ is available." = "Version %@ is available.";
 "Update and Relaunch" = "Update and Relaunch";
-"Hikari is up to date." = "Hikari is up to date.";
+"Hikari is up to date" = "Hikari is up to date";
 "Could not check for updates." = "Could not check for updates.";
 "Check for Updates" = "Check for Updates";
 "Preparing Update…" = "Preparing Update…";

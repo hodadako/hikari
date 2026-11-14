@@ -10,9 +10,12 @@ struct MenuBarView: View {
     @State private var showingImporter = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
             currentContentHeader
+                .padding(8)
             Divider()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
 
             if model.hasUpdateAvailable, let release = model.latestRelease {
                 Button(action: onShowUpdates) {
@@ -25,9 +28,9 @@ struct MenuBarView: View {
                         ),
                         systemImage: "arrow.down.circle"
                     )
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .foregroundStyle(.tint)
+                .modifier(MenuRowHover())
             }
 
             Button {
@@ -37,10 +40,10 @@ struct MenuBarView: View {
                     localized(
                         model.isPlaying ? "Pause Wallpaper" : "Play Wallpaper"
                     ),
-                    systemImage: model.isPlaying ? "pause.fill" : "play.fill"
+                    systemImage: model.isPlaying ? "pause" : "play"
                 )
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .modifier(MenuRowHover())
             .disabled(model.selectedContent == nil)
             .keyboardShortcut(.space, modifiers: [])
 
@@ -64,36 +67,39 @@ struct MenuBarView: View {
                 }
             } label: {
                 Label("Change Content", systemImage: "photo.on.rectangle.angled")
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .modifier(MenuRowHover())
 
             Button {
                 showSettings()
             } label: {
                 Label("Settings…", systemImage: "gearshape")
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .modifier(MenuRowHover())
 
             HStack {
-                Label("Native Lock", systemImage: "lock.fill")
-                Spacer()
+                Label("Native Lock", systemImage: "lock")
                 ShortcutKeyCapsView(compact: true)
+                    .padding(.trailing, 8)
             }
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .combine)
 
             Divider()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             Button {
                 model.shutdown()
                 NSApplication.shared.terminate(nil)
             } label: {
                 Label("Quit \(model.appDisplayName)", systemImage: "power")
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .modifier(MenuRowHover())
             .keyboardShortcut("q")
         }
         .buttonStyle(.plain)
-        .padding(14)
+        .labelStyle(MenuRowLabelStyle())
+        .padding(8)
         .frame(width: 300)
         .alert(
             model.attentionTitle,
@@ -114,7 +120,7 @@ struct MenuBarView: View {
             HStack(spacing: 12) {
                 ThumbnailView(url: model.thumbnailURL(for: content))
                     .frame(width: 72, height: 44)
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(content.title)
                         .font(.headline)
                         .lineLimit(1)
@@ -125,12 +131,15 @@ struct MenuBarView: View {
             }
         } else {
             HStack(spacing: 12) {
-                Image(systemName: "sparkles.tv")
-                    .font(.system(size: 24))
+                Image(systemName: "film")
                     .foregroundStyle(.secondary)
-                    .frame(width: 52, height: 40)
+                    .frame(width: 72, height: 44)
+                    .background(
+                        Color.primary.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Bring your desktop to life")
+                    Text("No video yet")
                         .font(.headline)
                     Text("Import a video to begin")
                         .font(.caption)
@@ -175,6 +184,38 @@ struct MenuBarView: View {
 
     private func localized(_ key: String) -> String {
         NSLocalizedString(key, comment: "")
+    }
+}
+
+/// Keeps every popover row's icon in one 16 pt column and gives the row a
+/// full-width hit area, so labels start on the same line.
+private struct MenuRowLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            configuration.title
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+}
+
+/// A static surface step under the pointer. It is applied before
+/// `.disabled` so a disabled row does not highlight.
+private struct MenuRowHover: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                Color.primary.opacity(isHovered && isEnabled ? 0.08 : 0),
+                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+            )
+            .onHover { isHovered = $0 }
     }
 }
 

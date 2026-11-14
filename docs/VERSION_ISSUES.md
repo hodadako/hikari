@@ -2,6 +2,38 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Hikari v0.5.5 (26) — 메뉴 팝오버·설정 화면 시각 정리 (2026-11-14)
+
+- 사용자 요청으로 메뉴 막대 팝오버와 설정(Welcome·General·About)의 시각 정리를 0.5.5 (26)로
+  릴리스 준비한다. 기능·정보 구조·Native Lock 동작은 바꾸지 않는다. 최소 배포 대상 15.0,
+  bundle identity, 기존 태그/asset을 유지한다.
+- 이슈와 영향: 간격 값이 4px 단위에서 벗어나 있었고(14·22·6·3·10), 팝오버 행 아이콘이 채움·
+  외곽선으로 섞여 폭이 달라 레이블이 한 열에 맞지 않았다. 팝오버 행에는 hover 표시가 없었다.
+  Safety Status·macOS major 업데이트 전 Restore 경고·About의 업데이트 차단 사유는 본문 글자를
+  주황/초록으로 칠해 라이트 모드 대비가 낮았다. About 소개 문구는 코드 키
+  (`Native live wallpaper for macOS.`)와 문자열 파일 키(`Live wallpaper for macOS.`)가 달라
+  한국어에서도 영어로 표시됐다.
+- 조치: 간격을 4/8/12/16/24로 맞췄다. 팝오버 행은 공용 `MenuRowLabelStyle`(16pt 아이콘 열,
+  최소 높이 28)과 `MenuRowHover`(primary 8% 정적 표면, 반경 6, 애니메이션 없음)를 쓴다.
+  빈 상태 아이콘을 `sparkles.tv`에서 `film`으로 바꾸고 썸네일과 같은 72×44 상자에 둔다.
+  주황·초록은 아이콘에만 남기고 글자는 primary/secondary로 표시한다. 경고 문구와 표시
+  조건은 그대로다. 제목 굵기를 semibold로 낮추고, 컴팩트 키캡 글자를 9pt에서 11pt로
+  올리고, 라이브러리의 해상도·길이에 고정폭 숫자를 적용했다. 아이콘 선택 타일은 padding 8,
+  반경 20으로 통일했다.
+- 문구: `Bring your desktop to life` → `No video yet`, 한 줄 캡션 세 개의 마침표 제거,
+  About 소개 문구 키를 코드와 일치시켜 한국어 번역이 표시되게 했다. 영어·한국어를 함께
+  갱신했다. README의 태그라인은 유지한다.
+- 유지한 제약: `ThumbnailView`의 aspect-fit·frame→clip→compositing 순서와 72×44pt/160px
+  decode, 상태 항목 아이콘 크기와 정적 반짝임, General/About 두 탭, 설정 창 닫기 시 hosting
+  controller 해제, 최상위 오류 alert, 업데이트 버튼의 enabled 조건은 변경하지 않았다.
+- 검증: macOS 27.2.1 / Xcode 26.6·SDK 26.5에서 0.5.5 metadata로 XcodeGen 재생성 후
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Hikari.xcodeproj -scheme Hikari -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test`
+  가 성공했다(`** TEST SUCCEEDED **`). Debug 앱 plist에서 0.5.5 (26)를 확인했다. 두 문자열
+  파일의 `plutil -lint`가 통과했다.
+- 남은 제약: 앱을 설치·실행해 화면을 확인하지 않았다. 팝오버 행 정렬과 hover, 특히 `Menu`인
+  `Change Content` 행의 레이블 스타일 적용, 다크 모드·배율·VoiceOver, macOS 15/26/27 각각의
+  렌더링은 수동 확인이 필요하다. 빌드·테스트 성공을 이 시각 확인으로 해석하지 않는다.
+
 ## Hikari v0.5.4 (25) — 앱 업데이트 직전 Native Lock 자동 복원 (2026-11-14)
 
 - 사용자 요청에 따라 PR #79의 자동 복원 변경을 0.5.4 (25)로 릴리스 준비한다.

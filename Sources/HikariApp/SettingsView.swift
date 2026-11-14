@@ -22,7 +22,7 @@ struct SettingsView: View {
                 .keyboardShortcut("q")
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
         }
         .alert(
             model.attentionTitle,
@@ -64,12 +64,12 @@ private struct WelcomeView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 24) {
             Spacer()
             HikariIconPreview(image: model.appIconImage, size: 82)
             VStack(spacing: 8) {
                 Text("Welcome to \(model.appDisplayName)")
-                    .font(.largeTitle.bold())
+                    .font(.largeTitle.weight(.semibold))
                 Text(
                     "Choose a video and Hikari will copy it into a managed library,\n"
                         + "then play it quietly behind your desktop."
@@ -77,7 +77,7 @@ private struct WelcomeView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             }
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 Label("Choose a video from anywhere on your Mac", systemImage: "folder")
                     .font(.headline)
                 Text("You do not need to move it manually. Hikari stores its copy in:")
@@ -87,7 +87,7 @@ private struct WelcomeView: View {
                     .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
             }
-            .padding(14)
+            .padding(16)
             .frame(maxWidth: 460)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
             Button {
@@ -102,7 +102,7 @@ private struct WelcomeView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(model.isImporting)
-            Text("Your original file is never modified.")
+            Text("Your original file is never modified")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
@@ -131,13 +131,14 @@ private struct GeneralSettingsView: View {
                     HStack(spacing: 12) {
                         ThumbnailView(url: model.thumbnailURL(for: content))
                             .frame(width: 72, height: 44)
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(content.title)
                             Text(
                                 "\(content.width) × \(content.height) · "
                                     + durationText(content.duration)
                             )
                             .font(.caption)
+                            .monospacedDigit()
                             .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -156,7 +157,7 @@ private struct GeneralSettingsView: View {
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Delete \(content.title)")
                     }
-                    .padding(.vertical, 3)
+                    .padding(.vertical, 4)
                 }
                 Button { chooseVideo() } label: {
                     Label("Import Video…", systemImage: "plus")
@@ -210,10 +211,10 @@ private struct GeneralSettingsView: View {
                                 model.settings.appIconStyle == style
                                     ? Color.accentColor.opacity(0.16)
                                     : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 12)
+                                in: RoundedRectangle(cornerRadius: 20)
                             )
                             .overlay {
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 20)
                                     .stroke(
                                         model.settings.appIconStyle == style
                                             ? Color.accentColor
@@ -230,7 +231,7 @@ private struct GeneralSettingsView: View {
             Section("Menu Bar Icon") {
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 92), spacing: 12)],
-                    spacing: 14
+                    spacing: 12
                 ) {
                     ForEach(MenuBarIconStyle.allCases) { style in
                         Button {
@@ -240,7 +241,7 @@ private struct GeneralSettingsView: View {
                                 model.setMenuBarIconStyle(style)
                             }
                         } label: {
-                            VStack(spacing: 6) {
+                            VStack(spacing: 8) {
                                 MenuBarIconPreview(
                                     image: model.menuBarIconImage(for: style),
                                     size: 58,
@@ -251,15 +252,15 @@ private struct GeneralSettingsView: View {
                                     .lineLimit(2)
                                     .multilineTextAlignment(.center)
                             }
-                            .padding(6)
+                            .padding(8)
                             .background(
                                 model.settings.menuBarIconStyle == style
                                     ? Color.accentColor.opacity(0.16)
                                     : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 12)
+                                in: RoundedRectangle(cornerRadius: 20)
                             )
                             .overlay {
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 20)
                                     .stroke(
                                         model.settings.menuBarIconStyle == style
                                             ? Color.accentColor
@@ -363,10 +364,14 @@ private struct NativeLockStatusSection: View {
         let backend = NativeLockOperatingSystemPolicy.current.writeBackend
         Section {
             LabeledContent("Safety Status") {
-                Label(localized(report.title), systemImage: "lock.shield.fill")
-                    .foregroundStyle(
-                        report.state == .active ? Color.green : Color.orange
-                    )
+                Label {
+                    Text(localized(report.title))
+                } icon: {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(
+                            report.state == .active ? Color.green : Color.orange
+                        )
+                }
             }
             Text(localized(report.detail))
                 .font(.callout)
@@ -394,10 +399,10 @@ private struct NativeLockStatusSection: View {
                     .fixedSize(horizontal: false, vertical: true)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
                 }
                 .font(.callout)
-                .foregroundStyle(.orange)
-                .padding(10)
+                .padding(12)
                 .background(
                     Color.orange.opacity(0.12),
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -462,13 +467,13 @@ private struct AboutView: View {
     @State private var showingUpdateConfirmation = false
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             Spacer()
             HikariIconPreview(image: model.appIconImage, size: 78)
-            Text(model.appDisplayName).font(.title.bold())
+            Text(model.appDisplayName).font(.title.weight(.semibold))
             Text("Version \(model.currentAppVersion)")
                 .foregroundStyle(.secondary)
-            Text("Native live wallpaper for macOS.")
+            Text("Native live wallpaper for macOS")
                 .foregroundStyle(.secondary)
             Link(
                 "GitHub Repository",
@@ -486,10 +491,15 @@ private struct AboutView: View {
             Divider()
 
             if let reason = model.updatePreparationBlockedReason {
-                Label(reason, systemImage: "lock.shield")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.orange)
+                Label {
+                    Text(reason)
+                } icon: {
+                    Image(systemName: "lock.shield")
+                        .foregroundStyle(.orange)
+                }
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
             } else if model.updateRequiresNativeLockRestore {
                 Text("Hikari will restore the previous wallpaper automatically before installing the update. If Restore fails, the update will stop.")
                     .font(.caption)
@@ -549,7 +559,7 @@ private struct AboutView: View {
                     .disabled(model.isApplyingUpdate || model.updatePreparationBlockedReason != nil)
                 }
             case .upToDate:
-                Text("Hikari is up to date.").foregroundStyle(.secondary)
+                Text("Hikari is up to date").foregroundStyle(.secondary)
             case .failed:
                 Text(model.updateErrorMessage ?? "Could not check for updates.")
                     .font(.caption)
