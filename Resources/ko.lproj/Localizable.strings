@@ -221,3 +221,20 @@
 "Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout." = "다른 잠금 화면 영상을 선택하기 전에 이전 macOS의 변경 기록을 복원하세요. Hikari는 백업을 검증하고 현재 디스플레이 및 Space 구성을 보존합니다.";
 
 "Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout." = "시스템 설정에서 Apple Aerial 배경화면을 선택해 잠금 화면 구성을 초기화하세요. Hikari는 검증되지 않은 배경화면 구성을 만들지 않습니다.";
+"Search videos" = "영상 검색";
+"Clear Search" = "검색 지우기";
+"Favorites only" = "즐겨찾기만";
+"No matching videos" = "일치하는 영상이 없습니다";
+"Add to Favorites" = "즐겨찾기에 추가";
+"Remove from Favorites" = "즐겨찾기에서 제거";
+"Rename Video" = "영상 제목 변경";
+"Video title" = "영상 제목";
+"Save" = "저장";
+"Only the library title changes. Your video file is not renamed." = "라이브러리에 표시되는 제목만 바뀝니다. 영상 파일 이름은 변경하지 않습니다.";
+"Lock Screen Video Preparation" = "잠금 화면 영상 변환";
+"Converting video" = "영상 변환 중";
+"Cancelling conversion…" = "변환 취소 중…";
+"Conversion cancelled" = "변환을 취소했습니다";
+"Conversion failed" = "변환에 실패했습니다";
+"Retry Conversion" = "변환 재시도";
+"Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready." = "취소해도 데스크톱 영상 재생과 기존 잠금 화면은 유지됩니다. 준비되면 다시 시도하세요.";

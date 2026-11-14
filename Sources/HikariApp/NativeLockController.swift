@@ -97,7 +97,28 @@ final class NativeLockController {
     /// Builds the macOS 26 Aerial input ahead of a selection.  This never
     /// changes the wallpaper store; it only creates an atomically-published
     /// cache in Hikari's private support directory.
-    func prepareMediaForNativeLock(content: LiveContent) async throws {
+    func prepareMediaForNativeLock(
+        content: LiveContent,
+        onProgress: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async throws {
+        let control = VideoPreparationControl(onProgress: onProgress)
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            do {
+                try await prepareMediaForNativeLock(content: content, control: control)
+            } catch {
+                // A cancelled image generator/reader can throw its own error.
+                // Preserve the user's cancellation intent instead of a failure alert.
+                try control.checkCancellation()
+                throw error
+            }
+        } onCancel: {
+            control.cancel()
+        }
+    }
+
+    private func prepareMediaForNativeLock(content: LiveContent, control: VideoPreparationControl) async throws {
+        try control.checkCancellation()
         guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               cachedPreparationURLs(for: content) == nil else {
             return
@@ -130,9 +151,13 @@ final class NativeLockController {
             try await prepareMedia(
                 from: container.mediaURL(for: content),
                 to: mediaURL,
-                aerialCompatible: true
+                aerialCompatible: true,
+                control: control
             )
+            try control.checkCancellation()
+            control.reportProgress(0.97)
             try await generatePreview(from: mediaURL, to: previewURL)
+            try control.checkCancellation()
             guard let versionData = Self.aerialPreparationVersion.data(
                 using: .utf8
             ) else {
@@ -146,9 +171,11 @@ final class NativeLockController {
             // already completed. Both candidates are derived from the same
             // immutable managed media file.
             if !FileManager.default.fileExists(atPath: cacheURL.path) {
+                try control.checkCancellation()
                 try FileManager.default.moveItem(at: temporaryURL, to: cacheURL)
             }
             try? FileManager.default.removeItem(at: temporaryURL)
+            control.reportProgress(1)
         } catch {
             try? FileManager.default.removeItem(at: temporaryURL)
             throw error
@@ -556,19 +583,28 @@ final class NativeLockController {
     private func prepareMedia(
         from sourceURL: URL,
         to destinationURL: URL,
-        aerialCompatible: Bool
+        aerialCompatible: Bool,
+        control: VideoPreparationControl = VideoPreparationControl()
     ) async throws {
         if aerialCompatible {
             // AVAssetWriter selects VideoToolbox's hardware HEVC encoder when
             // available. User-initiated priority keeps a freshly imported
             // selection from being delayed behind maintenance work, without
             // adding unsupported renderer prewarming.
-            try await Task.detached(priority: .userInitiated) {
+            let worker = Task.detached(priority: .userInitiated) {
                 try Self.transcodeForAerial(
                     sourceURL: sourceURL,
-                    destinationURL: destinationURL
+                    destinationURL: destinationURL,
+                    control: control
                 )
-            }.value
+            }
+            try await withTaskCancellationHandler {
+                try await worker.value
+                try Task.checkCancellation()
+            } onCancel: {
+                control.cancel()
+                worker.cancel()
+            }
             return
         }
         let asset = AVURLAsset(url: sourceURL)
@@ -596,8 +632,10 @@ final class NativeLockController {
     /// the Linked choice pointing at the previous asset.
     private nonisolated static func transcodeForAerial(
         sourceURL: URL,
-        destinationURL: URL
+        destinationURL: URL,
+        control: VideoPreparationControl
     ) throws {
+        try control.checkCancellation()
         try? FileManager.default.removeItem(at: destinationURL)
         let asset = AVURLAsset(url: sourceURL)
         guard let track = asset.tracks(withMediaType: .video).first else {
@@ -712,7 +750,8 @@ final class NativeLockController {
 
         if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27 {
             try AerialTemporalEncoder.encode(reader: reader, output: readerOutput, destinationURL: destinationURL,
-                                             width: outputWidth, height: outputHeight, frameRate: frameRate)
+                                             width: outputWidth, height: outputHeight, frameRate: frameRate,
+                                             duration: sourceComposition.duration.seconds, control: control)
             return
         }
         let writer = try AVAssetWriter(outputURL: destinationURL, fileType: .mov)
@@ -743,36 +782,54 @@ final class NativeLockController {
         }
         writer.add(writerInput)
 
+        var completed = false
+        defer {
+            if !completed {
+                reader.cancelReading()
+                writer.cancelWriting()
+            }
+        }
         guard reader.startReading(), writer.startWriting() else {
             throw HikariError.unreadableVideo
         }
         writer.startSession(atSourceTime: .zero)
 
         let finished = DispatchSemaphore(value: 0)
-        let queue = DispatchQueue(label: "com.hodadako.Hikari.native-lock-transcode")
-        writerInput.requestMediaDataWhenReady(on: queue) {
-            while writerInput.isReadyForMoreMediaData {
-                if let sampleBuffer = readerOutput.copyNextSampleBuffer() {
-                    guard writerInput.append(sampleBuffer) else {
-                        writerInput.markAsFinished()
-                        writer.cancelWriting()
-                        finished.signal()
-                        return
-                    }
-                } else {
-                    writerInput.markAsFinished()
-                    writer.finishWriting {
-                        finished.signal()
-                    }
-                    return
+        // Keep cancellation checks on the producer, including encoder backpressure.
+        // The desktop AVPlayer is independent of this one-time conversion.
+        var frames = 0
+        while let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+            try control.checkCancellation()
+            let deadline = DispatchTime.now() + .seconds(30)
+            while !writerInput.isReadyForMoreMediaData {
+                try control.checkCancellation()
+                guard writer.status == .writing, DispatchTime.now() < deadline else {
+                    throw writer.error ?? HikariError.unreadableVideo
                 }
+                Thread.sleep(forTimeInterval: 0.002)
+            }
+            guard writerInput.append(sampleBuffer) else { throw writer.error ?? HikariError.unreadableVideo }
+            frames += 1
+            let duration = sourceComposition.duration.seconds
+            if duration > 0 {
+                control.reportProgress(min(0.95, CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds / duration * 0.95))
             }
         }
-        finished.wait()
+        try control.checkCancellation()
+        guard reader.status == .completed, frames > 0 else { throw reader.error ?? HikariError.unreadableVideo }
+        writerInput.markAsFinished()
+        writer.finishWriting { finished.signal() }
+        let deadline = DispatchTime.now() + .seconds(60)
+        while finished.wait(timeout: .now() + .milliseconds(50)) == .timedOut {
+            try control.checkCancellation()
+            guard DispatchTime.now() < deadline else { throw HikariError.unreadableVideo }
+        }
+        try control.checkCancellation()
         guard writer.status == .completed else {
             try? FileManager.default.removeItem(at: destinationURL)
             throw HikariError.unreadableVideo
         }
+        completed = true
     }
 
     private func generatePreview(from mediaURL: URL, to destinationURL: URL) async throws {

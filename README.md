@@ -34,6 +34,8 @@ macOS Native Lock Screen path.
   and thumbnails
 - Low-overhead looping playback across connected displays and Spaces
 - Fill and Fit scaling, mute, battery pause, launch at login, and library management
+- Library title editing, favorites and search, with a favorites-only filter (unreleased)
+- Lock Screen video conversion progress, cancellation and explicit retry on macOS 26/27 (unreleased)
 - Menu bar playback and content controls
 - Automatic macOS 26 Native Lock Screen updates when the selected video changes,
   plus transaction recovery and Restore
@@ -48,6 +50,16 @@ macOS Native Lock Screen path.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen)
 
 The full Xcode installation is required for the Xcode scheme and XCTest suite.
+
+## Library and conversion controls (unreleased)
+
+In General, use the star to mark favorites, the pencil to edit a display title,
+and the search field to filter videos. Renaming never changes the media file or
+playback selection. Conversion status stays visible even when its video is
+filtered out. Cancelling stops preparation of the private Lock Screen copy,
+preserving desktop playback and the existing Lock Screen; the cancellation is
+remembered until **Retry Conversion** is chosen. macOS 15 retains its existing
+explicit Apply/Restore flow.
 
 ## macOS compatibility
 

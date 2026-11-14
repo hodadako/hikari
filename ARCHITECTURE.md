@@ -37,6 +37,33 @@ The canonical user container is:
 └── CustomMenuBarIcon.png
 ```
 
+## Library metadata and conversion controls (unreleased)
+
+Display titles remain in `LiveContent.title` in `contents.json`. Renaming saves
+metadata without changing IDs, filenames, preparation cache identities, playback
+or Native Lock journals. `HikariSettings` stores `favoriteContentIDs` and
+`cancelledNativeLockPreparationIDs`, both defaulting to empty sets when absent in
+older settings. Search/favorites-only filters are view state and do not reorder
+or modify the underlying library. Menu content choices indicate favorites.
+
+General shows preparation independently of the library filter. Each preparation
+operation has an ID so delayed progress callbacks cannot revive finished or
+cancelled UI. Progress is based on encoded presentation timestamps, capped below
+completion until finalization/preview/cache publication, and throttled to at most
+five deliveries per second. `VideoPreparationControl` propagates cancellation
+through detached tasks and VideoToolbox callbacks. Both 26's Main10 writer and
+27's temporal writer check cancellation during production/backpressure and final
+writer waits. The owning preparation operation removes its private staging on
+failure or cancellation and checks cancellation before publishing a cache.
+
+Cancellation is separate from Native Lock Restore: it stops private preparation,
+not an in-flight wallpaper transaction. Its persisted content ID suppresses both
+preparation and auto-apply until explicit Retry. Retry waits for the old worker to
+finish cleanup; deleting content cancels its worker. Settings and content writes
+are performed before committing favorite/title changes to observable state.
+The shared desktop player and transaction engine remain independent of these
+controls. macOS 15 has no new conversion workflow.
+
 ## First-launch storage migration
 
 `NativeStorageMigration` runs before Hikari loads its stores. It discovers

@@ -2,6 +2,17 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 영상 변환 취소의 worker 전파
+
+- 기존 private cache 변환은 `Task.detached(...).value`를 기다리고 26에서는 GCD writer
+  callback을 사용했다. 호출 task 취소만으로 detached worker와 callback의 취소 여부를
+  판단할 수 없으므로, UI에서 task handle만 제거하는 방식은 사용하지 않았다.
+- lock으로 보호한 `VideoPreparationControl`을 공유하고 writer backpressure 및 최종 대기에도
+  취소를 확인한다. 26의 producer는 하나의 background loop로 관리하며 27의 temporal
+  callback도 같은 신호를 읽는다. 취소된 preview/reader의 다른 오류는 cancellation으로
+  정규화해 실패 경고로 표시하지 않는다. worker 정리가 끝나야 재시도를 허용하고 원자적
+  cache 게시 전에 다시 취소를 확인한다. 이 경로의 실기기 실행 결과는 아직 기록하지 않았다.
+
 ## 2026-11-14 업데이트 버튼의 Native Lock 사전 차단
 
 - 미완료 transaction을 이유로 업데이트 버튼 자체를 막아 수동 Restore를 요구했다.

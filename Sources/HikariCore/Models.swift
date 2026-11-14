@@ -79,6 +79,8 @@ public struct HikariSettings: Codable, Equatable, Sendable {
     /// falls back to the user's home directory when this folder no longer
     /// exists.
     public var lastVideoPickerDirectoryPath: String?
+    public var favoriteContentIDs: Set<UUID>
+    public var cancelledNativeLockPreparationIDs: Set<UUID>
     public var playbackPreference: PlaybackPreference
     public var scalingMode: ScalingMode
     public var isMuted: Bool
@@ -110,7 +112,9 @@ public struct HikariSettings: Codable, Equatable, Sendable {
         customMenuBarIconRelativePath: String? = nil,
         overrideSystemLockShortcut: Bool = false,
         lockScreenPlaybackEnabled: Bool = false,
-        screenSaverPreviousIdleTime: Int? = nil
+        screenSaverPreviousIdleTime: Int? = nil,
+        favoriteContentIDs: Set<UUID> = [],
+        cancelledNativeLockPreparationIDs: Set<UUID> = []
     ) {
         self.selectedContentID = selectedContentID
         self.lastVideoPickerDirectoryPath = lastVideoPickerDirectoryPath
@@ -127,6 +131,8 @@ public struct HikariSettings: Codable, Equatable, Sendable {
         self.overrideSystemLockShortcut = overrideSystemLockShortcut
         self.lockScreenPlaybackEnabled = lockScreenPlaybackEnabled
         self.screenSaverPreviousIdleTime = screenSaverPreviousIdleTime
+        self.favoriteContentIDs = favoriteContentIDs
+        self.cancelledNativeLockPreparationIDs = cancelledNativeLockPreparationIDs
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -145,10 +151,14 @@ public struct HikariSettings: Codable, Equatable, Sendable {
         case overrideSystemLockShortcut
         case lockScreenPlaybackEnabled
         case screenSaverPreviousIdleTime
+        case favoriteContentIDs
+        case cancelledNativeLockPreparationIDs
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        favoriteContentIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .favoriteContentIDs) ?? []
+        cancelledNativeLockPreparationIDs = try values.decodeIfPresent(Set<UUID>.self, forKey: .cancelledNativeLockPreparationIDs) ?? []
         selectedContentID = try values.decodeIfPresent(
             UUID.self,
             forKey: .selectedContentID
