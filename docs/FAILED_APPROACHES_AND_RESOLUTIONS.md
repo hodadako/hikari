@@ -2,6 +2,18 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 업데이트 버튼의 Native Lock 사전 차단
+
+- 미완료 transaction을 이유로 업데이트 버튼 자체를 막아 수동 Restore를 요구했다.
+  안전 정책은 지켰지만 사용자가 업데이트를 진행할 방법을 찾기 어려웠다.
+- 사용자의 자동 복원 요청에 따라 다운로드·검증 후, 앱 교체 직전에 기존 throwing Restore를
+  호출한다. 수동 Restore UI 함수는 오류를 내부에서 소비하므로 업데이트에서 직접 호출하지
+  않고 공통 throwing 경로를 분리했다. 복원 오류가 helper 실행으로 이어지지 않게 한다.
+- 버튼의 disabled 조건만 제거하거나 다운로드 전부터 복원하는 방식은 사용하지 않는다.
+  최종 교체 guard, backup/hash/OS 검증을 유지하고 업데이트 중 자동 Apply·유지보수를 차단한다.
+- 로컬 build의 기본 개발자 경로가 CommandLineTools여서 `xcodebuild`가 시작하지 못했다.
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`를 명령에 지정해 build를 완료했다.
+
 ## 2026-11-14 활성화 요청과 배포 gate의 불일치
 
 - 0.5.2는 로컬 27 검증 앱과 달리 배포 gate가 꺼진 채 게시됐다. 사용자는 활성화된

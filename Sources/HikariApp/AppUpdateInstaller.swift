@@ -16,7 +16,12 @@ final class AppUpdateInstaller {
         self.service = service
     }
 
-    func install(_ release: LatestRelease) async throws {
+    /// Validate the replacement before allowing any wallpaper changes. The
+    /// caller must restore Native Lock and recheck its guards at this boundary.
+    func install(
+        _ release: LatestRelease,
+        beforeReplacingApp: @MainActor () throws -> Void
+    ) async throws {
         guard let releaseVersion = release.version else {
             throw ReleaseUpdateError.invalidReleaseVersion
         }
@@ -121,6 +126,9 @@ final class AppUpdateInstaller {
             replacementURL.path,
             temporaryRoot.path
         ]
+        try Task.checkCancellation()
+        try beforeReplacingApp()
+        try Task.checkCancellation()
         try helper.run()
         keepTemporaryRoot = true
         NSApplication.shared.terminate(nil)
