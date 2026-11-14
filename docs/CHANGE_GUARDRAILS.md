@@ -49,7 +49,7 @@
 - Hikari의 canonical 사용자 저장소는 `~/Library/Application Support/Hikari`다. pre-Hikari 일반·Native Local 저장소는 런타임 compatibility table로만 찾고, 첫 실행에 콘텐츠·설정·아이콘·transaction을 idempotent하게 병합한 뒤 원본을 삭제하지 않고 `.archived` 인접 경로로 이동한다. canonical 파일과 충돌하는 경우 canonical 파일을 보존한다.
 - 신규 제품·모듈·타깃·타입·bundle·저장소·문서·archive 이름에는 Hikari casing만 사용한다. pre-Hikari 데이터 식별자는 마이그레이션과 기존 macOS 15 transaction Restore에 필요한 runtime-only 호환 값으로만 유지한다.
 - 일반 CI는 Hikari만 빌드·테스트한다. PR의 macOS 15/26 매트릭스에서는 대표 `macos-15` runner에서 Debug build/test만 실행한다. `main` push와 정상 `vX.Y.Z` tag는 `macos-15`, `macos-15-intel`, `macos-26`, `macos-26-intel`에서 전체 build/test를 실행한다. tag에서는 Hikari bundle 검사도 실행한다. 정상 tag에서만 Hikari ad-hoc asset과 checksum을 패키징·업로드·릴리스하며, 별도 `hikari-v*` release channel은 만들지 않는다. release coverage는 네 runner 결과를 각각 Codecov flag로 올린다.
-- macOS 27에서는 읽을 수 있는 Aerial 스키마만으로 Native Lock 쓰기를 허용하지 않는다. 기존 변경 기록과 백업은 보존하며, Apply·Restore·유지보수·renderer refresh는 검증된 backend가 있어야 실행한다. 지원 OS와 저장소 형식의 검증을 각각 유지한다.
+- macOS 27에서는 읽을 수 있는 Aerial 스키마만으로 Native Lock 쓰기를 허용하지 않는다. 기존 변경 기록과 백업은 보존하며, Apply·Restore·유지보수·renderer refresh는 검증된 backend가 있어야 실행한다. 지원 OS와 저장소 형식의 검증을 각각 유지한다. 0.5.3은 사용자의 명시적 활성화 요청으로 분리된 userAerials27 backend를 배포한다. 기능 활성화와 실기기 검증 완료를 혼동하지 않으며, 저장소·소유권·백업 hash·생성 OS 검사를 생략하지 않는다.
 - 기존 macOS 15/26 runner 정책에 더해 코드가 바뀐 PR, main 및 정상 태그는 정식 `xcode-27` ARM64 runner에서 빌드·테스트한다. 이 job은 배포 대상 15.0 및 앱·helper의 Universal slice를 확인하며, 기존 release asset과 네 Codecov flag를 사용한다는 배포 정책을 유지한다.
 - 같은 system wallpaper/aerial 저장소를 수정하는 다른 도구와 native 잠금 화면 실험을 동시에 실행하지 않는다.
 

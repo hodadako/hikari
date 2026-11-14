@@ -39,30 +39,31 @@ public enum NativeLockUpgradeGuard {
 
 /// Selects reviewed write backends independently of the live store schema.
 public struct NativeLockOperatingSystemPolicy: Sendable {
-    /// Release gate: fixture/build success cannot validate the live service
-    /// lifecycle. Set only after explicitly authorized macOS 27 validation.
-    public static let goldenGateRuntimeValidated = false
+    /// Product enablement, explicitly requested for the 0.5.3 release.
+    /// This does not assert that every live Lock Screen scenario is validated.
+    /// Schema, ownership, backup and originating-OS checks remain mandatory.
+    public static let goldenGateNativeLockEnabled = true
     public static var current: Self {
         Self(majorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
     }
 
     public let majorVersion: Int
-    private let hasGoldenGateRuntimeValidation: Bool
+    private let isGoldenGateNativeLockEnabled: Bool
 
     /// Creates an injectable runtime policy without probing or modifying live stores.
     public init(
         majorVersion: Int,
-        goldenGateRuntimeValidated: Bool = Self.goldenGateRuntimeValidated
+        goldenGateNativeLockEnabled: Bool = Self.goldenGateNativeLockEnabled
     ) {
         self.majorVersion = majorVersion
-        self.hasGoldenGateRuntimeValidation = goldenGateRuntimeValidated
+        self.isGoldenGateNativeLockEnabled = goldenGateNativeLockEnabled
     }
 
     public var writeBackend: NativeLockTransactionBackend? {
         switch majorVersion {
         case 15: .systemCatalog
         case 26: .userAerials
-        case 27: hasGoldenGateRuntimeValidation ? .userAerials27 : nil
+        case 27: isGoldenGateNativeLockEnabled ? .userAerials27 : nil
         default: nil
         }
     }
@@ -146,11 +147,11 @@ public enum NativeLockSafetyInspector {
         transactionOperatingSystemMajorVersion: Int? = nil,
         aerialManifestURL: URL? = nil,
         aerialWallpaperIndexURL: URL? = nil,
-        goldenGateRuntimeValidated: Bool = NativeLockOperatingSystemPolicy.goldenGateRuntimeValidated
+        goldenGateNativeLockEnabled: Bool = NativeLockOperatingSystemPolicy.goldenGateNativeLockEnabled
     ) -> NativeLockSafetyReport {
         let policy = NativeLockOperatingSystemPolicy(
             majorVersion: operatingSystemVersion.majorVersion,
-            goldenGateRuntimeValidated: goldenGateRuntimeValidated
+            goldenGateNativeLockEnabled: goldenGateNativeLockEnabled
         )
         if NativeLockUpgradeGuard.requiresRestoreBeforeMajorOperatingSystemUpdate(
             transactionPhase: transactionPhase

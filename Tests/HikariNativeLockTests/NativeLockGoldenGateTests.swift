@@ -150,6 +150,32 @@ final class NativeLockGoldenGateTests: XCTestCase {
         XCTAssertThrowsError(try manager.inspectStore())
     }
 
+    func testShippedGoldenGateSafetyStillRequiresSchemaAndLayout() throws {
+        let os = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
+        // Default product enablement must not accept the old schema-1 cache.
+        XCTAssertEqual(NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: os, hasSelectedMedia: true,
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index
+        ).state, .aerialCatalogRequired)
+        var catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as! [String: Any]
+        catalog["version"] = 2
+        try JSONSerialization.data(withJSONObject: catalog).write(to: manifest)
+        XCTAssertEqual(NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: os, hasSelectedMedia: true,
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index
+        ).state, .ready)
+        XCTAssertEqual(NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: os, hasSelectedMedia: false, transactionPhase: .active,
+            transactionBackend: .userAerials27, transactionOperatingSystemMajorVersion: 27,
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index
+        ).state, .active)
+        try Data("invalid index".utf8).write(to: index)
+        XCTAssertEqual(NativeLockSafetyInspector.evaluate(
+            operatingSystemVersion: os, hasSelectedMedia: true,
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index
+        ).state, .aerialCatalogRequired)
+    }
+
     func testGoldenGateSafetyDistinguishesNewAndUpgradedTransactions() throws {
         var catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as! [String: Any]
         catalog["version"] = 2
@@ -157,18 +183,18 @@ final class NativeLockGoldenGateTests: XCTestCase {
         let os = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
         XCTAssertEqual(NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: os, hasSelectedMedia: true,
-            aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateRuntimeValidated: true
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateNativeLockEnabled: true
         ).state, .ready)
         XCTAssertEqual(NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: os, hasSelectedMedia: false, transactionPhase: .active,
             transactionBackend: .userAerials27, transactionOperatingSystemMajorVersion: 27,
-            aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateRuntimeValidated: true
+            aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateNativeLockEnabled: true
         ).state, .active)
         for source: Int? in [nil, 26, 27] {
             XCTAssertEqual(NativeLockSafetyInspector.evaluate(
                 operatingSystemVersion: os, hasSelectedMedia: false, transactionPhase: .active,
                 transactionBackend: .userAerials, transactionOperatingSystemMajorVersion: source,
-                aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateRuntimeValidated: true
+                aerialManifestURL: manifest, aerialWallpaperIndexURL: index, goldenGateNativeLockEnabled: true
             ).state, .recoveryRequired)
         }
     }
@@ -213,7 +239,7 @@ final class NativeLockGoldenGateTests: XCTestCase {
 
     func testUpgradeRestorePreservesExternalChoicesAndCurrentTopology() throws {
         let record = try apply(majorVersion: 26)
-        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
+        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateNativeLockEnabled: true)
         XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 26))
         XCTAssertTrue(policy.requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
         var current = try indexDictionary()
@@ -268,7 +294,7 @@ final class NativeLockGoldenGateTests: XCTestCase {
     }
 
     func testGoldenGatePolicyDoesNotAdoptAnUpgradedOrUnknownJournal() {
-        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
+        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateNativeLockEnabled: true)
         for sourceOS: Int? in [nil, 15, 26, 28] {
             XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: sourceOS))
         }
@@ -276,9 +302,10 @@ final class NativeLockGoldenGateTests: XCTestCase {
         XCTAssertFalse(NativeLockOperatingSystemPolicy(majorVersion: 28).requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
     }
 
-    func testUnvalidatedGoldenGateRuntimeCannotWriteOrRestoreEvenWithMatchingBackend() {
-        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: false)
+    func testDisabledGoldenGateFeatureCannotWriteOrRestoreEvenWithMatchingBackend() {
+        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateNativeLockEnabled: false)
         XCTAssertNil(policy.writeBackend)
+        XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: 27))
         XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 27))
         XCTAssertFalse(policy.requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
     }
