@@ -882,13 +882,18 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             // already live, so preserve the exact bytes.
             restoredData = originalData
         } else {
-            let merged = Self.restoringWallpaperChoices(
+            var merged = Self.restoringWallpaperChoices(
                 current: currentDictionary,
                 original: originalDictionary,
                 restoreOverlay: restoreOverlay,
                 assetID: record.request.assetID.uuidString,
                 linkedOnly: forceSelective
             )
+            if forceSelective, record.journal.materializedWallpaperIndexSHA256 != nil,
+               Self.wallpaperChoiceCounts(in: originalDictionary, matching: record.request.assetID.uuidString, scope: .linked).total == 0 {
+                merged = try Self.removingMaterializedOwnedLinked(current: merged, original: originalDictionary,
+                    assetID: record.request.assetID.uuidString).value
+            }
             guard let mergedDictionary = merged as? [String: Any] else {
                 throw NativeLockTransactionError.invalidWallpaperStore
             }
@@ -1338,6 +1343,68 @@ public final class NativeLockUserTransactionStore: @unchecked Sendable {
             }
         }
         return current
+    }
+
+    /// A 26 bootstrap can have no original Linked choice to substitute. Undo
+    /// only its remaining owned choices, keeping the current topology and foreign
+    /// choices. Never invent an Apple fallback or replay the whole old index.
+    private static func removingMaterializedOwnedLinked(
+        current: Any, original: Any?, assetID: String
+    ) throws -> (value: Any, removed: Bool) {
+        if var dictionary = current as? [String: Any] {
+            let before = original as? [String: Any] ?? [:]
+            let isBootstrapContainer = dictionary["Linked"] != nil
+                || (dictionary["Default"] is [String: Any] && dictionary["Displays"] is [String: Any])
+            var removed = false
+            if var linked = dictionary["Linked"] as? [String: Any],
+               var content = linked["Content"] as? [String: Any],
+               let choices = content["Choices"] as? [[String: Any]] {
+                let retained = choices.filter { choiceAssetID(in: $0) != assetID }
+                if retained.count != choices.count {
+                    if retained.isEmpty {
+                        // Unknown additions inside an otherwise owned container
+                        // cannot safely be discarded. Preserve recovery instead.
+                        guard Set(linked.keys).isSubset(of: ["Content", "LastSet", "LastUse"]),
+                              Set(content.keys).isSubset(of: ["Choices", "EncodedOptionValues", "Shuffle"]) else {
+                            throw NativeLockTransactionError.invalidWallpaperStore
+                        }
+                        dictionary.removeValue(forKey: "Linked")
+                    } else {
+                        content["Choices"] = retained
+                        linked["Content"] = content
+                        dictionary["Linked"] = linked
+                    }
+                    removed = true
+                    // Bootstrap replaced these original fields. Restore only
+                    // absent fields; an external replacement always wins.
+                    for key in ["Desktop", "Idle"] where dictionary[key] == nil {
+                        dictionary[key] = before[key]
+                    }
+                }
+            }
+            for key in dictionary.keys {
+                let child = try removingMaterializedOwnedLinked(current: dictionary[key]!, original: before[key], assetID: assetID)
+                dictionary[key] = child.value
+                removed = removed || child.removed
+            }
+            if removed, isBootstrapContainer, dictionary["Type"] as? String == "linked",
+               !containsLinkedWallpaperChoice(in: dictionary) {
+                dictionary["Type"] = before["Type"]
+            }
+            return (dictionary, removed)
+        }
+        if let array = current as? [Any] {
+            let before = original as? [Any] ?? []
+            var removed = false
+            let values = try array.enumerated().map { index, value -> Any in
+                let child = try removingMaterializedOwnedLinked(current: value,
+                    original: index < before.count ? before[index] : nil, assetID: assetID)
+                removed = removed || child.removed
+                return child.value
+            }
+            return (values, removed)
+        }
+        return (current, false)
     }
 
     private static func collectWallpaperChoices(

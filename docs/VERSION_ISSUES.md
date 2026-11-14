@@ -4,6 +4,10 @@
 
 ## Hikari v0.5.1 (22) — macOS 27 Native Lock 후보 (미릴리스)
 
+- 2026-11-14 추가 리뷰: 원본 Linked가 없는 macOS 26 bootstrap 기록의 선택 Restore가
+  남은 소유 choice 때문에 중단되는 경로를 수정했다. 원본 값이 없는 소유 Linked만 제거하고
+  현재 topology·외부 선택·원본 Desktop/Idle를 보존하는 fixture를 추가했다.
+
 - 27.2.1의 실제 사용자 Aerial 저장소와 기존 transaction 백업을 읽기 전용으로
   조사했다. schema/provider/Linked/configuration/placement를 검사하는 별도 preflight와
   익명화 fixture를 추가했다. [조사와 검증 계획](NATIVE_LOCK_MACOS27.md)을 참고한다.

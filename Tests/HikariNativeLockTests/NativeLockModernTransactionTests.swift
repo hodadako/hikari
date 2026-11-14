@@ -250,6 +250,43 @@ final class NativeLockModernTransactionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: wallpaperIndexURL), originalIndex)
     }
 
+    func testUpgradeSelectiveRestoreRemovesBootstrapLinkedWithoutInventingFallback() throws {
+        try makeIndex(includeLinkedChoices: false).write(to: wallpaperIndexURL)
+        let original = try PropertyListSerialization.propertyList(from: Data(contentsOf: wallpaperIndexURL), options: [], format: nil) as! [String: Any]
+        let store = NativeLockUserTransactionStore(supportRootURL: supportURL, wallpaperIndexURL: wallpaperIndexURL, userID: UInt32(getuid()))
+        let media = rootURL.appendingPathComponent("source.mov"), preview = rootURL.appendingPathComponent("source.png")
+        try Data("movie".utf8).write(to: media); try Data("preview".utf8).write(to: preview)
+        let record = try store.prepare(sourceContentID: UUID(), title: "Bootstrap", preparedMediaURL: media,
+                                       preparedPreviewURL: preview, operatingSystemMajorVersion: 26)
+        _ = try store.materializeLinkedWallpaperTopology(transactionID: record.request.transactionID,
+            assetID: "11111111-1111-4111-8111-111111111111",
+            topology: NativeLockLinkedWallpaperTopology(spaceIDs: ["SPACE-1"], displayIDs: ["DISPLAY-1"]))
+        _ = try store.markSystemApplied(transactionID: record.request.transactionID,
+            manifestSHA256: String(repeating: "0", count: 64), backend: .userAerials)
+        _ = try store.applyLinkedWallpaperMapping(transactionID: record.request.transactionID)
+        var current = try PropertyListSerialization.propertyList(from: Data(contentsOf: wallpaperIndexURL), options: [], format: nil) as! [String: Any]
+        current["ExternalMetadata"] = "preserve"
+        current["Type"] = "linked" // root Type was not written by bootstrap
+        var displays = current["Displays"] as! [String: Any]
+        displays["EXTERNAL-DISPLAY"] = original["SystemDefault"]
+        current["Displays"] = displays
+        try PropertyListSerialization.data(fromPropertyList: current, format: .binary, options: 0).write(to: wallpaperIndexURL)
+        try store.validateWallpaperRestore(transactionID: record.request.transactionID, forceSelective: true)
+        try store.restoreWallpaperMapping(transactionID: record.request.transactionID, forceSelective: true)
+        let restored = try PropertyListSerialization.propertyList(from: Data(contentsOf: wallpaperIndexURL), options: [], format: nil) as! [String: Any]
+        XCTAssertEqual(restored["ExternalMetadata"] as? String, "preserve")
+        XCTAssertEqual(restored["Type"] as? String, "linked")
+        let restoredDisplays = restored["Displays"] as! [String: Any]
+        XCTAssertNotNil(restoredDisplays["DISPLAY-1"])
+        XCTAssertTrue(NSDictionary(dictionary: restoredDisplays["EXTERNAL-DISPLAY"] as! [String: Any]).isEqual(to: original["SystemDefault"] as! [String: Any]))
+        XCTAssertFalse(try store.hasLinkedWallpaperChoices())
+        let defaults = restored["SystemDefault"] as! [String: Any]
+        let oldDefaults = original["SystemDefault"] as! [String: Any]
+        for key in ["Desktop", "Idle"] {
+            XCTAssertTrue(NSDictionary(dictionary: defaults[key] as! [String: Any]).isEqual(to: oldDefaults[key] as! [String: Any]))
+        }
+    }
+
     func testApplyThrowsAerialCatalogMissingWhenManifestAbsent() throws {
         // Remove the manifest to simulate an uninitialized Aerial catalog.
         try FileManager.default.removeItem(at: manifestURL)

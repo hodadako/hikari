@@ -2,6 +2,18 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-14 macOS 26 bootstrap 기록의 선택 복원 누락
+
+- CodeRabbit 후속 리뷰에서 원본 Index에 Linked가 없는 26 bootstrap transaction은
+  forceSelective 복원 시 대체할 원본 choice가 없어 소유 asset이 남는 것을 확인했다.
+  기존 guard가 공유 파일 쓰기 전에 차단하므로 손상은 없지만 27 복원이 불가능했다.
+- journal에 materialized hash가 있고 원본 Linked가 없는 경우만 별도로 처리한다.
+  대체되지 않은 소유 choice를 제거하고 현재 topology·외부 choice를 유지한다.
+  비어 있는 Hikari 생성 Linked는 제거하며 누락된 원본 Desktop/Idle와 Type만 복구한다.
+  인식할 수 없는 container metadata는 삭제하지 않고 복구 상태를 유지한다.
+- 임시 저장소 회귀 테스트로 bootstrap → Apply → 외부 topology 변경 → 선택 Restore를
+  확인했다. 검증된 Apple 원본 choice를 새로 만들거나 이전 Index 전체를 replay하지 않는다.
+
 ## 2026-11-13 macOS 27 기본 잠금 화면이 유지된 실제 실패
 
 - 사용자 cache의 schema 1과 54/54 Linked 선택이 30초 유지된 것만으로 실제 렌더러가
