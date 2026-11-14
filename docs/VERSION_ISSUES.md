@@ -2,7 +2,32 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Hikari v0.5.2 (23) — 릴리스 준비 (미게시)
+## Hikari v0.5.3 (24) — macOS 27 Native Lock 활성화
+
+- 사용자가 비활성화된 0.5.2 대신 활성화된 버전 게시를 명시적으로 요청했다.
+  기존 태그·asset은 유지하고 0.5.3 (24)에서 userAerials27 backend를 기본 활성화한다.
+- 제품 flag를 goldenGateNativeLockEnabled로 명명해 활성화를 실기기 검증 완료로
+  표현하지 않는다. 15/26 backend, schema/index 검사, 백업·hash·journal·소유권·
+  OS provenance, 선택적 Restore와 updater의 미완료 transaction 차단은 유지한다.
+- 27.2.1 한 대의 실제 Apply/Restore·파일 접근은 이전 조사에서 확인했으나, 마지막
+  타이밍 수정 뒤 반복 잠금의 검은 화면 해소는 아직 미확인이다. 재부팅·외부 화면·Spaces
+  검증도 남아 있다. 사용자 요청에 따른 활성화가 완전 호환 확인을 의미하지 않는다.
+- 기본 정책과 SafetyInspector가 주입 없이 27 backend를 선택하는지, 잘못된 schema·
+  index는 계속 거부하는지 임시 fixture 회귀 테스트를 추가한다. 실제 wallpaper 저장소는
+  이번 버전 변경·테스트 과정에서 수정하지 않았다.
+- macOS 27.2.1 / Xcode 26.6·SDK 26.5에서 `swift test --parallel` 134개와
+  `xcodebuild ... CODE_SIGNING_ALLOWED=NO test` 161개가 통과했다(실패·skip 0).
+  기본 활성화 정책, schema/index 거부, 기존 Apply/Restore·rollback·복구 fixture를
+  포함한다. 실제 잠금 화면 재생 결과로 해석하지 않는다.
+
+## Hikari v0.5.2 (23) — 2026-11-14 게시
+
+- [v0.5.2](https://github.com/hodadako/hikari/releases/tag/v0.5.2)를 게시했다.
+  [태그 전체 CI](https://github.com/hodadako/hikari/actions/runs/43566802783)는 macOS 15/26
+  ARM64·Intel 및 xcode-27, coverage·패키징을 통과했다. 배포 ZIP의 checksum·서명·
+  0.5.2 (23)·Universal/minimum 15.0을 확인했다. 이 버전의 27 Native Lock은 비활성이다.
+
+### 게시 전 준비 기록
 
 - 사용자 요청에 따라 PR #75·#76의 변경을 포함하는 다음 릴리스 버전을 0.5.2로
   지정했다. build number는 23으로 기존 0.5.1 (22) 로컬 검증 앱과 구분한다.

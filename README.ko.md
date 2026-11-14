@@ -52,17 +52,19 @@ Xcode 스킴과 XCTest 전체 실행에는 전체 Xcode 설치가 필요합니�
 | --- | --- | --- |
 | macOS 15, Apple Silicon·Intel | 지원 | 관리자 승인 후 구형 카탈로그에 Apply 및 Restore |
 | macOS 26, Apple Silicon·Intel | 지원 | 영상 선택 시 사용자 Aerial에 자동 적용. 일치하는 저장소에서 Restore 가능 |
-| macOS 27, Apple Silicon | 자동화 테스트에서 재생 및 복구 확인. 실기기 디스플레이·앱 UI 검증은 남아 있음 | Apply·자동 유지보수·Restore 비활성화. 기존 변경 기록과 백업 보존 |
+| macOS 27, Apple Silicon | 자동화 테스트에서 재생 및 복구 확인. 실기기 디스플레이·앱 UI 검증은 남아 있음 | 0.5.3부터 schema 2 사용자 Aerial backend로 Apply·유지보수·Restore 활성화. 저장소 사전 검증 필요, 반복 잠금·실기기 디스플레이 검증은 미완료 |
 
 macOS를 업그레이드하기 전에 활성 Native Lock을 Restore하세요. 이미 업그레이드했다면
-변경 기록을 보존하세요. 복원에는 기록이 생성된 지원 macOS 버전과 일치하는 배경화면
-저장소가 필요합니다. 미완료 기록이 있으면 Hikari 자체 업데이트 설치도 차단됩니다.
+변경 기록을 보존하세요. 복원에는 일치하는 지원 backend와 배경화면 저장소가 필요합니다.
+명시적 26 → 27 복구는 백업 검증 후 소유 choice만 선택적으로 복원하며 자동 인계는
+차단합니다. 미완료 기록이 있으면 Hikari 자체 업데이트 설치도 차단됩니다.
 
 [macOS 27 검증 결과와 남은 항목](docs/VERSION_ISSUES.md)을 참고하세요.
 
-0.5.1 후보는 실제 저장소 구조 검사, transaction 생성 OS 기록, 선택적 26 → 27
-복구와 macOS 27 fixture·coverage 검증을 추가합니다. 실제 Native Lock 검증이
-남아 있어 production gate는 비활성 상태입니다.
+사용자의 명시적 요청에 따라 0.5.3부터 macOS 27 Native Lock을 활성화합니다.
+실제 저장소 구조·transaction 생성 OS·백업 hash 검증과 선택적 26 → 27 복구를 유지합니다.
+한 대의 macOS 27.2.1 Mac에서 Apply/Restore를 확인했으나, 검은 화면 수정 후 반복 잠금·
+재부팅·디스플레이 실기기 검증은 미완료입니다. 활성화가 완전 호환 검증을 뜻하지는 않습니다.
 [후보 조사 및 검증 계획](docs/NATIVE_LOCK_MACOS27.md)과
 [지속 검은 화면 인코딩 조사](docs/NATIVE_LOCK_BLACK_SCREEN.md)를 참고하세요.
 

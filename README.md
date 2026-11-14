@@ -55,19 +55,22 @@ The full Xcode installation is required for the Xcode scheme and XCTest suite.
 | --- | --- | --- |
 | macOS 15, Apple Silicon and Intel | Supported | Apply and Restore use the legacy catalog and require administrator approval |
 | macOS 26, Apple Silicon and Intel | Supported | Selecting a video applies it to the user Aerial store. Restore is available with a matching store |
-| macOS 27, Apple Silicon | Playback and recovery covered by automated tests. Physical display and app UI checks are pending | Apply, automatic maintenance and Restore are disabled. Hikari retains existing transactions and backups |
+| macOS 27, Apple Silicon | Playback and recovery covered by automated tests. Physical display and app UI checks are pending | Enabled in 0.5.3 through the schema-2 user Aerial backend after store validation. Repeated-lock and physical display verification remain incomplete |
 
 Restore an active Native Lock transaction before upgrading macOS. If the Mac
 has already been upgraded, keep the transaction files. Restoring requires the
-original supported macOS version and matching wallpaper store. Hikari blocks
-its own update installer while an unfinished transaction is present.
+matching supported backend and wallpaper store. Explicit 26 → 27 recovery validates
+backups and selectively restores owned choices; automatic adoption is blocked.
+Hikari blocks its own update installer while an unfinished transaction is present.
 
 See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md).
 
 The first 0.5.1 live trial kept the Index mapping but failed actual Lock Screen
-playback. The candidate now has a separate schema-2 catalog and journaled catalog
-preferences for 27, OS provenance and selective 26 → 27 recovery. Actual playback
-validation is still required; the production gate remains disabled.
+playback. At the user's explicit request, 0.5.3 enables the separate schema-2
+catalog and journaled catalog preferences for 27, OS provenance and selective
+26 → 27 recovery. Apply/Restore was observed on one macOS 27.2.1 Mac; persistent
+black-screen fixes still need repeated manual lock, reboot and display checks.
+Feature enablement does not certify those unverified scenarios.
 See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md)
 and [the persistent black-screen encoder follow-up](docs/NATIVE_LOCK_BLACK_SCREEN.md).
 

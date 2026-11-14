@@ -1,5 +1,12 @@
 # Native Lock persistent black screen — 2026-11-14
 
+## Release status
+
+At the user's explicit request, 0.5.3 enables the separate macOS 27 Native Lock
+backend. This changes product availability, not the evidence below: the final
+timing fix still needs manual repeated-lock, reboot and physical display checks.
+0.5.2 was published with the feature disabled and its tag remains unchanged.
+
 ## Report and evidence
 
 The user reports a Lock Screen that remains black until unlocking and locking
@@ -81,8 +88,9 @@ Timing changes are not used as a substitute for preparing a compatible movie.
   that new movie. The transaction remains active for manual repeated-lock checks.
 
 Repeated-lock user confirmation, post-unlock sample-reader logs, reboot and
-physical display/Spaces checks remain necessary. Production's 27 gate stays
-false; no tag or GitHub Release is created from this investigation.
+physical display/Spaces checks remain necessary. At this investigation stage the
+production 27 gate stayed false; 0.5.2 was later published in that state. The
+explicit 0.5.3 enablement decision above does not retroactively validate playback.
 
 ## Follow-up: rapid shortcut lock cycles still fail
 

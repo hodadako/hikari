@@ -81,9 +81,11 @@ validation. Restore and active maintenance require the recorded backend to
 match the runtime. A journal without a backend is usable on macOS 15 for
 legacy Restore. On macOS 27 the app reads saved journals for display in General
 and blocks the update installer while a transaction is unfinished. The lookup
-leaves the journal, marker and backups intact. Apply, Restore, reconciliation
-and renderer refresh are disabled on this runtime. Desktop video follows its
-own playback policy.
+leaves the journal, marker and backups intact. From 0.5.3, macOS 27 uses the
+separate userAerials27 backend for Apply, matching-journal Restore and maintenance.
+Product enablement is independent of store/schema preflight and does not assert
+that every Lock Screen presentation scenario is validated. Desktop video follows
+its own playback policy.
 
 The 0.5.1 candidate separates `userAerials27` from 26's shared catalog. Its
 `NativeLockGoldenGateActivation` copies the bundled schema-2 catalog to a
@@ -94,8 +96,10 @@ owned asset before reconciliation; Restore preserves foreign selections.
 New journals record their originating OS before shared writes. Explicit 26 → 27
 recovery uses validated backups and a Linked-only merge into the current topology.
 The first schema-1 trial failed actual playback despite stable Index choices;
-the production 27 gate stays disabled pending schema-2 live validation. See
-[the evidence and release gate](docs/NATIVE_LOCK_MACOS27.md).
+later schema-2 Apply/Restore and file access were observed on one 27.2.1 Mac.
+The user explicitly requested an enabled release, so 0.5.3 sets the product flag
+`goldenGateNativeLockEnabled` true. Repeated-lock, reboot and physical display
+validation remain incomplete. See [the evidence and enablement scope](docs/NATIVE_LOCK_MACOS27.md).
 
 The macOS 27 private video derivative uses `AerialTemporalEncoder`: public
 VideoToolbox hierarchical HEVC, compressed-sample MOV writing and bounded

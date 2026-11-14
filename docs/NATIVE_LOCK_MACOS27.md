@@ -1,4 +1,4 @@
-# Native Lock on macOS 27 — 0.5.1 candidate
+# Native Lock on macOS 27 — 0.5.3 enablement and investigation
 
 ## Evidence and release gate
 
@@ -6,8 +6,16 @@ The first authorized live trial **failed actual Lock Screen playback**: the user
 still saw Apple's default video. Its Index mapping remained correct for 30 seconds,
 but that did not prove the renderer accepted the custom asset. The failed
 transaction was explicitly restored; its journal, backups and logs were retained.
-`goldenGateRuntimeValidated` remains false in production. Do not release Native
-Lock support based on fixtures, build success or mapping persistence alone.
+That initial failure predates the later schema-2 activation and temporal encoder
+changes documented below. 0.5.2 shipped with the 27 feature disabled. The user
+then explicitly requested an enabled release: 0.5.3 sets
+`goldenGateNativeLockEnabled` true for the separate `userAerials27` backend.
+The product flag is deliberately named for enablement, not runtime validation.
+Apply/Restore and renderer file access were observed on one 27.2.1 Mac. The last
+manual report still showed intermittent black presentation; repeated-lock results
+after the final timing fix, reboot and physical display checks remain incomplete.
+Neither CI nor enablement is a claim that these scenarios passed. Schema/index,
+backup/hash, ownership and journal-origin checks still reject unsafe operations.
 
 Apple's [macOS 27 release notes](https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes)
 do not publish an Aerial manifest/index write contract. Their cross-team app data

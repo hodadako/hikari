@@ -2,6 +2,21 @@ import XCTest
 @testable import HikariNativeLock
 
 final class NativeLockSafetyTests: XCTestCase {
+    func testShippedPolicyEnables27WithoutAdoptingOtherOSJournals() {
+        XCTAssertTrue(NativeLockOperatingSystemPolicy.goldenGateNativeLockEnabled)
+        let policy = NativeLockOperatingSystemPolicy(majorVersion: 27)
+        XCTAssertEqual(policy.writeBackend, .userAerials27)
+        XCTAssertTrue(policy.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: 27))
+        for sourceOS: Int? in [nil, 15, 26, 28] {
+            XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: sourceOS))
+        }
+        XCTAssertFalse(policy.canModifyTransaction(backend: .userAerials, operatingSystemMajorVersion: 26))
+        XCTAssertTrue(policy.requiresUpgradeRestore(backend: .userAerials, operatingSystemMajorVersion: 26))
+        XCTAssertNil(NativeLockOperatingSystemPolicy(majorVersion: 28).writeBackend)
+        XCTAssertEqual(NativeLockOperatingSystemPolicy(majorVersion: 15).writeBackend, .systemCatalog)
+        XCTAssertEqual(NativeLockOperatingSystemPolicy(majorVersion: 26).writeBackend, .userAerials)
+    }
+
     func testRejectsUnsupportedOperatingSystem() {
         let report = NativeLockSafetyInspector.evaluate(
             operatingSystemVersion: OperatingSystemVersion(
@@ -42,7 +57,7 @@ final class NativeLockSafetyTests: XCTestCase {
         XCTAssertFalse(tahoe.canModifyTransaction(backend: nil))
         XCTAssertFalse(tahoe.canModifyTransaction(backend: .systemCatalog))
 
-        let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateRuntimeValidated: true)
+        let goldenGate = NativeLockOperatingSystemPolicy(majorVersion: 27, goldenGateNativeLockEnabled: true)
         XCTAssertEqual(goldenGate.writeBackend, .userAerials27)
         XCTAssertTrue(goldenGate.canModifyTransaction(backend: .userAerials27, operatingSystemMajorVersion: 27))
         for backend: NativeLockTransactionBackend? in [nil, .systemCatalog, .userAerials] {
