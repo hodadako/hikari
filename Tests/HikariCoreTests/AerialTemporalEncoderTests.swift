@@ -34,9 +34,6 @@ final class AerialTemporalEncoderTests: XCTestCase {
             throw XCTSkip("Actual temporal output acceptance is checked on macOS 27; 15/26 use the unchanged profile.")
         }
         #if arch(arm64)
-        guard VTIsHardwareEncodeSupported(kCMVideoCodecType_HEVC) else {
-            throw XCTSkip("This 27 runner has no hardware HEVC encoder; actual temporal acceptance requires a hardware-capable Mac.")
-        }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TemporalEncode-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -50,8 +47,12 @@ final class AerialTemporalEncoderTests: XCTestCase {
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange])
         output.videoComposition = AVVideoComposition(propertiesOf: asset)
         reader.add(output)
-        try AerialTemporalEncoder.encode(reader: reader, output: output, destinationURL: target,
-                                         width: 320, height: 180, frameRate: 30)
+        do {
+            try AerialTemporalEncoder.encode(reader: reader, output: output, destinationURL: target,
+                                             width: 320, height: 180, frameRate: 30)
+        } catch AerialTemporalEncodingError.videoToolbox(let status) where status == kVTCouldNotFindVideoEncoderErr {
+            throw XCTSkip("This 27 runner has no required hardware HEVC encoder; actual temporal acceptance requires a hardware-capable Mac.")
+        }
         XCTAssertTrue(try AerialTemporalSampleGroups.isPresent(in: target))
         let encoded = AVURLAsset(url: target)
         let encodedTracks = try await encoded.loadTracks(withMediaType: .video)

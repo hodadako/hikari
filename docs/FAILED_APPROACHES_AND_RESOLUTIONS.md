@@ -14,6 +14,9 @@
 - 실제 적용 파일에도 tscl/tsas description과 compact mapping이 생성됨을 독립 parser로
   확인했다. 실제 반복 잠금 결과가 오기 전 완전한 해결이나 릴리스 준비 완료로 기록하지 않는다.
   [조사 기록](NATIVE_LOCK_BLACK_SCREEN.md)을 참고한다.
+- CI의 hardware encoder 유무 확인에 존재하지 않는 encode 지원 조회 함수를 사용한
+  테스트 컴파일 오류를 수정했다. decode 지원 여부로 대신 추측하지 않고, 실제 required
+  encoder 생성의 kVTCouldNotFindVideoEncoderErr만 명시적으로 skip한다. 다른 실패는 실패로 남긴다.
 
 ## 2026-11-14 macOS 26 bootstrap 기록의 선택 복원 누락
 
