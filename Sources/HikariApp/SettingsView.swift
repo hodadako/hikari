@@ -123,46 +123,43 @@ private struct WelcomeView: View {
 private struct GeneralSettingsView: View {
     @ObservedObject var model: AppModel
     @State private var pendingDeletion: LiveContent?
+    @State private var pendingRename: LiveContent?
+    @State private var renamedTitle = ""
+    @State private var searchQuery = ""
+    @State private var favoritesOnly = false
 
     var body: some View {
         Form {
             Section("Library") {
-                ForEach(model.contents) { content in
-                    HStack(spacing: 12) {
-                        ThumbnailView(url: model.thumbnailURL(for: content))
-                            .frame(width: 72, height: 44)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(content.title)
-                            Text(
-                                "\(content.width) × \(content.height) · "
-                                    + durationText(content.duration)
-                            )
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if content.id == model.selectedContent?.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.tint)
-                                .accessibilityLabel("Selected")
-                        } else {
-                            Button("Use") { model.select(content) }
-                        }
-                        Button(role: .destructive) {
-                            pendingDeletion = content
-                        } label: {
-                            Image(systemName: "trash")
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search videos", text: $searchQuery)
+                        .textFieldStyle(.roundedBorder)
+                    if !searchQuery.isEmpty {
+                        Button { searchQuery = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel("Delete \(content.title)")
+                        .accessibilityLabel("Clear Search")
                     }
-                    .padding(.vertical, 4)
+                    Toggle(isOn: $favoritesOnly) {
+                        Label("Favorites only", systemImage: "star")
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                }
+                if filteredContents.isEmpty {
+                    Text("No matching videos").foregroundStyle(.secondary)
+                }
+                ForEach(filteredContents) { content in
+                    libraryRow(content)
                 }
                 Button { chooseVideo() } label: {
                     Label("Import Video…", systemImage: "plus")
                 }
             }
+
+            preparationSection
 
             Section("Playback") {
                 Toggle(
@@ -306,6 +303,114 @@ private struct GeneralSettingsView: View {
             Button("Cancel", role: .cancel) { pendingDeletion = nil }
         } message: {
             Text("The original video will not be changed.")
+        }
+        .alert("Rename Video", isPresented: Binding(
+            get: { pendingRename != nil },
+            set: { if !$0 { pendingRename = nil } }
+        )) {
+            TextField("Video title", text: $renamedTitle)
+            Button("Save") {
+                if let content = pendingRename { model.rename(content, to: renamedTitle) }
+                pendingRename = nil
+            }
+            .disabled(renamedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) { pendingRename = nil }
+        } message: {
+            Text("Only the library title changes. Your video file is not renamed.")
+        }
+    }
+
+    private var filteredContents: [LiveContent] {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return model.contents.filter {
+            (!favoritesOnly || model.isFavorite($0))
+                && (query.isEmpty || $0.title.localizedStandardContains(query))
+        }
+    }
+
+    private func libraryRow(_ content: LiveContent) -> some View {
+        HStack(spacing: 8) {
+            ThumbnailView(url: model.thumbnailURL(for: content))
+                .frame(width: 72, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(content.title).lineLimit(2)
+                Text("\(content.width) × \(content.height) · " + durationText(content.duration))
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            if content.id == model.selectedContent?.id {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.tint)
+                    .accessibilityLabel("Selected")
+            } else {
+                Button("Use") { model.select(content) }
+            }
+            Button { model.toggleFavorite(content) } label: {
+                Image(systemName: model.isFavorite(content) ? "star.fill" : "star")
+                    .foregroundStyle(model.isFavorite(content) ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(Text(localized(model.isFavorite(content) ? "Remove from Favorites" : "Add to Favorites")))
+            .help(Text(localized(model.isFavorite(content) ? "Remove from Favorites" : "Add to Favorites")))
+            Button {
+                renamedTitle = content.title
+                pendingRename = content
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Rename Video")
+            .help("Rename Video")
+            Button(role: .destructive) { pendingDeletion = content } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Delete \(content.title)")
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var preparationSection: some View {
+        let preparing = model.contents.filter { model.videoPreparationStates[$0.id] != nil }
+        if !preparing.isEmpty {
+            Section("Lock Screen Video Preparation") {
+                ForEach(preparing) { content in
+                    if let state = model.videoPreparationStates[content.id] {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(content.title).lineLimit(2)
+                            switch state.phase {
+                            case .converting:
+                                HStack(spacing: 8) {
+                                    ProgressView(value: state.fractionCompleted, total: 1)
+                                        .accessibilityLabel("Converting video")
+                                    Text(state.fractionCompleted, format: .percent.precision(.fractionLength(0)))
+                                        .monospacedDigit()
+                                    Button("Cancel") { model.cancelVideoPreparation(content) }
+                                }
+                            case .cancelling:
+                                HStack {
+                                    ProgressView().controlSize(.small)
+                                    Text("Cancelling conversion…")
+                                }
+                            case .cancelled, .failed:
+                                HStack {
+                                    Text(localized(state.phase == .cancelled ? "Conversion cancelled" : "Conversion failed"))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Button("Retry Conversion") { model.retryVideoPreparation(content) }
+                                        .disabled(model.isApplyingUpdate || model.isNativeLockWorking)
+                                }
+                            }
+                        }
+                    }
+                }
+                Text("Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

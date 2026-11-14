@@ -54,6 +54,8 @@ struct MenuBarView: View {
                     } label: {
                         if content.id == model.selectedContent?.id {
                             Label(content.title, systemImage: "checkmark")
+                        } else if model.isFavorite(content) {
+                            Label(content.title, systemImage: "star.fill")
                         } else {
                             Text(content.title)
                         }

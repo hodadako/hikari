@@ -221,3 +221,20 @@
 "Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout." = "Restore the previous macOS transaction before selecting another Lock Screen video. Hikari validates the saved backups and preserves the current display and Space layout.";
 
 "Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout." = "Select an Apple Aerial wallpaper in System Settings to initialize its Lock Screen selection. Hikari will not create an unverified wallpaper layout.";
+"Search videos" = "Search videos";
+"Clear Search" = "Clear Search";
+"Favorites only" = "Favorites only";
+"No matching videos" = "No matching videos";
+"Add to Favorites" = "Add to Favorites";
+"Remove from Favorites" = "Remove from Favorites";
+"Rename Video" = "Rename Video";
+"Video title" = "Video title";
+"Save" = "Save";
+"Only the library title changes. Your video file is not renamed." = "Only the library title changes. Your video file is not renamed.";
+"Lock Screen Video Preparation" = "Lock Screen Video Preparation";
+"Converting video" = "Converting video";
+"Cancelling conversion…" = "Cancelling conversion…";
+"Conversion cancelled" = "Conversion cancelled";
+"Conversion failed" = "Conversion failed";
+"Retry Conversion" = "Retry Conversion";
+"Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready." = "Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready.";

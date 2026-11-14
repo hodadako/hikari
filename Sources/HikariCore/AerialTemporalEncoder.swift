@@ -29,11 +29,14 @@ public enum AerialTemporalEncodingError: Error {
 /// the existing aspect-fit composition reader; no desktop player is involved.
 public enum AerialTemporalEncoder {
     public static func encode(reader: AVAssetReader, output: AVAssetReaderOutput,
-                              destinationURL: URL, width: Int, height: Int, frameRate: Int) throws {
+                              destinationURL: URL, width: Int, height: Int, frameRate: Int,
+                              duration: Double = 0,
+                              control: VideoPreparationControl = VideoPreparationControl()) throws {
+        try control.checkCancellation()
         guard !FileManager.default.fileExists(atPath: destinationURL.path), width > 0, height > 0, width <= 8192, height <= 8192, frameRate > 1, frameRate <= 240 else {
             throw AerialTemporalEncodingError.invalidInput
         }
-        let sink = CompressedMovieSink(destinationURL: destinationURL)
+        let sink = CompressedMovieSink(destinationURL: destinationURL, control: control)
         var session: VTCompressionSession?
         let createStatus = VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
             width: Int32(width), height: Int32(height), codecType: kCMVideoCodecType_HEVC,
@@ -82,6 +85,7 @@ public enum AerialTemporalEncoder {
         guard reader.startReading() else { throw reader.error ?? AerialTemporalEncodingError.invalidInput }
         var frames = 0
         while let sample = output.copyNextSampleBuffer() {
+            try control.checkCancellation()
             try sink.checkFailure()
             guard let image = CMSampleBufferGetImageBuffer(sample) else { throw AerialTemporalEncodingError.invalidInput }
             let status = VTCompressionSessionEncodeFrame(session, imageBuffer: image,
@@ -90,13 +94,18 @@ public enum AerialTemporalEncoder {
                 sourceFrameRefcon: nil, infoFlagsOut: nil)
             guard status == noErr else { throw AerialTemporalEncodingError.videoToolbox(status) }
             frames += 1
+            if duration > 0 {
+                control.reportProgress(min(0.95, CMSampleBufferGetPresentationTimeStamp(sample).seconds / duration * 0.95))
+            }
         }
+        try control.checkCancellation()
         guard reader.status == .completed, frames > 0 else {
             throw reader.error ?? AerialTemporalEncodingError.invalidInput
         }
         let flushed = VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid)
         guard flushed == noErr else { throw AerialTemporalEncodingError.videoToolbox(flushed) }
         try sink.finish(expectedFrames: frames)
+        try control.checkCancellation()
         guard try AerialTemporalSampleGroups.isPresent(in: destinationURL) else {
             throw AerialTemporalEncodingError.missingTemporalGroups
         }
@@ -113,12 +122,17 @@ private final class CompressedMovieSink: @unchecked Sendable {
     private var input: AVAssetWriterInput?
     private var failure: Error?
     private var frames = 0
-    init(destinationURL: URL) { self.destinationURL = destinationURL }
+    private let control: VideoPreparationControl
+    init(destinationURL: URL, control: VideoPreparationControl) {
+        self.destinationURL = destinationURL
+        self.control = control
+    }
 
     func receive(status: OSStatus, flags: VTEncodeInfoFlags, sample: CMSampleBuffer?) {
         lock.lock(); defer { lock.unlock() }
         guard failure == nil else { return }
         do {
+            try control.checkCancellation()
             guard status == noErr else { throw AerialTemporalEncodingError.videoToolbox(status) }
             guard !flags.contains(.frameDropped), let sample, CMSampleBufferDataIsReady(sample),
                   let format = CMSampleBufferGetFormatDescription(sample) else {
@@ -138,6 +152,7 @@ private final class CompressedMovieSink: @unchecked Sendable {
             guard let writer, let input else { throw AerialTemporalEncodingError.writerFailed }
             let deadline = DispatchTime.now() + .seconds(30)
             while !input.isReadyForMoreMediaData {
+                try control.checkCancellation()
                 guard writer.status == .writing, DispatchTime.now() < deadline else {
                     throw writer.error ?? AerialTemporalEncodingError.writerFailed
                 }
@@ -158,7 +173,13 @@ private final class CompressedMovieSink: @unchecked Sendable {
         input.markAsFinished()
         let finished = DispatchSemaphore(value: 0)
         writer.finishWriting { finished.signal() }
-        guard finished.wait(timeout: .now() + .seconds(60)) == .success, writer.status == .completed else {
+        let deadline = DispatchTime.now() + .seconds(60)
+        while finished.wait(timeout: .now() + .milliseconds(50)) == .timedOut {
+            try control.checkCancellation()
+            guard DispatchTime.now() < deadline else { throw AerialTemporalEncodingError.writerFailed }
+        }
+        try control.checkCancellation()
+        guard writer.status == .completed else {
             throw writer.error ?? AerialTemporalEncodingError.writerFailed
         }
     }

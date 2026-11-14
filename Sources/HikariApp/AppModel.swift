@@ -6,6 +6,13 @@ import HikariCore
 import HikariNativeLock
 import ServiceManagement
 
+struct VideoPreparationState {
+    enum Phase { case converting, cancelling, cancelled, failed }
+    let operationID: UUID
+    var fractionCompleted = 0.0
+    var phase: Phase = .converting
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var contents: [LiveContent]
@@ -20,6 +27,7 @@ final class AppModel: ObservableObject {
         NativeStorageMigrationReport.notNeeded
     @Published private(set) var storageMigrationErrorMessage: String?
     @Published var presentedError: String?
+    @Published private(set) var videoPreparationStates: [UUID: VideoPreparationState] = [:]
 
     let variant = AppVariant.current
     let container: SharedContainer
@@ -93,6 +101,12 @@ final class AppModel: ObservableObject {
                 "\(variant.displayName) could not prepare its storage: "
                     + error.localizedDescription
             )
+        }
+
+        if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true {
+            for content in contents where settings.cancelledNativeLockPreparationIDs.contains(content.id) {
+                videoPreparationStates[content.id] = VideoPreparationState(operationID: UUID(), phase: .cancelled)
+            }
         }
 
         stateMonitor.onStateChanged = { [weak self] in
@@ -356,6 +370,8 @@ final class AppModel: ObservableObject {
     func applySelectedVideoToNativeLock() {
         guard !isApplyingUpdate, !isNativeLockWorking, let content = selectedContent else { return }
         if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
+           settings.cancelledNativeLockPreparationIDs.contains(content.id) { return }
+        if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
            (nativeLockRecord?.journal.phase != .active
                || nativeLockRecord?.request.sourceContentID != content.id),
            !nativeLockController.hasPreparedMediaForNativeLock(content: content) {
@@ -521,8 +537,13 @@ final class AppModel: ObservableObject {
     }
 
     func delete(_ content: LiveContent) {
+        // The encoder must stop before it can publish a cache for deleted media.
+        nativeLockPreparationTasks[content.id]?.cancel()
         do {
             contents = try contentStore.delete(content, from: contents)
+            videoPreparationStates.removeValue(forKey: content.id)
+            settings.favoriteContentIDs.remove(content.id)
+            settings.cancelledNativeLockPreparationIDs.remove(content.id)
             if settings.selectedContentID == content.id {
                 settings.selectedContentID = contents.first?.id
             }
@@ -531,6 +552,64 @@ final class AppModel: ObservableObject {
         } catch {
             presentedError = error.localizedDescription
         }
+    }
+
+    func isFavorite(_ content: LiveContent) -> Bool {
+        settings.favoriteContentIDs.contains(content.id)
+    }
+
+    func toggleFavorite(_ content: LiveContent) {
+        guard contents.contains(where: { $0.id == content.id }) else { return }
+        var updated = settings
+        if !updated.favoriteContentIDs.insert(content.id).inserted {
+            updated.favoriteContentIDs.remove(content.id)
+        }
+        do {
+            try settingsStore.save(updated)
+            settings = updated
+        } catch { presentedError = error.localizedDescription }
+    }
+
+    func rename(_ content: LiveContent, to title: String) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, let index = contents.firstIndex(where: { $0.id == content.id }) else { return }
+        var updated = contents
+        updated[index].title = title
+        do {
+            try contentStore.save(updated)
+            contents = updated
+        } catch { presentedError = error.localizedDescription }
+    }
+
+    func cancelVideoPreparation(_ content: LiveContent) {
+        guard nativeLockPreparationTasks[content.id] != nil,
+              videoPreparationStates[content.id]?.phase == .converting else { return }
+        settings.cancelledNativeLockPreparationIDs.insert(content.id)
+        do { try persistSettings() } catch { presentedError = error.localizedDescription }
+        videoPreparationStates[content.id]?.phase = .cancelling
+        nativeLockPreparationTasks[content.id]?.cancel()
+        if selectedContent?.id == content.id {
+            nativeLockAutoApplyTask?.cancel()
+            nativeLockAutoApplyTask = nil
+        }
+    }
+
+    func retryVideoPreparation(_ content: LiveContent) {
+        guard !isApplyingUpdate, !isShuttingDown,
+              nativeLockPreparationTasks[content.id] == nil,
+              contents.contains(where: { $0.id == content.id }) else { return }
+        var updated = settings
+        updated.cancelledNativeLockPreparationIDs.remove(content.id)
+        do {
+            try settingsStore.save(updated)
+            settings = updated
+        } catch {
+            presentedError = error.localizedDescription
+            return
+        }
+        videoPreparationStates.removeValue(forKey: content.id)
+        prepareNativeLockMediaIfNeeded(for: content)
+        if selectedContent?.id == content.id { scheduleNativeLockAutoApply() }
     }
 
     func togglePlayback() {
@@ -814,7 +893,8 @@ final class AppModel: ObservableObject {
         guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               nativeLockController.transactionReadError == nil,
               nativeLockRecord == nil || canMaintainNativeLock,
-              let content = selectedContent else {
+              let content = selectedContent,
+              !settings.cancelledNativeLockPreparationIDs.contains(content.id) else {
             return
         }
         let isCurrentSelectionAlreadyApplied = nativeLockRecord?.journal.phase == .active
@@ -835,23 +915,28 @@ final class AppModel: ObservableObject {
                   !self.stateMonitor.isSleeping,
                   self.nativeLockController.transactionReadError == nil,
                   self.nativeLockRecord == nil || self.canMaintainNativeLock,
-                  self.selectedContent != nil else {
+                  let content = self.selectedContent,
+                  !self.settings.cancelledNativeLockPreparationIDs.contains(content.id) else {
                 return
             }
             self.applySelectedVideoToNativeLock()
         }
     }
 
-    /// Prepares the macOS 26-only Aerial derivative outside the selection
+    /// Prepares the macOS 26/27 Aerial derivative outside the selection
     /// transaction. The desktop selection stays immediate; the Lock Screen
     /// swap waits until this cache is atomically ready.
     private func prepareNativeLockMediaIfNeeded(for content: LiveContent) {
-        guard NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
+        guard !isApplyingUpdate, !isShuttingDown,
+              !settings.cancelledNativeLockPreparationIDs.contains(content.id),
+              NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
               !nativeLockController.hasPreparedMediaForNativeLock(content: content),
               nativeLockPreparationTasks[content.id] == nil else {
             return
         }
         let contentID = content.id
+        let operationID = UUID()
+        videoPreparationStates[contentID] = VideoPreparationState(operationID: operationID)
         let notificationService = self.notificationService
         Task {
             await notificationService.postNativeLockPreparationStarted(for: content)
@@ -859,26 +944,39 @@ final class AppModel: ObservableObject {
         nativeLockPreparationTasks[contentID] = Task(priority: .userInitiated) {
             [weak self] in
             guard let self else { return }
+            defer { self.nativeLockPreparationTasks.removeValue(forKey: contentID) }
             do {
                 try await self.nativeLockController.prepareMediaForNativeLock(
                     content: content
-                )
-                guard !Task.isCancelled else { return }
-                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
-                guard self.contents.contains(where: { $0.id == contentID }) else {
-                    return
+                ) { [weak self] fraction in
+                    Task { @MainActor [weak self] in
+                        guard let self,
+                              self.videoPreparationStates[contentID]?.operationID == operationID,
+                              self.videoPreparationStates[contentID]?.phase == .converting else { return }
+                        let previous = self.videoPreparationStates[contentID]?.fractionCompleted ?? 0
+                        self.videoPreparationStates[contentID]?.fractionCompleted = max(previous, fraction)
+                    }
                 }
+                try Task.checkCancellation()
+                self.videoPreparationStates.removeValue(forKey: contentID)
+                guard let current = self.contents.first(where: { $0.id == contentID }) else { return }
                 _ = await self.notificationService.postNativeLockPreparationReady(
-                    for: content
+                    for: current
                 )
                 if self.settings.selectedContentID == contentID {
                     self.scheduleNativeLockAutoApply()
                 }
             } catch is CancellationError {
-                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
+                if self.contents.contains(where: { $0.id == contentID }), !self.isShuttingDown {
+                    self.videoPreparationStates[contentID]?.phase = .cancelled
+                } else {
+                    self.videoPreparationStates.removeValue(forKey: contentID)
+                }
             } catch {
-                self.nativeLockPreparationTasks.removeValue(forKey: contentID)
-                self.presentedError = error.localizedDescription
+                if self.contents.contains(where: { $0.id == contentID }), !self.isShuttingDown {
+                    self.videoPreparationStates[contentID]?.phase = .failed
+                    self.presentedError = error.localizedDescription
+                }
             }
         }
     }
