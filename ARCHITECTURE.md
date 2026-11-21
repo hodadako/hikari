@@ -51,8 +51,8 @@ operation has an ID so delayed progress callbacks cannot revive finished or
 cancelled UI. Progress is based on encoded presentation timestamps, capped below
 completion until finalization/preview/cache publication, and throttled to at most
 five deliveries per second. `VideoPreparationControl` propagates cancellation
-through detached tasks and VideoToolbox callbacks. Both 26's Main10 writer and
-27's temporal writer check cancellation during production/backpressure and final
+through detached tasks and VideoToolbox callbacks. The shared 26/27 temporal
+writer checks cancellation during production/backpressure and final
 writer waits. The owning preparation operation removes its private staging on
 failure or cancellation and checks cancellation before publishing a cache.
 

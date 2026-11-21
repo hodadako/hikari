@@ -2,7 +2,12 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
-## Unreleased — macOS 26 빠른 재잠금의 지속 검은 화면 후보 패치 (2026-11-21)
+## Hikari v0.5.8 (29) — macOS 26 temporal 영상 준비 및 반복 잠금 예방 점검 (2026-11-21)
+
+- 사용자 요청으로 PR #83을 병합하고 0.5.8 (29), 새 태그 `v0.5.8`로 배포한다.
+  기존 태그를 이동하지 않으며 최소 macOS 15.0, bundle identity, Universal 앱/helper,
+  업데이트 ZIP/checksum 및 27 Native Lock 활성화 정책을 유지한다. 기능 제공과 실제
+  잠금 화면의 완전한 해결 확인을 구분하며 아래 미검증 항목을 릴리스에도 명시한다.
 
 ### 보고 및 근거
 
@@ -28,6 +33,14 @@
 
 ### 실제 검증
 
+- 기능·점검 head `8fd0bdb`의 [전체 CI](https://github.com/hodadako/hikari/actions/runs/44905955885)와
+  [CodeQL](https://github.com/hodadako/hikari/actions/runs/44905955971)은 성공했다.
+  별도 15 진단 artifact는 실제 15.8.2 (24H232)에서 같은 0/0/60 temporal 정보,
+  사본별 3회 EOF/decode 성공을 확인했다. 실제 Native Lock 적용·전환 검증은 아니다.
+  26 ARM64는 프레임별 정보 검사 포함 4개 통과, Intel은 encoder 부재로 실제 인코딩
+  1개 skip 및 나머지 3개 통과했다. 버전 준비 head와 태그 결과는 각각 별도 확인한다.
+- 사용자 추가 설명에 따라 다른 OS는 예방 점검이며, 현재 사용 경험은 한 영상으로
+  한정한다. 여러 영상·다른 OS에서 새로 재현됐다고 기록하지 않는다.
 - 2026-11-21 후속 점검: 임시 legacy passthrough와 구형 Main10의 실제 temporal 정보는
   0/60프레임, 후보 temporal은 60/60이었다. 세 사본 모두 일반 decode/EOF 재읽기는
   3회 통과했다. box 이름에 더해 실제 sample attachment를 검사하도록 hardware 회귀를
@@ -46,7 +59,7 @@
   26.6.2 재잠금 해결이나 물리 Intel 인코딩 성공을 뜻하지 않는다. CI 결과는 PR에서 별도 확인한다.
 - 남은 승인된 26 실기기 검증: 같은 영상의 구형/후보 비교, 활성 사본의 temporal 정보,
   해제 후 1초 이내 재잠금 20회 및 3초 이상 간격 비교, reader/refresh 로그, 정상 데스크톱,
-  백업 보존 및 Restore 왕복. 버전/태그/릴리스·로컬 설치는 이번 패치에서 진행하지 않는다.
+  백업 보존 및 Restore 왕복. 이번 버전/태그 배포 요청에는 로컬 앱 교체가 포함되지 않는다.
 
 ## Hikari v0.5.7 (28) — 설정 아이콘 선택 타일 간격 통일 (2026-11-15)
 

@@ -4,8 +4,8 @@
 
 보고 환경은 Hikari 0.5.7, Tahoe 26.6.2/M4 Pro다. 해제 후 1초 이내
 재잠금하면 두 번째 잠금 화면이 검게 남고, 해제 후 데스크톱은 정상이다.
-이번 점검은 현재 Mac의 **macOS 27.2.1 (26B131), Apple M1, Xcode 26.6/SDK 26.5**에서
-임시 영상으로 실행했다. 15·26의 실제 OS 실행이나 Native Lock 재현으로 기록하지 않는다.
+로컬 비교 점검은 **macOS 27.2.1 (26B131), Apple M1, Xcode 26.6/SDK 26.5**에서
+임시 영상으로 실행했다. 이 로컬 결과를 15·26 runtime이나 Native Lock 재현으로 기록하지 않는다.
 실제 잠금 알림, wallpaper 파일 변경, process restart, Apply/Restore 및 root 작업은 없었다.
 
 ## 실제 영상 비교
@@ -47,6 +47,11 @@ unlock ramp-down의 재현이 아니다. 짧은 영상 loop 오류가 해결됐�
 
 ## 회귀 검사와 남은 범위
 
+- 후속 [CI 진단](https://github.com/hodadako/hikari/actions/runs/44905955885/job/136851597059)의
+  artifact에서 실제 **macOS 15.8.2 (24H232)**를 확인했다. 같은 영상 비교는 temporal
+  정보 0/0/60, 후보 sublayer access 30/60 및 level 0/1을 보였고, 사본별 3회
+  EOF/reopen·decode도 통과했다. 15에서 후보 영상을 생성·읽는 데 성공했다는 증거이며
+  15의 root Apply나 Native Lock 전환 적합성 검증은 아니다. 0.5.8은 15 제품 정책을 유지한다.
 - 기존 hardware encoder 테스트를 보강했다. box 이름 검사에 더해 압축 sample의
   실제 temporal attachment와 계층, sublayer access를 EOF/reopen 3회 모두 확인한다.
 - 로컬 `swift test --filter AerialTemporalEncoderTests`: 4개 통과, 실패·skip 0.

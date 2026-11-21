@@ -1,6 +1,6 @@
 # Hikari
 
-> 미출시 macOS 26 빠른 재잠금 패치는 하드웨어 temporal HEVC 사본을 준비하며 구형
+> Hikari 0.5.8은 macOS 26의 하드웨어 temporal HEVC 사본을 준비하며 구형
 > Main10-only cache를 재사용하지 않습니다. 새 사본 준비 후 기존 Restore/Apply로 교체합니다.
 > Tahoe 26.6.2 실기기 반복 잠금의 해결 여부는 아직 확인 전입니다.
 > [조사 및 검증 범위](docs/NATIVE_LOCK_BLACK_SCREEN.md)를 참고하세요.
