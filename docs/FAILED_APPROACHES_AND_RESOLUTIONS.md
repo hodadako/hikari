@@ -9,6 +9,9 @@
   일반 재생 성공을 unlock ramp-down이나 다음 잠금의 정상 동작으로 기록하지 않는다.
 - 기존 MOV group 존재 검사만으로 frame별 attachment를 검증했다고 가정하지 않는다.
   hardware encoder 회귀 검사에 실제 sample별 정보와 3회 EOF/reopen을 추가했다.
+- CodeRabbit이 진단 JSON의 고정된 `current 27 host` 제한 문구가 실제 15 CI의 `hostOS`와
+  불일치함을 지적했다. 같은 실제 host 문자열을 두 필드에서 사용하도록 수정하며,
+  일반 reader 점검과 실제 Native Lock 전환 검증의 차이는 유지한다.
 - 최초 일회 진단은 coverage가 켜진 Debug static framework를 링크해
   `___llvm_profile_runtime`에서 실패했다. profiling runtime을 링크해 실행한 뒤,
   저장하는 재현 도구는 실제 Core 네 파일을 직접 컴파일하도록 해 그 의존성을 제거했다.

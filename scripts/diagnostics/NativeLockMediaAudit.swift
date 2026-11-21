@@ -105,9 +105,10 @@ private func require(_ value: Bool, _ message: String) throws {
                                "eligibleBeforeRelock": eligibleBeforeLock,
                                "relockCancelledRequest": true, "nextUnlockWaitsFullTwoSeconds": true])
         }
-        let report: [String: Any] = ["hostOS": ProcessInfo.processInfo.operatingSystemVersionString,
+        let hostOS = ProcessInfo.processInfo.operatingSystemVersionString
+        let report: [String: Any] = ["hostOS": hostOS,
             "media": reports, "sharedSchedulerModel": scheduling,
-            "limitations": ["15/26 routes exercised on the current 27 host, not on those runtimes",
+            "limitations": ["Preparation variants exercised only on \(hostOS); other runtimes require separate runs",
                 "AVAssetReader EOF/reopen is not the private wallpaper renderer's loop or ramp-down",
                 "No real lock notification, process restart, Apply, Restore or wallpaper-store write"]]
         let bytes = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
