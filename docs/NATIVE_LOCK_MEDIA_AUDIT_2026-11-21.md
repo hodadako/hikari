@@ -56,6 +56,10 @@ unlock ramp-down의 재현이 아니다. 짧은 영상 loop 오류가 해결됐�
   15의 root Apply/Restore와 영상 준비 정책은 그대로이며 temporal 전환을 활성화하지 않았다.
 - 26.6.2/M4 Pro의 실제 1초 재잠금, 15의 새 인코딩 적합성, 27의 반복 잠금,
   실제 loop/ramp-down 및 물리 Intel 인코딩은 이 점검으로 통과 판정할 수 없다.
+- PR CI에 `macos-15`의 비차단 진단을 추가한다. 제품 15 경로는 여전히 passthrough이며,
+  이 진단은 새 형식의 생성/일반 reader 동작만 조사한다. 실패 로그도 artifact로 보관하고
+  기존 필수 검사나 실제 잠금 화면 검증 성공으로 대체하지 않는다. 26 ARM64·Intel job은
+  재현 도구를 각 architecture로 컴파일한다.
 - 다음 실기기 점검은 같은 영상으로 짧은 재잠금과 3초 이상 대기를 비교하고,
   영상 끝을 넘기는 잠금 시간도 분리한다. Code 4, EOF/샘플 오류, refresh 시각을 대조한다.
 

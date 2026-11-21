@@ -199,6 +199,50 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  macos-15-media-audit:
+    name: Diagnostic native media audit (macos-15)
+    needs: metadata
+    if: github.event_name == 'pull_request' && needs.metadata.result == 'success' && needs.metadata.outputs.docs_only != 'true'
+    runs-on: macos-15
+    timeout-minutes: 15
+    # This probes an encoder not used by the shipped 15 passthrough path.
+    # Preserve failures as diagnostic evidence without changing that gate.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Audit generated media without wallpaper writes
+        run: |
+          set -euo pipefail
+          audit_report_directory="${RUNNER_TEMP}/NativeMediaAudit"
+          mkdir -p "${audit_report_directory}"
+          audit_work_directory="$(mktemp -d "${TMPDIR:-/tmp}/HikariMediaAudit.XXXXXX")"
+          sw_vers > "${audit_report_directory}/runtime.txt"
+          xcrun swiftc -swift-version 5 -parse-as-library \
+            -target "$(uname -m)-apple-macosx15.0" \
+            scripts/diagnostics/NativeLockMediaAudit.swift \
+            Sources/HikariCore/AerialTemporalEncoder.swift \
+            Sources/HikariCore/AerialTemporalSampleGroups.swift \
+            Sources/HikariCore/VideoPreparationControl.swift \
+            Sources/HikariCore/NativeLockMaintenanceSchedule.swift \
+            -o "${audit_report_directory}/audit" \
+            > "${audit_report_directory}/compile.log" 2>&1
+          audit_exit_code=0
+          "${audit_report_directory}/audit" "${audit_work_directory}/output" \
+            > "${audit_report_directory}/run.log" 2>&1 || audit_exit_code=$?
+          if [[ -f "${audit_work_directory}/output/report.json" ]]; then
+            cp "${audit_work_directory}/output/report.json" "${audit_report_directory}/report.json"
+          fi
+          cat "${audit_report_directory}/run.log"
+          exit "${audit_exit_code}"
+      - name: Preserve diagnostic results, including failures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: NativeMediaAudit-macos-15
+          path: ${{ runner.temp }}/NativeMediaAudit
+          retention-days: 14
+          if-no-files-found: warn
+
   macos-26-media:
     name: Aerial media regression (${{ matrix.runner }})
     needs: metadata
