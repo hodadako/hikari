@@ -66,13 +66,20 @@ explicit Apply/Restore flow.
 | Runtime | Desktop video | Native Lock and Restore |
 | --- | --- | --- |
 | macOS 15, Apple Silicon and Intel | Supported | Apply and Restore use the legacy catalog and require administrator approval |
-| macOS 26, Apple Silicon and Intel | Supported | Selecting a video applies it to the user Aerial store. Restore is available with a matching store |
+| macOS 26, Apple Silicon and Intel | Supported | Selecting a video applies it to the user Aerial store. New temporal preparation requires a compatible hardware HEVC encoder. Restore is available with a matching store |
 | macOS 27, Apple Silicon | Playback and recovery covered by automated tests. Physical display and app UI checks are pending | Enabled in 0.5.3 through the schema-2 user Aerial backend after store validation. Repeated-lock and physical display verification remain incomplete |
 
 Restore an active Native Lock transaction before upgrading macOS. If the Mac
 has already been upgraded, keep the transaction files. Restoring requires the
 matching supported backend and wallpaper store. Explicit 26 → 27 recovery validates
 backups and selectively restores owned choices; automatic adoption is blocked.
+
+Hikari 0.5.8 prepares macOS 26 temporal HEVC media with a
+capable hardware encoder, invalidating older Main10-only caches. It prepares a
+replacement before restoring an obsolete active transaction. Actual repeated-lock
+acceptance on Tahoe 26.6.2 remains pending; see the
+[investigation and verification limits](docs/NATIVE_LOCK_BLACK_SCREEN.md).
+
 When updating Hikari, confirm **Update and Relaunch** to download and verify the
 replacement first. Hikari then restores a supported unfinished Native Lock
 transaction before replacing the app. A failed or cancelled Restore stops the

@@ -2,6 +2,38 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-21 일반 decode 성공만으로 Native Lock 전환 적합성을 판단
+
+- 임시 H.264 passthrough와 Main10-only 사본은 EOF/reopen과 decode를 3회 모두 통과했지만,
+  실제 CoreMedia temporal 정보는 0/60프레임이었다. temporal 사본만 60/60이었다.
+  일반 재생 성공을 unlock ramp-down이나 다음 잠금의 정상 동작으로 기록하지 않는다.
+- 기존 MOV group 존재 검사만으로 frame별 attachment를 검증했다고 가정하지 않는다.
+  hardware encoder 회귀 검사에 실제 sample별 정보와 3회 EOF/reopen을 추가했다.
+- CodeRabbit이 진단 JSON의 고정된 `current 27 host` 제한 문구가 실제 15 CI의 `hostOS`와
+  불일치함을 지적했다. 같은 실제 host 문자열을 두 필드에서 사용하도록 수정하며,
+  일반 reader 점검과 실제 Native Lock 전환 검증의 차이는 유지한다.
+- 최초 일회 진단은 coverage가 켜진 Debug static framework를 링크해
+  `___llvm_profile_runtime`에서 실패했다. profiling runtime을 링크해 실행한 뒤,
+  저장하는 재현 도구는 실제 Core 네 파일을 직접 컴파일하도록 해 그 의존성을 제거했다.
+- 새 임시 leaf의 symlink 해석이 완료되지 않아 안전 경로 guard가 정상 출력을 거부했다.
+  기존 부모를 먼저 해석하고 경계가 있는 임시 prefix를 검사한다. 인자 누락·기존 출력·
+  일반 경로·symlink escape 거부와 원본 hash 보존을 확인했다. zsh의 예약 변수 `status`를
+  사용한 첫 거부 검사 집계는 `audit_exit_code`로 수정해 재실행했다. 제품 오류로 집계하지 않는다.
+- [점검 결과와 재현 절차](NATIVE_LOCK_MEDIA_AUDIT_2026-11-21.md)를 남겼다.
+
+## 2026-11-21 macOS 26 빠른 재잠금을 timer 문제로만 추정
+
+- 사용자 재현 조건은 0.5.7, Tahoe 26.6.2/M4 Pro, 해제 후 1초 이내 재잠금이다.
+  두 번째 잠금 화면만 계속 검고, 해제하면 데스크톱은 정상이다. 2초 refresh는
+  재잠금에서 취소되므로 timer가 실행돼 화면을 깨뜨렸다고 단정하지 않는다.
+- 기존 코드가 temporal 정보를 27 전용으로 한정한 점을 확인했다. 실제로는 외부
+  encoder 실험이 26.4.1에서 같은 다음 잠금 실패와 temporal 인코딩 결과를 보고했다.
+  이는 26.6.2 실기기 로그와 구분하며 [증거·후보 변경](NATIVE_LOCK_BLACK_SCREEN.md)에 기록했다.
+- 26도 기존 temporal encoder와 검증을 사용한다. content ID만으로 기존 active 영상의
+  형식까지 최신이라고 보던 early return을 제거하고, 새 사본 준비가 성공한 뒤에만
+  기존 Restore/Apply로 교체한다. 활성 media/backup 덮어쓰기나 지연 단축으로 우회하지 않는다.
+- 새 후보의 fixture/인코딩 검증과 26 잠금 화면의 실제 해결 여부는 별도로 기록한다.
+
 ## 2026-11-15 아이콘 타일의 padding만 맞춘 뒤 남은 간격 차이
 
 - 0.5.5에서 두 아이콘 선택 영역의 padding과 모서리 반경을 같게 했지만, 앱 아이콘은

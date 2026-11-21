@@ -1,5 +1,10 @@
 # Hikari
 
+> Hikari 0.5.8은 macOS 26의 하드웨어 temporal HEVC 사본을 준비하며 구형
+> Main10-only cache를 재사용하지 않습니다. 새 사본 준비 후 기존 Restore/Apply로 교체합니다.
+> Tahoe 26.6.2 실기기 반복 잠금의 해결 여부는 아직 확인 전입니다.
+> [조사 및 검증 범위](docs/NATIVE_LOCK_BLACK_SCREEN.md)를 참고하세요.
+
 [English](README.md) | [한국어](README.ko.md)
 
 ## 빠른 설치
@@ -63,7 +68,7 @@ macOS 15의 기존 명시적 Apply/Restore 흐름은 유지합니다.
 | 실행 환경 | 데스크톱 영상 | Native Lock 및 Restore |
 | --- | --- | --- |
 | macOS 15, Apple Silicon·Intel | 지원 | 관리자 승인 후 구형 카탈로그에 Apply 및 Restore |
-| macOS 26, Apple Silicon·Intel | 지원 | 영상 선택 시 사용자 Aerial에 자동 적용. 일치하는 저장소에서 Restore 가능 |
+| macOS 26, Apple Silicon·Intel | 지원 | 영상 선택 시 사용자 Aerial에 자동 적용. 신규 temporal 변환에는 호환 하드웨어 HEVC encoder 필요. 일치하는 저장소에서 Restore 가능 |
 | macOS 27, Apple Silicon | 자동화 테스트에서 재생 및 복구 확인. 실기기 디스플레이·앱 UI 검증은 남아 있음 | 0.5.3부터 schema 2 사용자 Aerial backend로 Apply·유지보수·Restore 활성화. 저장소 사전 검증 필요, 반복 잠금·실기기 디스플레이 검증은 미완료 |
 
 macOS를 업그레이드하기 전에 활성 Native Lock을 Restore하세요. 이미 업그레이드했다면

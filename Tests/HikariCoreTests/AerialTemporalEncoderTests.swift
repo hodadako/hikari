@@ -4,11 +4,34 @@ import XCTest
 @testable import HikariCore
 
 final class AerialTemporalEncoderTests: XCTestCase {
-    func testCacheProfilesDoNotReuseMacOS26Main10DerivativeOn27() {
-        XCTAssertEqual(AerialPreparationProfile(operatingSystemMajorVersion: 26).cacheVersion,
+    func testUserAerialProfilesInvalidateOldMain10CacheWithoutChanging27() {
+        for version in [26, 27] {
+            XCTAssertEqual(AerialPreparationProfile(operatingSystemMajorVersion: version).cacheVersion,
+                           "aerial-hevc-main10-temporal-1920x1080-v2")
+        }
+        XCTAssertEqual(AerialPreparationProfile(operatingSystemMajorVersion: 15).cacheVersion,
                        "aerial-hevc-main10-1920x1080-v1")
-        XCTAssertNotEqual(AerialPreparationProfile(operatingSystemMajorVersion: 27).cacheVersion,
-                          AerialPreparationProfile(operatingSystemMajorVersion: 26).cacheVersion)
+    }
+
+    func testBothUserAerialProfilesRejectObsoleteOrMalformedStagedMedia() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("AerialUpgrade-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let media = root.appendingPathComponent("media.mov")
+        let temporal = box("moov", box("trak", box("mdia", box("minf", box("stbl",
+            box("sgpd", Data(repeating: 0, count: 4) + Data("tscl".utf8))
+            + box("sgpd", Data(repeating: 0, count: 4) + Data("tsas".utf8))
+            + box("csgm", Data(repeating: 0, count: 4) + Data("tscl".utf8))
+            + box("csgm", Data(repeating: 0, count: 4) + Data("tsas".utf8)))))))
+        for version in [26, 27] {
+            let profile = AerialPreparationProfile(operatingSystemMajorVersion: version)
+            XCTAssertFalse(profile.acceptsPreparedMedia(at: root.appendingPathComponent("missing.mov")))
+            for bytes in [box("moov", box("trak", Data())), Data([0, 1]), temporal] {
+                try bytes.write(to: media)
+                XCTAssertEqual(profile.acceptsPreparedMedia(at: media), bytes == temporal)
+                XCTAssertEqual(try Data(contentsOf: media), bytes)
+            }
+        }
     }
 
     func testInspectorRequiresDescriptionsAndMappingsOutsideMediaPayload() throws {
@@ -29,11 +52,10 @@ final class AerialTemporalEncoderTests: XCTestCase {
         XCTAssertTrue(try AerialTemporalSampleGroups.isPresent(in: file))
     }
 
-    func testGoldenGateEncoderProducesTemporalGroupsPreservesDurationAndDecodes() async throws {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27 else {
-            throw XCTSkip("Actual temporal output acceptance is checked on macOS 27; 15/26 use the unchanged profile.")
+    func testUserAerialEncoderProducesTemporalGroupsPreservesDurationAndDecodes() async throws {
+        guard [26, 27].contains(ProcessInfo.processInfo.operatingSystemVersion.majorVersion) else {
+            throw XCTSkip("Temporal output acceptance runs on macOS 26/27; macOS 15 keeps passthrough.")
         }
-        #if arch(arm64)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TemporalEncode-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -51,7 +73,7 @@ final class AerialTemporalEncoderTests: XCTestCase {
             try AerialTemporalEncoder.encode(reader: reader, output: output, destinationURL: target,
                                              width: 320, height: 180, frameRate: 30)
         } catch AerialTemporalEncodingError.videoToolbox(let status) where status == kVTCouldNotFindVideoEncoderErr {
-            throw XCTSkip("This 27 runner has no required hardware HEVC encoder; actual temporal acceptance requires a hardware-capable Mac.")
+            throw XCTSkip("This runner has no required hardware HEVC encoder; actual temporal acceptance requires a hardware-capable Mac.")
         }
         XCTAssertTrue(try AerialTemporalSampleGroups.isPresent(in: target))
         let encoded = AVURLAsset(url: target)
@@ -64,6 +86,7 @@ final class AerialTemporalEncoderTests: XCTestCase {
         XCTAssertEqual(size, CGSize(width: 320, height: 180))
         let formats = try await encodedTrack.load(.formatDescriptions)
         XCTAssertEqual(CMFormatDescriptionGetMediaSubType(try XCTUnwrap(formats.first)), kCMVideoCodecType_HEVC)
+        try verifyTemporalSamplesAcrossEOFReopens(asset: encoded, track: encodedTrack)
         let audio = try await encoded.loadTracks(withMediaType: .audio)
         XCTAssertTrue(audio.isEmpty)
         let decoded = try await AVAssetImageGenerator(asset: encoded).image(at: CMTime(seconds: 0.5, preferredTimescale: 600))
@@ -73,9 +96,41 @@ final class AerialTemporalEncoderTests: XCTestCase {
         XCTAssertThrowsError(try AerialTemporalEncoder.encode(reader: reader, output: output, destinationURL: target,
                                                               width: 320, height: 180, frameRate: 30))
         XCTAssertEqual(try Data(contentsOf: target), before)
-        #else
-        throw XCTSkip("macOS 27 hardware encoding is Apple Silicon only.")
-        #endif
+    }
+
+    /// Box names alone do not prove CoreMedia can resolve temporal information
+    /// for the actual samples. Reopen the compressed reader across EOF without
+    /// involving a desktop player or the system wallpaper extension.
+    private func verifyTemporalSamplesAcrossEOFReopens(asset: AVAsset, track: AVAssetTrack) throws {
+        for pass in 0..<3 {
+            let reader = try AVAssetReader(asset: asset)
+            let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+            output.alwaysCopiesSampleData = false
+            reader.add(output)
+            XCTAssertTrue(reader.startReading())
+            var samples = 0, temporalSamples = 0, accessSamples = 0
+            var levels = Set<Int>()
+            while let sample = output.copyNextSampleBuffer() {
+                samples += CMSampleBufferGetNumSamples(sample)
+                let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false)
+                    as? [[String: Any]] ?? []
+                for entry in attachments {
+                    if let info = entry[kCMSampleAttachmentKey_HEVCTemporalLevelInfo as String] as? [String: Any],
+                       let level = info[kCMHEVCTemporalLevelInfoKey_TemporalLevel as String] as? NSNumber {
+                        temporalSamples += 1
+                        levels.insert(level.intValue)
+                    }
+                    if entry[kCMSampleAttachmentKey_HEVCTemporalSubLayerAccess as String] != nil {
+                        accessSamples += 1
+                    }
+                }
+            }
+            XCTAssertEqual(reader.status, .completed, "EOF pass \(pass): \(String(describing: reader.error))")
+            XCTAssertEqual(samples, 60, "EOF pass \(pass) lost samples")
+            XCTAssertEqual(temporalSamples, samples, "EOF pass \(pass) lacks per-sample temporal info")
+            XCTAssertTrue(levels.contains(0) && levels.contains(where: { $0 > 0 }), "No temporal hierarchy")
+            XCTAssertGreaterThan(accessSamples, 0, "No temporal sublayer access samples")
+        }
     }
 
     private func box(_ type: String, _ bytes: Data) -> Data {

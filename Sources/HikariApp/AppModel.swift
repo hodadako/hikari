@@ -372,8 +372,7 @@ final class AppModel: ObservableObject {
         if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
            settings.cancelledNativeLockPreparationIDs.contains(content.id) { return }
         if NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
-           (nativeLockRecord?.journal.phase != .active
-               || nativeLockRecord?.request.sourceContentID != content.id),
+           !nativeLockController.isCurrentSelectionApplied(content: content, record: nativeLockRecord),
            !nativeLockController.hasPreparedMediaForNativeLock(content: content) {
             prepareNativeLockMediaIfNeeded(for: content)
             return
@@ -897,8 +896,9 @@ final class AppModel: ObservableObject {
               !settings.cancelledNativeLockPreparationIDs.contains(content.id) else {
             return
         }
-        let isCurrentSelectionAlreadyApplied = nativeLockRecord?.journal.phase == .active
-            && nativeLockRecord?.request.sourceContentID == content.id
+        let isCurrentSelectionAlreadyApplied = nativeLockController.isCurrentSelectionApplied(
+            content: content, record: nativeLockRecord
+        )
         guard !isCurrentSelectionAlreadyApplied else { return }
         guard nativeLockController.hasPreparedMediaForNativeLock(content: content) else {
             prepareNativeLockMediaIfNeeded(for: content)

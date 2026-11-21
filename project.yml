@@ -12,8 +12,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    CURRENT_PROJECT_VERSION: 28
-    MARKETING_VERSION: 0.5.7
+    CURRENT_PROJECT_VERSION: 29
+    MARKETING_VERSION: 0.5.8
 targets:
   HikariCore:
     type: framework.static

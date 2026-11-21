@@ -1,5 +1,69 @@
 # Native Lock persistent black screen — 2026-11-14
 
+The [2026-11-21 media audit](NATIVE_LOCK_MEDIA_AUDIT_2026-11-21.md) compares legacy
+passthrough, plain Main10 and temporal outputs using actual CoreMedia per-sample
+attachments and EOF/reopen checks. It confirms a legacy preparation gap without
+claiming an actual macOS 15/26 Lock Screen reproduction on the current 27 host.
+
+## 2026-11-21 follow-up: macOS 26 rapid relock candidate patch
+
+The user reports Hikari 0.5.7 on macOS Tahoe 26.6.2, M4 Pro: lock → unlock →
+lock within one second leaves the second Lock Screen persistently black.
+Unlocking returns to a normal desktop. This is not a desktop AVPlayer failure.
+No sample-reader log from that Mac has been supplied, so its exact failure is
+not established.
+
+Code inspection found that 26 still used a plain Main10 AVAssetWriter encode;
+only 27 requested temporal layers and checked `tscl`/`tsas`. The
+[AlexisBCD experiment](https://github.com/AlexisBCD/macos-custom-video-wallpaper-fix)
+explicitly reports testing this failure/fix on **26.4.1 Apple Silicon**;
+[wallpaper-aerials-sync](https://github.com/poornack/wallpaper-aerials-sync)
+also reports next-lock failure on 26. These are external observations, not
+Apple's private wallpaper contract or a diagnosis of the user's Mac. Apple's
+[hierarchical HEVC presentation](https://devstreaming-cdn.apple.com/videos/wwdc/2017/511tj33587vdhds/511/511_working_with_heif_and_hevc.pdf)
+documents the public base-layer frame-rate encoder property, not Lock Screen
+acceptance. The former assumption that temporal data was only relevant to 27
+was too narrow.
+
+The candidate routes 26 through the existing temporal encoder, preserving source
+duration, 1080p aspect-fit canvas, cancellation and bounded metadata checks.
+Both user-Aerial profiles reject the old Main10-only cache. A same-content active
+transaction is no longer considered current solely by its content ID: its staged
+movie must satisfy the profile. A replacement is prepared and validated before
+the old transaction is restored. Preparation failure/cancellation retains the
+active transaction; Restore failure prevents new Apply. Existing journal, hash,
+ownership, selective Restore and recovery-required rules remain in effect.
+Active media and transaction backups are never overwritten in place. Normal
+in-app updates already restore before replacing the app; this also covers a
+direct-install upgrade that retains an active old transaction.
+
+The two-second monotonic refresh guard and lock cancellation are unchanged.
+For a relock within one second, the refresh is deliberately cancelled, leaving
+no recovery opportunity before the second lock. Shortening the delay would
+reintroduce a documented outgoing-surface flash and does not repair movie data.
+We do not claim the timer itself causes this specific report.
+
+Temporal encoding requires a capable hardware encoder, including on Intel.
+Unavailable/unsupported encoders fail preparation rather than publish a known
+incomplete fallback. Existing active transactions and desktop playback remain
+available; this changes the requirements for preparing a new 26 derivative.
+27's cache/profile, macOS 15 passthrough, desktop decoder/window counts and
+user pause/mute settings are unchanged.
+
+PR CI adds isolated 26 ARM64/Intel media tests using existing runner labels.
+The hardware test runs on both 26 and 27 and explicitly skips a missing hardware
+HEVC encoder, without presenting that as an encoding pass. Main/tag build,
+coverage and packaging gates remain unchanged. Local verification and the still
+pending **26.6.2 M4 Pro** repeated-lock check are recorded in `VERSION_ISSUES.md`.
+
+Manual acceptance on the affected Mac: compare the same video on 0.5.7 and the
+candidate; confirm the active copy actually has temporal groups, then repeat
+lock/unlock/relock within one second at least 20 times, plus cycles with more
+than three seconds unlocked. Capture sample-reader errors and Hikari refresh
+timestamps, verify normal desktop playback, then verify Restore preserves the
+original choices/backups. Use backed-up, explicitly authorized live trials only.
+This Mac runs 27.2.1; no 26 Lock Screen resolution is claimed here.
+
 ## Release status
 
 At the user's explicit request, 0.5.3 enables the separate macOS 27 Native Lock
