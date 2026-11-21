@@ -28,6 +28,12 @@
 
 ### 실제 검증
 
+- 2026-11-21 후속 점검: 임시 legacy passthrough와 구형 Main10의 실제 temporal 정보는
+  0/60프레임, 후보 temporal은 60/60이었다. 세 사본 모두 일반 decode/EOF 재읽기는
+  3회 통과했다. box 이름에 더해 실제 sample attachment를 검사하도록 hardware 회귀를
+  보강했고, Swift/Xcode 해당 4개 테스트를 각각 실패·skip 없이 통과했다.
+  [별도 재현 도구·공통 스케줄 및 한계](NATIVE_LOCK_MEDIA_AUDIT_2026-11-21.md)를 기록한다.
+  이 후속 점검은 제품 runtime 변경이나 macOS 15/26 실기기 잠금 검증을 포함하지 않는다.
 - 현재 Mac: macOS 27.2.1 (26B131), Xcode 26.6 / SDK 26.5. 설치 앱 및 실제 wallpaper
   저장소를 변경하지 않았고, 실제 잠금·Apply/Restore·sudo/root 작업을 실행하지 않았다.
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter AerialTemporalEncoderTests`:

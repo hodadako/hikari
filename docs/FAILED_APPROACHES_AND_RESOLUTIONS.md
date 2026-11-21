@@ -2,6 +2,22 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-21 일반 decode 성공만으로 Native Lock 전환 적합성을 판단
+
+- 임시 H.264 passthrough와 Main10-only 사본은 EOF/reopen과 decode를 3회 모두 통과했지만,
+  실제 CoreMedia temporal 정보는 0/60프레임이었다. temporal 사본만 60/60이었다.
+  일반 재생 성공을 unlock ramp-down이나 다음 잠금의 정상 동작으로 기록하지 않는다.
+- 기존 MOV group 존재 검사만으로 frame별 attachment를 검증했다고 가정하지 않는다.
+  hardware encoder 회귀 검사에 실제 sample별 정보와 3회 EOF/reopen을 추가했다.
+- 최초 일회 진단은 coverage가 켜진 Debug static framework를 링크해
+  `___llvm_profile_runtime`에서 실패했다. profiling runtime을 링크해 실행한 뒤,
+  저장하는 재현 도구는 실제 Core 네 파일을 직접 컴파일하도록 해 그 의존성을 제거했다.
+- 새 임시 leaf의 symlink 해석이 완료되지 않아 안전 경로 guard가 정상 출력을 거부했다.
+  기존 부모를 먼저 해석하고 경계가 있는 임시 prefix를 검사한다. 인자 누락·기존 출력·
+  일반 경로·symlink escape 거부와 원본 hash 보존을 확인했다. zsh의 예약 변수 `status`를
+  사용한 첫 거부 검사 집계는 `audit_exit_code`로 수정해 재실행했다. 제품 오류로 집계하지 않는다.
+- [점검 결과와 재현 절차](NATIVE_LOCK_MEDIA_AUDIT_2026-11-21.md)를 남겼다.
+
 ## 2026-11-21 macOS 26 빠른 재잠금을 timer 문제로만 추정
 
 - 사용자 재현 조건은 0.5.7, Tahoe 26.6.2/M4 Pro, 해제 후 1초 이내 재잠금이다.

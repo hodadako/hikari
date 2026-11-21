@@ -216,6 +216,17 @@ jobs:
           set -euo pipefail
           [[ "$(sw_vers -productVersion)" == 26.* ]]
           swift test --filter AerialTemporalEncoderTests
+      - name: Compile isolated media diagnostic
+        run: |
+          set -euo pipefail
+          xcrun swiftc -swift-version 5 -parse-as-library \
+            -target "$(uname -m)-apple-macosx15.0" \
+            scripts/diagnostics/NativeLockMediaAudit.swift \
+            Sources/HikariCore/AerialTemporalEncoder.swift \
+            Sources/HikariCore/AerialTemporalSampleGroups.swift \
+            Sources/HikariCore/VideoPreparationControl.swift \
+            Sources/HikariCore/NativeLockMaintenanceSchedule.swift \
+            -o "${RUNNER_TEMP}/NativeLockMediaAudit"
 
   macos-27:
     name: Build and test (xcode-27)

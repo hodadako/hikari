@@ -1,5 +1,10 @@
 # Native Lock persistent black screen — 2026-11-14
 
+The [2026-11-21 media audit](NATIVE_LOCK_MEDIA_AUDIT_2026-11-21.md) compares legacy
+passthrough, plain Main10 and temporal outputs using actual CoreMedia per-sample
+attachments and EOF/reopen checks. It confirms a legacy preparation gap without
+claiming an actual macOS 15/26 Lock Screen reproduction on the current 27 host.
+
 ## 2026-11-21 follow-up: macOS 26 rapid relock candidate patch
 
 The user reports Hikari 0.5.7 on macOS Tahoe 26.6.2, M4 Pro: lock → unlock →

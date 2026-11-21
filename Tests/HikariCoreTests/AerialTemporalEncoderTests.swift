@@ -86,6 +86,7 @@ final class AerialTemporalEncoderTests: XCTestCase {
         XCTAssertEqual(size, CGSize(width: 320, height: 180))
         let formats = try await encodedTrack.load(.formatDescriptions)
         XCTAssertEqual(CMFormatDescriptionGetMediaSubType(try XCTUnwrap(formats.first)), kCMVideoCodecType_HEVC)
+        try verifyTemporalSamplesAcrossEOFReopens(asset: encoded, track: encodedTrack)
         let audio = try await encoded.loadTracks(withMediaType: .audio)
         XCTAssertTrue(audio.isEmpty)
         let decoded = try await AVAssetImageGenerator(asset: encoded).image(at: CMTime(seconds: 0.5, preferredTimescale: 600))
@@ -95,6 +96,41 @@ final class AerialTemporalEncoderTests: XCTestCase {
         XCTAssertThrowsError(try AerialTemporalEncoder.encode(reader: reader, output: output, destinationURL: target,
                                                               width: 320, height: 180, frameRate: 30))
         XCTAssertEqual(try Data(contentsOf: target), before)
+    }
+
+    /// Box names alone do not prove CoreMedia can resolve temporal information
+    /// for the actual samples. Reopen the compressed reader across EOF without
+    /// involving a desktop player or the system wallpaper extension.
+    private func verifyTemporalSamplesAcrossEOFReopens(asset: AVAsset, track: AVAssetTrack) throws {
+        for pass in 0..<3 {
+            let reader = try AVAssetReader(asset: asset)
+            let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+            output.alwaysCopiesSampleData = false
+            reader.add(output)
+            XCTAssertTrue(reader.startReading())
+            var samples = 0, temporalSamples = 0, accessSamples = 0
+            var levels = Set<Int>()
+            while let sample = output.copyNextSampleBuffer() {
+                samples += CMSampleBufferGetNumSamples(sample)
+                let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false)
+                    as? [[String: Any]] ?? []
+                for entry in attachments {
+                    if let info = entry[kCMSampleAttachmentKey_HEVCTemporalLevelInfo as String] as? [String: Any],
+                       let level = info[kCMHEVCTemporalLevelInfoKey_TemporalLevel as String] as? NSNumber {
+                        temporalSamples += 1
+                        levels.insert(level.intValue)
+                    }
+                    if entry[kCMSampleAttachmentKey_HEVCTemporalSubLayerAccess as String] != nil {
+                        accessSamples += 1
+                    }
+                }
+            }
+            XCTAssertEqual(reader.status, .completed, "EOF pass \(pass): \(String(describing: reader.error))")
+            XCTAssertEqual(samples, 60, "EOF pass \(pass) lost samples")
+            XCTAssertEqual(temporalSamples, samples, "EOF pass \(pass) lacks per-sample temporal info")
+            XCTAssertTrue(levels.contains(0) && levels.contains(where: { $0 > 0 }), "No temporal hierarchy")
+            XCTAssertGreaterThan(accessSamples, 0, "No temporal sublayer access samples")
+        }
     }
 
     private func box(_ type: String, _ bytes: Data) -> Data {
