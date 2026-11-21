@@ -2,18 +2,29 @@ import AVFoundation
 import Foundation
 import VideoToolbox
 
-/// Separate cache identities keep macOS 26 derivatives unchanged. A Main10
-/// file alone does not provide 27's temporal sample descriptions.
+/// Both user-Aerial backends need a derivative with temporal sample groups.
+/// A plain Main10 cache from macOS 26 must not satisfy this profile.
 public enum AerialPreparationProfile: Sendable {
     case main10
     case temporalMain10
     public init(operatingSystemMajorVersion: Int) {
-        self = operatingSystemMajorVersion == 27 ? .temporalMain10 : .main10
+        self = [26, 27].contains(operatingSystemMajorVersion) ? .temporalMain10 : .main10
     }
     public var cacheVersion: String {
         switch self {
         case .main10: "aerial-hevc-main10-1920x1080-v1"
         case .temporalMain10: "aerial-hevc-main10-temporal-1920x1080-v2"
+        }
+    }
+
+    /// Bounded metadata inspection, also used on staged active media so a
+    /// matching content ID cannot hide an obsolete Main10-only transaction.
+    public func acceptsPreparedMedia(at url: URL) -> Bool {
+        guard FileManager.default.isReadableFile(atPath: url.path) else { return false }
+        switch self {
+        case .main10: return true
+        case .temporalMain10:
+            return (try? AerialTemporalSampleGroups.isPresent(in: url)) == true
         }
     }
 }

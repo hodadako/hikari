@@ -94,7 +94,7 @@ final class NativeLockController {
         }
     }
 
-    /// Builds the macOS 26 Aerial input ahead of a selection.  This never
+    /// Builds the macOS 26/27 Aerial input ahead of a selection. This never
     /// changes the wallpaper store; it only creates an atomically-published
     /// cache in Hikari's private support directory.
     func prepareMediaForNativeLock(
@@ -186,6 +186,20 @@ final class NativeLockController {
         cachedPreparationURLs(for: content) != nil
     }
 
+    func isCurrentSelectionApplied(
+        content: LiveContent,
+        record: NativeLockTransactionRecord?
+    ) -> Bool {
+        guard let record, record.journal.phase == .active,
+              record.request.sourceContentID == content.id else { return false }
+        guard record.journal.backend?.isUserAerials == true else { return true }
+        let stagedMediaURL = store.transactionDirectoryURL(for: record.request.transactionID)
+            .appendingPathComponent(NativeLockPaths.stagedMediaFilename)
+        return AerialPreparationProfile(
+            operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        ).acceptsPreparedMedia(at: stagedMediaURL)
+    }
+
     private func cachedPreparationURLs(
         for content: LiveContent
     ) -> PreparedAerialMedia? {
@@ -202,8 +216,9 @@ final class NativeLockController {
               FileManager.default.isReadableFile(atPath: previewURL.path) else {
             return nil
         }
-        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27,
-           (try? AerialTemporalSampleGroups.isPresent(in: mediaURL)) != true { return nil }
+        guard AerialPreparationProfile(
+            operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        ).acceptsPreparedMedia(at: mediaURL) else { return nil }
         return PreparedAerialMedia(mediaURL: mediaURL, previewURL: previewURL)
     }
 
@@ -338,7 +353,11 @@ final class NativeLockController {
                 throw NativeLockTransactionError.activeTransactionExists
             }
             if current.request.sourceContentID == content.id {
-                return current
+                if isCurrentSelectionApplied(content: content, record: current) { return current }
+                // Build and validate the replacement before Restore touches any
+                // active state. Unsupported encoders/cancellation leave the old
+                // transaction and its hash-protected media/backups intact.
+                try await prepareMediaForNativeLock(content: content)
             }
             try restore()
         }
@@ -748,7 +767,9 @@ final class NativeLockController {
         }
         reader.add(readerOutput)
 
-        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 27 {
+        if case .temporalMain10 = AerialPreparationProfile(
+            operatingSystemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        ) {
             try AerialTemporalEncoder.encode(reader: reader, output: readerOutput, destinationURL: destinationURL,
                                              width: outputWidth, height: outputHeight, frameRate: frameRate,
                                              duration: sourceComposition.duration.seconds, control: control)

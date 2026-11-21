@@ -155,10 +155,16 @@ The user explicitly requested an enabled release, so 0.5.3 sets the product flag
 `goldenGateNativeLockEnabled` true. Repeated-lock, reboot and physical display
 validation remain incomplete. See [the evidence and enablement scope](docs/NATIVE_LOCK_MACOS27.md).
 
-The macOS 27 private video derivative uses `AerialTemporalEncoder`: public
+The macOS 26/27 private video derivative uses `AerialTemporalEncoder`: public
 VideoToolbox hierarchical HEVC, compressed-sample MOV writing and bounded
 `AerialTemporalSampleGroups` verification before cache publication. Its cache
-identity differs from the unchanged 26 Main10 path. The desktop player never
+identity invalidates the former 26 Main10-only cache; 27's temporal cache identity
+is unchanged. Active user-Aerial media is inspected before accepting a matching
+content ID as already applied. An obsolete active derivative is prepared first,
+then replaced through the existing Restore/Apply engine, without editing active
+media or backups in place. Preparation failure or cancellation leaves the active
+transaction in place. Hardware temporal encoding is required; no unverified plain
+Main10 fallback is published. The desktop player never
 uses this derivative. See [the black-screen investigation](docs/NATIVE_LOCK_BLACK_SCREEN.md).
 
 `NativeLockMaintenanceSchedule` shares the latest unlock's monotonic two-second

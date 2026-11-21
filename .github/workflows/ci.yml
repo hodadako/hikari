@@ -199,6 +199,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  macos-26-media:
+    name: Aerial media regression (${{ matrix.runner }})
+    needs: metadata
+    if: github.event_name == 'pull_request' && needs.metadata.result == 'success' && needs.metadata.outputs.docs_only != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-26, macos-26-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify runtime and exercise private Aerial preparation
+        run: |
+          set -euo pipefail
+          [[ "$(sw_vers -productVersion)" == 26.* ]]
+          swift test --filter AerialTemporalEncoderTests
+
   macos-27:
     name: Build and test (xcode-27)
     needs: metadata
@@ -319,7 +337,7 @@ jobs:
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [metadata, build-and-test, macos-27, release]
+    needs: [metadata, build-and-test, macos-26-media, macos-27, release]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -330,6 +348,8 @@ jobs:
           IS_TAG: ${{ needs.metadata.outputs.is_tag }}
           BUILD_RESULT: ${{ needs.build-and-test.result }}
           MACOS_27_RESULT: ${{ needs.macos-27.result }}
+          EVENT_NAME: ${{ github.event_name }}
+          MACOS_26_MEDIA_RESULT: ${{ needs.macos-26-media.result }}
           RELEASE_RESULT: ${{ needs.release.result }}
         run: |
           set -euo pipefail
@@ -346,6 +366,9 @@ jobs:
             exit 1
           elif [[ "${MACOS_27_RESULT}" != "success" ]]; then
             echo "macOS 27 build and test did not succeed: ${MACOS_27_RESULT}" >&2
+            exit 1
+          elif [[ "${EVENT_NAME}" == "pull_request" && "${MACOS_26_MEDIA_RESULT}" != "success" ]]; then
+            echo "macOS 26 Aerial media regression did not succeed: ${MACOS_26_MEDIA_RESULT}" >&2
             exit 1
           fi
 

@@ -2,6 +2,46 @@
 
 최신 항목을 위에 추가한다. 각 릴리스에는 사용자 영향, 원인, 조치, 검증, 남은 제약을 기록한다.
 
+## Unreleased — macOS 26 빠른 재잠금의 지속 검은 화면 후보 패치 (2026-11-21)
+
+### 보고 및 근거
+
+- 0.5.7, Tahoe 26.6.2/M4 Pro에서 잠금 → 해제 → 1초 이내 잠금 시 두 번째
+  잠금 화면이 계속 검다. 해제하면 데스크톱은 정상이다. 실제 26 장비의 reader 로그는
+  아직 확보하지 않았으므로 원인 확정이나 해결 완료로 기록하지 않는다.
+- 26은 Main10-only, 27은 temporal encoder였다는 코드 차이와, 26.4.1에서 temporal
+  정보 누락을 관찰한 외부 실험을 확인했다. Apple 공개 API 설명, 외부 관찰 및 이번
+  사용자의 증상을 [조사 문서](NATIVE_LOCK_BLACK_SCREEN.md)에 구분했다.
+
+### 변경
+
+- 26도 기존 공개 VideoToolbox temporal encoder를 사용하고 `tscl`/`tsas` description과
+  mapping을 검사한다. 구형 26 cache version은 재사용하지 않으며 27의 version은 유지한다.
+- 같은 content ID라도 active staged media 형식이 구형이면 먼저 새 private cache를 준비하고,
+  성공 후 기존 Restore/Apply로 교체한다. 변환 실패·취소에는 기존 active state를 보존하고,
+  Restore 실패 시 새 Apply를 실행하지 않는다. journal schema, 백업·hash·소유권·OS 검사 및
+  selective Restore 정책은 변경하지 않는다. 신규 변환에는 호환되는 하드웨어 encoder가 필요하다.
+- 2초 monotonic 대기, 재잠금 취소, 잠금 중 process 제어 금지는 유지한다. 데스크톱
+  공유 AVPlayer/창 수, Pause·음소거, macOS 15 passthrough와 최소 지원 버전은 그대로다.
+- 코드 PR에서 기존 15/27 검사에 추가로 `macos-26`·`macos-26-intel`의 격리된 media 검사를
+  CI Gate에 연결한다. main/tag의 전체 matrix·Codecov·release packaging은 보존한다.
+
+### 실제 검증
+
+- 현재 Mac: macOS 27.2.1 (26B131), Xcode 26.6 / SDK 26.5. 설치 앱 및 실제 wallpaper
+  저장소를 변경하지 않았고, 실제 잠금·Apply/Restore·sudo/root 작업을 실행하지 않았다.
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter AerialTemporalEncoderTests`:
+  4개 통과, 실패·skip 없음. 임시 실제 HEVC encode의 temporal group·길이·decode와
+  구형/손상/누락 파일 거부를 확인했다. active 교체 순서는 코드 검사이며 실기기 왕복 검증이 아니다.
+- `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --parallel`:
+  135개 통과(exit 0), 기존 transaction/복원 fixture 포함.
+- `xcodegen generate` 및 Debug `xcodebuild ... CODE_SIGNING_ALLOWED=NO build`: 통과.
+- `xcodebuild ... CODE_SIGNING_ALLOWED=NO test`: 162개 통과, 실패·skip 없음. 실제
+  26.6.2 재잠금 해결이나 물리 Intel 인코딩 성공을 뜻하지 않는다. CI 결과는 PR에서 별도 확인한다.
+- 남은 승인된 26 실기기 검증: 같은 영상의 구형/후보 비교, 활성 사본의 temporal 정보,
+  해제 후 1초 이내 재잠금 20회 및 3초 이상 간격 비교, reader/refresh 로그, 정상 데스크톱,
+  백업 보존 및 Restore 왕복. 버전/태그/릴리스·로컬 설치는 이번 패치에서 진행하지 않는다.
+
 ## Hikari v0.5.7 (28) — 설정 아이콘 선택 타일 간격 통일 (2026-11-15)
 
 - 앱 아이콘은 `HStack(spacing: 16)`, 메뉴 막대 아이콘은 adaptive grid여서 설정 창 너비에
