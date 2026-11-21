@@ -358,6 +358,7 @@ final class NativeLockController {
                 // active state. Unsupported encoders/cancellation leave the old
                 // transaction and its hash-protected media/backups intact.
                 try await prepareMediaForNativeLock(content: content)
+                try Task.checkCancellation()
             }
             try restore()
         }
