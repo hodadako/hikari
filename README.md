@@ -1,217 +1,66 @@
 # Hikari
 
-[English](README.md) | [한국어](README.ko.md)
+A macOS menu bar app that turns your videos into live wallpapers for your desktop and Lock Screen.
 
-## Fast Install
+**[Download Hikari for macOS](https://github.com/hodadako/hikari/releases/latest)** · [한국어](README.ko.md)
 
-Copy this prompt into your AI agent:
+## Install and play
 
-```text
-Install Hikari from the latest release on this Mac and complete the initial setup. Ask me to choose a video if needed. On macOS 26, explain that choosing a video also applies it to the Native Lock Screen, and get my approval before selecting one.
-```
+1. Download `Hikari-macOS-portable.zip` from the latest release and unzip it.
+2. Move `Hikari.app` to Applications and open it.
+3. Open Hikari from the menu bar and choose **Change Content → Import Video…**. On macOS 26 and 27, choosing a video can also update the Lock Screen.
 
-<p align="center">
-  <a href="https://github.com/hodadako/hikari/actions/workflows/ci.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/hodadako/hikari/actions/workflows/codeql.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
-  <a href="https://codecov.io/gh/hodadako/hikari"><img src="https://codecov.io/gh/hodadako/hikari/branch/main/graph/badge.svg" alt="Codecov"></a><br>
-  <a href="https://github.com/hodadako/hikari/releases/latest"><img src="https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&amp;sort=semver&amp;label=latest%20release" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/hodadako/hikari?label=license" alt="License: MIT"></a>
-  <a href="https://github.com/hodadako/hikari/commits/main/"><img src="https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&amp;label=last%20commit" alt="Last commit"></a><br>
-  <a href="https://deepwiki.com/hodadako/hikari"><img src="https://img.shields.io/badge/Ask-DeepWiki-blue" alt="Ask DeepWiki"></a>
-</p>
+Release builds are ad-hoc signed and have no Apple notarization. If macOS shows a first-launch warning, see [Apple’s guide to opening downloaded apps](https://support.apple.com/en-us/102445).
 
-**Bring your desktop to life.**
+<details>
+<summary>Check the download or install with an AI assistant</summary>
 
-Hikari is a native live wallpaper app for macOS. Import a video, use it across
-your connected displays, and optionally apply the selected video through the
-macOS Native Lock Screen path.
-
-> Hikari release builds are ad-hoc signed and are not Apple-notarized.
-
-## Features
-
-- AVFoundation video validation, managed copying, metadata, duplicate checks,
-  and thumbnails
-- Low-overhead looping playback across connected displays and Spaces
-- Fill and Fit scaling, mute, battery pause, launch at login, and library management
-- Library title editing, favorites and search, with a favorites-only filter
-- Lock Screen video conversion progress, cancellation and explicit retry on macOS 26/27
-- Menu bar playback and content controls
-- Automatic macOS 26 Native Lock Screen updates when the selected video changes,
-  plus transaction recovery and Restore
-- Built-in and custom app/menu bar icons
-- Daily update checks with a menu reminder and a notification for each new version;
-  checksum-verified installation from the normal `vX.Y.Z` release channel
-
-## Requirements
-
-- macOS 15 or later
-- Xcode 16 or later
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-
-The full Xcode installation is required for the Xcode scheme and XCTest suite.
-
-## Library and conversion controls (0.5.6+)
-
-In General, use the star to mark favorites, the pencil to edit a display title,
-and the search field to filter videos. Renaming never changes the media file or
-playback selection. Conversion status stays visible even when its video is
-filtered out. Cancelling stops preparation of the private Lock Screen copy,
-preserving desktop playback and the existing Lock Screen; the cancellation is
-remembered until **Retry Conversion** is chosen. macOS 15 retains its existing
-explicit Apply/Restore flow.
-
-## macOS compatibility
-
-| Runtime | Desktop video | Native Lock and Restore |
-| --- | --- | --- |
-| macOS 15, Apple Silicon and Intel | Supported | Apply and Restore use the legacy catalog and require administrator approval |
-| macOS 26, Apple Silicon and Intel | Supported | Selecting a video applies it to the user Aerial store. New temporal preparation requires a compatible hardware HEVC encoder. Restore is available with a matching store |
-| macOS 27, Apple Silicon | Playback and recovery covered by automated tests. Physical display and app UI checks are pending | Enabled in 0.5.3 through the schema-2 user Aerial backend after store validation. Repeated-lock and physical display verification remain incomplete |
-
-Restore an active Native Lock transaction before upgrading macOS. If the Mac
-has already been upgraded, keep the transaction files. Restoring requires the
-matching supported backend and wallpaper store. Explicit 26 → 27 recovery validates
-backups and selectively restores owned choices; automatic adoption is blocked.
-
-Hikari 0.5.9 prepares macOS 26 temporal HEVC media with a
-capable hardware encoder, invalidating older Main10-only caches. It prepares a
-replacement before restoring an obsolete active transaction. Actual repeated-lock
-acceptance on Tahoe 26.6.2 remains pending; see the
-[investigation and verification limits](docs/NATIVE_LOCK_BLACK_SCREEN.md).
-
-When updating Hikari, confirm **Update and Relaunch** to download and verify the
-replacement first. Hikari then restores a supported unfinished Native Lock
-transaction before replacing the app. A failed or cancelled Restore stops the
-update; unreadable or unsupported transactions and failed storage migrations
-still block it. macOS 15 Restore may request administrator approval. Transaction
-backups and the selected video remain saved. This automatic Restore flow is
-available from 0.5.4; installed versions through 0.5.3 require manual Restore
-before their first update to 0.5.4.
-
-See [macOS 27 verification and open checks](docs/VERSION_ISSUES.md).
-
-The first 0.5.1 live trial kept the Index mapping but failed actual Lock Screen
-playback. At the user's explicit request, 0.5.3 enables the separate schema-2
-catalog and journaled catalog preferences for 27, OS provenance and selective
-26 → 27 recovery. Apply/Restore was observed on one macOS 27.2.1 Mac; persistent
-black-screen fixes still need repeated manual lock, reboot and display checks.
-Feature enablement does not certify those unverified scenarios.
-See [the candidate investigation and validation plan](docs/NATIVE_LOCK_MACOS27.md)
-and [the persistent black-screen encoder follow-up](docs/NATIVE_LOCK_BLACK_SCREEN.md).
-
-## Native Lock Screen disclaimer
-
-Native Lock changes undocumented macOS wallpaper/Aerial state. Formats may
-change without notice, and a failed operation can require recovery. macOS 15
-may request administrator authorization; macOS 26 uses the current user's
-Aerial store.
-
-Keep a verified backup and do not use this feature on a managed or irreplaceable
-Mac. Hikari creates transaction journals and requires **Restore** before an app
-update, or before changing a recovery-required transaction. On macOS 26,
-selecting a different video automatically replaces an active Aerial transaction. An active
-transaction may create a root-readable playback copy; other local accounts on
-the Mac may be able to read it while Native Lock is active.
-
-## Download
-
-Download `Hikari-macOS-portable.zip` from the
-[latest release](https://github.com/hodadako/hikari/releases/latest), unzip it,
-and move `Hikari.app` to Applications.
-
-The app is ad-hoc signed, not notarized. On first launch, Control-click
-`Hikari.app`, choose **Open**, and confirm. Verify the download first:
+To check the download, save the ZIP and its `.sha256` file in the same folder. From that folder, run:
 
 ```sh
 shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 ```
 
-## Storage migration
+To use an AI assistant, copy this prompt:
 
-Hikari uses `~/Library/Application Support/Hikari` as its canonical library.
-On first launch it merges missing content, settings, icons, and Native Lock
-transactions from a detected pre-Hikari support root, then moves that source
-directory to a recoverable `.archived` sibling. Existing canonical files win
-conflicts; no source video is deleted.
+```text
+Install Hikari from its latest GitHub release on this Mac. Ask me before selecting a video. On macOS 26 or 27, explain that selecting a video can also apply it to the macOS Lock Screen, and get my approval before proceeding.
+```
 
-## Build
+</details>
+
+## What you can do
+
+- Loop one video across your displays and Spaces.
+- Pause or switch videos from the menu bar. In Settings, choose **Fill** or **Fit**, mute playback, or pause while on battery.
+- Find videos with search and favorites, edit their display names, and customize the app and menu bar icons.
+
+## macOS support
+
+| macOS | Macs | Native Lock Screen |
+| --- | --- | --- |
+| 15 Sequoia | Apple Silicon and Intel | Apply or restore the wallpaper in **Settings → General**. macOS asks for administrator approval. |
+| 26 Tahoe | Apple Silicon and Intel | Selecting a video can update the Lock Screen automatically. New conversions require a compatible hardware HEVC encoder. |
+| 27 Golden Gate | Apple Silicon | Selecting a video can update the Lock Screen automatically after Hikari checks the wallpaper store. New conversions require a compatible hardware HEVC encoder. |
+
+Native Lock changes macOS-managed wallpaper settings. Back up your Mac before using it and select **Restore Previous Wallpaper** before a major macOS upgrade. On macOS 15, other accounts on the Mac may be able to read the Lock Screen copy while it is active.
+
+Repeated-lock behavior still needs more testing on physical Macs. [Native Lock investigation](docs/NATIVE_LOCK_BLACK_SCREEN.md)
+
+## Development
+
+<details>
+<summary>Build and test from source</summary>
+
+Install Xcode 16 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen). Generate the project, then build or test the **Hikari** scheme in Xcode:
 
 ```sh
-brew install xcodegen
 xcodegen generate
 open Hikari.xcodeproj
 ```
 
-Select the `Hikari` scheme. From the command line:
+Run `swift test` for the package tests.
 
-```sh
-xcodebuild \
-  -project Hikari.xcodeproj \
-  -scheme Hikari \
-  -configuration Debug \
-  -destination 'platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+</details>
 
-For a local ad-hoc installation:
-
-```sh
-scripts/build-hikari.sh
-```
-
-The script builds and installs `/Applications/Hikari.app`. On macOS 26,
-changing the selected video in General automatically updates the Native Lock
-Screen Aerial. Restore is shown in General only while a transaction needs
-recovery. The script does not install a daemon or persistent privileged helper.
-
-## Test
-
-```sh
-swift test
-xcodebuild \
-  -project Hikari.xcodeproj \
-  -scheme Hikari \
-  -destination 'platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  test
-```
-
-## Release
-
-Normal `vX.Y.Z` tags build and publish Hikari only as
-`Hikari-macOS-portable.zip` with its SHA-256 checksum. Non-tag builds run
-validation and tests; packaging and publishing are tag-only.
-
-## Project layout
-
-```text
-Sources/
-├── HikariApp/          Hikari menu bar UI, settings, and wallpaper windows
-├── HikariCore/         Models, stores, importer, policy, and renderer
-├── HikariNativeLock/   Native Lock transaction, backup, apply, and restore
-└── HikariNativeTool/   One-shot administrator-authorized system operation
-Archive/HikariLegacy/   Retired Hikari screen-saver and event-tap sources
-Tests/
-├── HikariCoreTests/
-└── HikariNativeLockTests/
-```
-
-## Current limitations
-
-- Video support follows the AVFoundation capabilities of the installed macOS
-- The same video is shown on every display; per-display content is not supported
-- No playlist, online gallery, or per-display content
-- Releases are ad-hoc signed and not Apple-notarized
-- Native Lock uses undocumented macOS behavior and requires hands-on recovery
-  testing on each supported macOS major version
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports should follow
-[SECURITY.md](SECURITY.md).
-
-## License
-
-Hikari is released under the [MIT License](LICENSE).
+[Release notes](https://github.com/hodadako/hikari/releases) · [Architecture](ARCHITECTURE.md) · [Verification history](docs/VERSION_ISSUES.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT License](LICENSE)

@@ -1,204 +1,66 @@
 # Hikari
 
-> Hikari 0.5.9는 macOS 26의 하드웨어 temporal HEVC 사본을 준비하며 구형
-> Main10-only cache를 재사용하지 않습니다. 새 사본 준비 후 기존 Restore/Apply로 교체합니다.
-> Tahoe 26.6.2 실기기 반복 잠금의 해결 여부는 아직 확인 전입니다.
-> [조사 및 검증 범위](docs/NATIVE_LOCK_BLACK_SCREEN.md)를 참고하세요.
+내 영상을 데스크톱과 잠금 화면의 라이브 배경화면으로 쓰는 macOS 메뉴 막대 앱입니다.
 
-[English](README.md) | [한국어](README.ko.md)
+**[macOS용 Hikari 다운로드](https://github.com/hodadako/hikari/releases/latest)** · [English](README.md)
 
-## 빠른 설치
+## 설치하고 시작하기
 
-AI 에이전트에 아래 프롬프트를 복사해 붙여넣으세요.
+1. 최신 릴리스에서 `Hikari-macOS-portable.zip`을 받아 압축을 풉니다.
+2. `Hikari.app`을 응용 프로그램 폴더로 옮기고 실행합니다.
+3. 메뉴 막대에서 Hikari를 열고 **콘텐츠 변경 → 영상 가져오기…**를 선택합니다. macOS 26과 27에서는 영상을 선택하면 잠금 화면도 바뀔 수 있습니다.
 
-```text
-이 Mac에 최신 릴리스의 Hikari를 설치하고 초기 설정을 완료해 줘. 필요하면 내가 영상을 선택하도록 물어봐. macOS 26에서는 영상을 선택하면 Native Lock Screen에도 적용된다는 점을 설명하고, 선택하기 전에 내 승인을 받아.
-```
+배포 앱은 ad-hoc 서명 상태이며 Apple 공증을 받지 않았습니다. 첫 실행에 경고가 나오면 [Apple의 다운로드한 앱 열기 안내](https://support.apple.com/ko-kr/102445)를 참고하세요.
 
-<p align="center">
-  <a href="https://github.com/hodadako/hikari/actions/workflows/ci.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/hodadako/hikari/actions/workflows/codeql.yml"><img src="https://github.com/hodadako/hikari/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
-  <a href="https://codecov.io/gh/hodadako/hikari"><img src="https://codecov.io/gh/hodadako/hikari/branch/main/graph/badge.svg" alt="Codecov"></a><br>
-  <a href="https://github.com/hodadako/hikari/releases/latest"><img src="https://img.shields.io/github/v/release/hodadako/hikari?display_name=tag&amp;sort=semver&amp;label=latest%20release" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/hodadako/hikari?label=license" alt="License: MIT"></a>
-  <a href="https://github.com/hodadako/hikari/commits/main/"><img src="https://img.shields.io/github/last-commit/hodadako/hikari?branch=main&amp;label=last%20commit" alt="Last commit"></a><br>
-  <a href="https://deepwiki.com/hodadako/hikari"><img src="https://img.shields.io/badge/Ask-DeepWiki-blue" alt="Ask DeepWiki"></a>
-</p>
+<details>
+<summary>다운로드 검증 또는 AI로 설치하기</summary>
 
-**데스크톱에 생동감을 더하세요.**
-
-Hikari는 macOS용 네이티브 라이브 배경화면 앱입니다. 영상을 가져와 연결된
-디스플레이에서 재생하고, 원하면 선택한 영상을 macOS Native Lock Screen 경로에
-적용할 수 있습니다.
-
-> Hikari 릴리스 빌드는 ad-hoc 서명되며 Apple 공증을 받지 않습니다.
-
-## 주요 기능
-
-- AVFoundation 영상 검증, 관리 폴더 복사, 메타데이터·중복 검사 및 썸네일 생성
-- 연결된 디스플레이와 Space에서 저부하 반복 재생
-- 채우기/맞추기 배율, 음소거, 배터리 일시정지, 로그인 시 실행, 라이브러리 관리
-- 제목 변경, 즐겨찾기, 영상 검색 및 즐겨찾기 필터
-- macOS 26/27 잠금 화면 영상 변환 진행률·취소·재시도
-- 메뉴 막대 재생 및 콘텐츠 제어
-- macOS 26에서 영상 선택 시 자동 Native Lock Screen 적용, transaction 복구 및 Restore
-- 기본·사용자 지정 앱 아이콘과 메뉴 막대 아이콘
-- 일반 `vX.Y.Z` 릴리스 채널의 checksum 검증 앱 업데이트
-
-## 요구 사항
-
-- macOS 15 이상
-- Xcode 16 이상
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen)
-
-Xcode 스킴과 XCTest 전체 실행에는 전체 Xcode 설치가 필요합니다.
-
-## 라이브러리 관리와 변환 상태 (0.5.6 이상)
-
-General 라이브러리에서 별 버튼으로 즐겨찾기, 연필 버튼으로 표시 제목 변경,
-검색창과 즐겨찾기 필터로 영상 찾기를 지원합니다. 제목 변경은 영상 파일 이름이나
-재생 선택을 바꾸지 않습니다. macOS 26/27의 잠금 화면용 영상 변환에는 진행률·취소·
-재시도를 제공합니다. 검색으로 영상이 숨겨져도 변환 상태는 별도로 표시됩니다.
-취소하면 기존 데스크톱 재생과 잠금 화면을 유지하며, 앱을 다시 열어도 명시적으로
-재시도하기 전까지 해당 영상의 자동 변환·적용을 재개하지 않습니다.
-macOS 15의 기존 명시적 Apply/Restore 흐름은 유지합니다.
-
-## macOS 호환성
-
-| 실행 환경 | 데스크톱 영상 | Native Lock 및 Restore |
-| --- | --- | --- |
-| macOS 15, Apple Silicon·Intel | 지원 | 관리자 승인 후 구형 카탈로그에 Apply 및 Restore |
-| macOS 26, Apple Silicon·Intel | 지원 | 영상 선택 시 사용자 Aerial에 자동 적용. 신규 temporal 변환에는 호환 하드웨어 HEVC encoder 필요. 일치하는 저장소에서 Restore 가능 |
-| macOS 27, Apple Silicon | 자동화 테스트에서 재생 및 복구 확인. 실기기 디스플레이·앱 UI 검증은 남아 있음 | 0.5.3부터 schema 2 사용자 Aerial backend로 Apply·유지보수·Restore 활성화. 저장소 사전 검증 필요, 반복 잠금·실기기 디스플레이 검증은 미완료 |
-
-macOS를 업그레이드하기 전에 활성 Native Lock을 Restore하세요. 이미 업그레이드했다면
-변경 기록을 보존하세요. 복원에는 일치하는 지원 backend와 배경화면 저장소가 필요합니다.
-명시적 26 → 27 복구는 백업 검증 후 소유 choice만 선택적으로 복원하며 자동 인계는
-차단합니다. Hikari 업데이트 확인창에서 **업데이트 후 재실행**을 승인하면 먼저 새 앱을
-다운로드·검증하고, 지원되는 미완료 Native Lock을 복원한 뒤 앱을 교체합니다. 복원 실패·
-취소 시 업데이트를 중단하며, 읽을 수 없거나 미지원인 기록과 저장소 이전 실패는 계속
-차단합니다. macOS 15 복원에는 관리자 승인을 요청할 수 있습니다. 백업과 선택 영상은
-보존합니다. 자동 복원은 0.5.4부터 제공하며, 0.5.3 이하에서 처음 0.5.4로 업데이트할
-때는 수동 복원이 한 번 필요합니다.
-
-[macOS 27 검증 결과와 남은 항목](docs/VERSION_ISSUES.md)을 참고하세요.
-
-사용자의 명시적 요청에 따라 0.5.3부터 macOS 27 Native Lock을 활성화합니다.
-실제 저장소 구조·transaction 생성 OS·백업 hash 검증과 선택적 26 → 27 복구를 유지합니다.
-한 대의 macOS 27.2.1 Mac에서 Apply/Restore를 확인했으나, 검은 화면 수정 후 반복 잠금·
-재부팅·디스플레이 실기기 검증은 미완료입니다. 활성화가 완전 호환 검증을 뜻하지는 않습니다.
-[후보 조사 및 검증 계획](docs/NATIVE_LOCK_MACOS27.md)과
-[지속 검은 화면 인코딩 조사](docs/NATIVE_LOCK_BLACK_SCREEN.md)를 참고하세요.
-
-## Native Lock Screen 기능 고지
-
-Native Lock은 문서화되지 않은 macOS wallpaper/Aerial 상태를 변경합니다. 형식은
-예고 없이 바뀔 수 있으며 실패한 작업은 복구가 필요할 수 있습니다. macOS 15에서는
-관리자 인증을 요청할 수 있고, macOS 26에서는 현재 사용자의 Aerial 저장소를
-사용합니다.
-
-검증된 백업을 준비하고 관리형 Mac이나 복구하기 어려운 장비에서는 사용하지
-마세요. Hikari는 transaction journal을 만들며, 앱 업데이트 전 또는 recovery-required
-transaction을 바꾸기 전에는 **Restore**를 요구합니다. macOS 26에서는 다른 영상을
-선택하면 active Aerial transaction을 자동으로 교체합니다. Native Lock 활성 중에는
-macOS 서비스가 읽을 수 있는 root-readable 재생 복사본이 생길 수 있습니다.
-
-## 다운로드
-
-[최신 릴리스](https://github.com/hodadako/hikari/releases/latest)에서
-`Hikari-macOS-portable.zip`을 내려받아 압축을 풀고 `Hikari.app`을 응용 프로그램
-폴더로 옮기세요.
-
-앱은 ad-hoc 서명되며 공증되지 않았습니다. 처음 실행할 때 `Hikari.app`을
-Control-클릭하고 **열기**를 선택해 확인하세요. 실행 전에 checksum을 확인할 수
-있습니다.
+다운로드한 ZIP을 검증하려면 ZIP과 `.sha256` 파일을 같은 폴더에 저장하고, 그 폴더에서 아래 명령을 실행하세요.
 
 ```sh
 shasum -a 256 -c Hikari-macOS-portable.zip.sha256
 ```
 
-## 저장소 마이그레이션
+AI 어시스턴트로 설치하려면 아래 문장을 복사하세요.
 
-Hikari는 `~/Library/Application Support/Hikari`를 canonical 라이브러리로
-사용합니다. 첫 실행 시 감지한 pre-Hikari 저장소에서 없는 콘텐츠·설정·아이콘·Native
-Lock transaction을 합친 뒤 원본 폴더를 복구 가능한 `.archived` 인접 경로로
-이동합니다. 충돌 시 기존 canonical 파일을 우선하며 원본 영상은 삭제하지 않습니다.
+```text
+이 Mac에 GitHub 최신 릴리스의 Hikari를 설치해 줘. 영상을 선택하기 전에 나에게 물어봐. macOS 26이나 27에서는 영상 선택 시 macOS 잠금 화면에도 적용될 수 있다고 안내하고 내 동의를 받은 뒤 진행해 줘.
+```
 
-## 빌드
+</details>
+
+## 주요 기능
+
+- 연결된 디스플레이와 Spaces에서 같은 영상을 반복 재생합니다.
+- 메뉴 막대에서 재생을 멈추거나 영상을 바꿀 수 있습니다. 설정에서 채우기·맞추기, 음소거, 배터리 사용 시 일시정지를 고를 수 있습니다.
+- 라이브러리에서 영상을 검색하고 즐겨찾기와 제목을 관리할 수 있습니다. 앱·메뉴 막대 아이콘도 바꿀 수 있습니다.
+
+## 지원 환경
+
+| macOS | 지원 기기 | 잠금 화면 |
+| --- | --- | --- |
+| 15 Sequoia | Apple Silicon·Intel | **설정 → 일반**에서 직접 적용·복원합니다. 관리자 승인이 필요합니다. |
+| 26 Tahoe | Apple Silicon·Intel | 영상 선택 시 잠금 화면에도 자동 적용될 수 있습니다. 새 변환에는 호환 HEVC 하드웨어 인코더가 필요합니다. |
+| 27 Golden Gate | Apple Silicon | 배경화면 저장소 검사를 통과하면 영상 선택 시 잠금 화면에도 자동 적용될 수 있습니다. 새 변환에는 호환 HEVC 하드웨어 인코더가 필요합니다. |
+
+잠금 화면 기능은 macOS가 관리하는 배경화면 설정을 바꿉니다. 사용 전에 Mac을 백업하고, macOS의 주요 버전을 올리기 전에 **이전 배경화면 복원**을 선택하세요. macOS 15에서는 적용 중 같은 Mac의 다른 계정이 잠금 화면용 사본을 읽을 수 있습니다.
+
+반복 잠금 동작은 실기기에서 추가 확인이 필요합니다. [잠금 화면 조사 기록](docs/NATIVE_LOCK_BLACK_SCREEN.md)
+
+## 개발
+
+<details>
+<summary>소스에서 빌드하고 테스트하기</summary>
+
+Xcode 16 이상과 [XcodeGen](https://github.com/yonaskolb/XcodeGen)을 설치하세요. 프로젝트를 생성한 뒤 Xcode에서 **Hikari** 스킴을 빌드하거나 테스트합니다.
 
 ```sh
-brew install xcodegen
 xcodegen generate
 open Hikari.xcodeproj
 ```
 
-Xcode에서 `Hikari` 스킴을 선택하세요. 명령줄에서는 다음을 사용합니다.
+패키지 테스트는 `swift test`로 실행합니다.
 
-```sh
-xcodebuild \
-  -project Hikari.xcodeproj \
-  -scheme Hikari \
-  -configuration Debug \
-  -destination 'platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
+</details>
 
-로컬 ad-hoc 설치는 다음 스크립트로 만들 수 있습니다.
-
-```sh
-scripts/build-hikari.sh
-```
-
-스크립트는 `/Applications/Hikari.app`을 빌드·설치합니다. macOS 26에서는 General에서
-영상을 바꾸면 Native Lock Screen Aerial도 자동 적용됩니다. Restore는 transaction
-복구가 필요한 경우에만 General에 표시됩니다. daemon이나 persistent privileged helper는
-설치하지 않습니다.
-
-## 테스트
-
-```sh
-swift test
-xcodebuild \
-  -project Hikari.xcodeproj \
-  -scheme Hikari \
-  -destination 'platform=macOS' \
-  CODE_SIGNING_ALLOWED=NO \
-  test
-```
-
-## 릴리스
-
-일반 `vX.Y.Z` 태그는 Hikari만 빌드하고
-`Hikari-macOS-portable.zip`과 SHA-256 checksum을 게시합니다. 태그가 아닌
-빌드는 검증과 테스트만 수행하며 패키징·게시 작업은 태그에서만 실행됩니다.
-
-## 프로젝트 구조
-
-```text
-Sources/
-├── HikariApp/          Hikari 메뉴 막대 UI, 설정, 배경화면 창
-├── HikariCore/         모델, 저장소, 가져오기, 정책, 렌더러
-├── HikariNativeLock/   Native Lock transaction·백업·적용·복원 엔진
-└── HikariNativeTool/   관리자 인증 one-shot 시스템 작업
-Archive/HikariLegacy/   폐기된 Hikari 화면 보호기·event-tap 소스
-Tests/
-├── HikariCoreTests/
-└── HikariNativeLockTests/
-```
-
-## 현재 제한 사항
-
-- 영상 지원 범위는 설치된 macOS의 AVFoundation 기능에 따릅니다.
-- 모든 디스플레이에 같은 영상을 표시하며 디스플레이별 콘텐츠는 지원하지 않습니다.
-- 재생목록, 온라인 갤러리, 디스플레이별 콘텐츠는 지원하지 않습니다.
-- 릴리스는 ad-hoc 서명되며 Apple 공증을 받지 않습니다.
-- Native Lock은 문서화되지 않은 macOS 동작을 사용하므로 macOS 버전별 복구
-  테스트가 필요합니다.
-
-## 기여 및 라이선스
-
-[CONTRIBUTING.md](CONTRIBUTING.md)를 확인하세요. 보안 제보는
-[SECURITY.md](SECURITY.md)를 따라 주세요.
-
-Hikari는 [MIT License](LICENSE)로 배포됩니다.
+[릴리스 노트](https://github.com/hodadako/hikari/releases) · [아키텍처](ARCHITECTURE.md) · [버전별 검증 기록](docs/VERSION_ISSUES.md) · [기여](CONTRIBUTING.md) · [보안 제보](SECURITY.md) · [MIT 라이선스](LICENSE)
