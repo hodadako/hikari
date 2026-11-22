@@ -2,6 +2,15 @@
 
 재시도하기 전에 이 문서를 확인한다. 실패한 접근은 다시 적용하지 말고, 전제가 달라진 경우에만 근거와 함께 재검토한다.
 
+## 2026-11-22 runner 기본값에 의존한 Release 아키텍처 선택
+
+- v0.5.8 태그 CI의 서명과 checksum 검사는 성공했으나 실제 ZIP에서 앱과
+  helper 모두 ARM64만 확인됐다. 테스트 행렬이 Intel에서 통과해도 별도
+  Release 산출물에 Intel이 포함된다는 보장은 없다.
+- 배포 빌드는 generic macOS 목적지와 두 아키텍처를 명시하고, 압축 전에
+  앱·helper의 두 아키텍처와 각 최소 OS를 검사한다. 패키징 입력이 바뀐 PR에서
+  같은 단계와 아카이브 생성을 미리 검증한다.
+
 ## 2026-11-21 일반 decode 성공만으로 Native Lock 전환 적합성을 판단
 
 - 임시 H.264 passthrough와 Main10-only 사본은 EOF/reopen과 decode를 3회 모두 통과했지만,
