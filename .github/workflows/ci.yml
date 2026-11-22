@@ -22,6 +22,7 @@ jobs:
       is_tag: ${{ steps.version.outputs.is_tag }}
       tag_version: ${{ steps.version.outputs.tag_version }}
       docs_only: ${{ steps.version.outputs.docs_only }}
+      package_pr: ${{ steps.version.outputs.package_pr }}
       build_matrix: ${{ steps.version.outputs.build_matrix }}
     steps:
       - uses: actions/checkout@v7
@@ -39,6 +40,7 @@ jobs:
           is_tag=false
           tag_version=""
           docs_only=false
+          package_pr=false
           build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"},{"runner":"macos-15-intel","codecov_flag":"macos-15-intel"},{"runner":"macos-26","codecov_flag":"macos-26-arm64"},{"runner":"macos-26-intel","codecov_flag":"macos-26-intel"}]}'
 
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
@@ -69,6 +71,9 @@ jobs:
             if [[ "${changed_files}" != "true" ]]; then
               docs_only=false
             fi
+            if [[ -n "$(git diff --name-only "${PR_BASE_SHA}" "${PR_HEAD_SHA}" -- project.yml .github/workflows/ci.yml)" ]]; then
+              package_pr=true
+            fi
 
             build_matrix='{"include":[{"runner":"macos-15","codecov_flag":"macos-15-arm64"}]}'
           fi
@@ -92,6 +97,7 @@ jobs:
             echo "is_tag=${is_tag}"
             echo "tag_version=${tag_version}"
             echo "docs_only=${docs_only}"
+            echo "package_pr=${package_pr}"
             echo "build_matrix=${build_matrix}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -156,18 +162,18 @@ jobs:
           name: hikari-${{ matrix.codecov_flag }}
           fail_ci_if_error: true
       - name: Build, sign, and package Hikari release artifact
-        if: needs.metadata.outputs.is_tag == 'true' && matrix.runner == 'macos-15'
+        if: matrix.runner == 'macos-15' && (needs.metadata.outputs.is_tag == 'true' || needs.metadata.outputs.package_pr == 'true')
         env:
           DERIVED_DATA_PATH: ${{ runner.temp }}/HikariDerivedData
         run: |
-          set -o pipefail
+          set -euo pipefail
           xcodebuild \
             -project Hikari.xcodeproj \
             -scheme Hikari \
             -configuration Release \
-            -destination 'platform=macOS' \
+            -destination 'generic/platform=macOS' \
             -derivedDataPath "${DERIVED_DATA_PATH}" \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO 'ARCHS=arm64 x86_64' \
             build
           app_path="${DERIVED_DATA_PATH}/Build/Products/Release/Hikari.app"
           test -d "${app_path}"
@@ -176,6 +182,24 @@ jobs:
           test ! -d "${app_path}/Contents/PlugIns"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "${app_path}/Contents/Info.plist")" = "Hikari"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist")" = "com.hodadako.Hikari.NativeLocal"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${app_path}/Contents/Info.plist")" = "$(awk '/MARKETING_VERSION:/ { print $2; exit }' project.yml)"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${app_path}/Contents/Info.plist")" = "$(awk '/CURRENT_PROJECT_VERSION:/ { print $2; exit }' project.yml)"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "${app_path}/Contents/Info.plist")" = "15.0"
+          for executable in Hikari hikari-native-tool; do
+            binary="${app_path}/Contents/MacOS/${executable}"
+            architectures="$(xcrun lipo -archs "${binary}")"
+            echo "${executable}: ${architectures}"
+            for arch in arm64 x86_64; do
+              if [[ " ${architectures} " != *" ${arch} "* ]]; then
+                echo "${executable} is missing its ${arch} slice" >&2
+                exit 1
+              fi
+              xcrun vtool -arch "${arch}" -show-build "${binary}" | awk '
+                $1 == "minos" && $2 ~ /^15[.]0([.]0)?$/ { found = 1 }
+                END { exit !found }
+              '
+            done
+          done
           codesign --force --deep --sign - "${app_path}"
           codesign --verify --deep --strict "${app_path}"
           mkdir -p dist
@@ -189,7 +213,7 @@ jobs:
             shasum -a 256 -c "Hikari-macOS-portable.zip.sha256"
           )
       - name: Upload Hikari artifact
-        if: needs.metadata.outputs.is_tag == 'true' && matrix.runner == 'macos-15'
+        if: matrix.runner == 'macos-15' && (needs.metadata.outputs.is_tag == 'true' || needs.metadata.outputs.package_pr == 'true')
         uses: actions/upload-artifact@v7
         with:
           name: Hikari-macOS-portable

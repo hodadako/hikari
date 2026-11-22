@@ -74,7 +74,7 @@ has already been upgraded, keep the transaction files. Restoring requires the
 matching supported backend and wallpaper store. Explicit 26 → 27 recovery validates
 backups and selectively restores owned choices; automatic adoption is blocked.
 
-Hikari 0.5.8 prepares macOS 26 temporal HEVC media with a
+Hikari 0.5.9 prepares macOS 26 temporal HEVC media with a
 capable hardware encoder, invalidating older Main10-only caches. It prepares a
 replacement before restoring an obsolete active transaction. Actual repeated-lock
 acceptance on Tahoe 26.6.2 remains pending; see the
