@@ -33,6 +33,7 @@ final class AppModel: ObservableObject {
     let container: SharedContainer
 
     private let settingsStore: SettingsStore
+    private let libraryReadError: String?
     private let contentStore: ContentStore
     private let importer: VideoImporter
     private let stateMonitor = SystemStateMonitor()
@@ -49,6 +50,7 @@ final class AppModel: ObservableObject {
     private lazy var nativeLockController = NativeLockController(container: container)
     private var nativeLockMaintenanceTask: Task<Void, Never>?
     private var nativeLockAutoApplyTask: Task<Void, Never>?
+    private var nativeLockSelectionQueue = NativeLockSelectionQueue()
     private var nativeRendererRefreshTask: Task<Void, Never>?
     private var nativeLockPreparationTasks: [UUID: Task<Void, Never>] = [:]
     private var nativeLockMaintenanceInProgress = false
@@ -92,7 +94,16 @@ final class AppModel: ObservableObject {
             self.settingsStore = SettingsStore(container: container)
             self.contentStore = ContentStore(container: container)
             self.importer = VideoImporter(container: container)
-            self.contents = contentStore.load()
+            do {
+                self.contents = try contentStore.load()
+                self.libraryReadError = nil
+            } catch {
+                self.contents = []
+                self.libraryReadError = String(format: NSLocalizedString(
+                    "Hikari could not read its library at %@. Check or restore this file, then reopen Hikari. Your videos are preserved. %@",
+                    comment: "Library index recovery guidance"
+                ), container.contentsURL.path, error.localizedDescription)
+            }
             self.settings = settingsStore.load()
             self.nativeStorageMigrationReport = migrationReport
             self.storageMigrationErrorMessage = migrationError?.localizedDescription
@@ -127,6 +138,7 @@ final class AppModel: ObservableObject {
                 self.nativeRendererRefreshPendingFromUnlockNotification = false
             }
             self.reconcilePlayback()
+            self.resumeDeferredNativeLockSelection()
         }
         stateMonitor.onScreenLocked = { [weak self] in
             self?.cancelNativeRendererRefresh()
@@ -202,9 +214,8 @@ final class AppModel: ObservableObject {
                 self?.shutdown()
             }
         }
-        if let storageMigrationErrorMessage {
-            presentedError = storageMigrationErrorMessage
-        }
+        let startupErrors = [libraryReadError, storageMigrationErrorMessage].compactMap { $0 }
+        if !startupErrors.isEmpty { presentedError = startupErrors.joined(separator: "\n\n") }
         updateObservation = updateMonitor.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
         }
@@ -267,7 +278,7 @@ final class AppModel: ObservableObject {
     }
 
     var showsLibrarySetup: Bool {
-        contents.isEmpty && nativeLockRecord == nil
+        libraryReadError == nil && contents.isEmpty && nativeLockRecord == nil
             && nativeLockController.transactionReadError == nil
     }
 
@@ -388,18 +399,24 @@ final class AppModel: ObservableObject {
                 self.nativeRendererRefreshTask = nil
                 self.nativeMaintenanceSchedule.cancel()
                 self.updateNativeLockMaintenance()
+                self.isNativeLockWorking = false
+                self.resumeDeferredNativeLockSelection()
             } catch {
                 self.nativeLockRecord = self.nativeLockController.currentRecord()
                 self.updateNativeLockMaintenance()
                 self.presentedError = error.localizedDescription
+                self.isNativeLockWorking = false
+                self.nativeLockSelectionQueue.cancel()
             }
-            self.isNativeLockWorking = false
             self.objectWillChange.send()
         }
     }
 
     func restoreNativeLock() {
         guard !isApplyingUpdate, !isNativeLockWorking else { return }
+        nativeLockSelectionQueue.cancel()
+        nativeLockAutoApplyTask?.cancel()
+        nativeLockAutoApplyTask = nil
         isNativeLockWorking = true
         do {
             try restoreNativeLockTransaction()
@@ -493,6 +510,10 @@ final class AppModel: ObservableObject {
     }
 
     func importVideo(from url: URL) async {
+        if let libraryReadError {
+            presentedError = libraryReadError
+            return
+        }
         guard !isImporting else { return }
         isImporting = true
         defer { isImporting = false }
@@ -507,8 +528,18 @@ final class AppModel: ObservableObject {
                 from: url,
                 existingContents: contents
             )
-            contents.append(content)
-            try contentStore.save(contents)
+            let updated = contents + [content]
+            do {
+                try contentStore.save(updated)
+            } catch {
+                // This UUID belongs to this import and has never entered the index.
+                try? FileManager.default.removeItem(at: container.mediaURL(for: content))
+                if let thumbnail = container.thumbnailURL(for: content) {
+                    try? FileManager.default.removeItem(at: thumbnail)
+                }
+                throw error
+            }
+            contents = updated
             settings.selectedContentID = content.id
             settings.playbackPreference = .playing
             try persistSettings()
@@ -536,10 +567,10 @@ final class AppModel: ObservableObject {
     }
 
     func delete(_ content: LiveContent) {
-        // The encoder must stop before it can publish a cache for deleted media.
-        nativeLockPreparationTasks[content.id]?.cancel()
+        guard libraryReadError == nil else { return }
         do {
             contents = try contentStore.delete(content, from: contents)
+            nativeLockPreparationTasks[content.id]?.cancel()
             videoPreparationStates.removeValue(forKey: content.id)
             settings.favoriteContentIDs.remove(content.id)
             settings.cancelledNativeLockPreparationIDs.remove(content.id)
@@ -756,6 +787,7 @@ final class AppModel: ObservableObject {
             return
         }
         isApplyingUpdate = true
+        nativeLockSelectionQueue.cancel()
         updateMonitor.stop()
         nativeLockAutoApplyTask?.cancel()
         nativeLockAutoApplyTask = nil
@@ -880,11 +912,28 @@ final class AppModel: ObservableObject {
         objectWillChange.send()
     }
 
+    private var autoApplyAvailable: Bool {
+        !isNativeLockWorking && !stateMonitor.isScreenLocked && !stateMonitor.isSleeping
+    }
+
+    private func resumeDeferredNativeLockSelection() {
+        if nativeLockSelectionQueue.takeIfReady(currentID: settings.selectedContentID, available: autoApplyAvailable) {
+            scheduleNativeLockAutoApply()
+        }
+    }
+
     /// Retries a failed journal read when a video is selected or imported, then
     /// debounces automatic application on a supported user Aerial backend.
     /// A recovered active journal also resumes its eligible maintenance task.
     private func scheduleNativeLockAutoApply() {
         guard !isApplyingUpdate, !isShuttingDown else { return }
+        // The saved journal can still describe the previous selection until Apply completes.
+        if !autoApplyAvailable,
+           NativeLockOperatingSystemPolicy.current.writeBackend?.isUserAerials == true,
+           let id = settings.selectedContentID {
+            nativeLockSelectionQueue.deferSelection(id)
+            return
+        }
         if nativeLockController.transactionReadError != nil {
             nativeLockRecord = nativeLockController.currentRecord()
             updateNativeLockMaintenance()
@@ -911,12 +960,14 @@ final class AppModel: ObservableObject {
             defer { self.nativeLockAutoApplyTask = nil }
             guard !self.isApplyingUpdate,
                   !self.isShuttingDown,
-                  !self.stateMonitor.isScreenLocked,
-                  !self.stateMonitor.isSleeping,
                   self.nativeLockController.transactionReadError == nil,
                   self.nativeLockRecord == nil || self.canMaintainNativeLock,
                   let content = self.selectedContent,
                   !self.settings.cancelledNativeLockPreparationIDs.contains(content.id) else {
+                return
+            }
+            if !self.autoApplyAvailable {
+                self.nativeLockSelectionQueue.deferSelection(content.id)
                 return
             }
             self.applySelectedVideoToNativeLock()

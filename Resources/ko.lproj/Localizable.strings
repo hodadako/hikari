@@ -238,3 +238,5 @@
 "Conversion failed" = "변환에 실패했습니다";
 "Retry Conversion" = "변환 재시도";
 "Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready." = "취소해도 데스크톱 영상 재생과 기존 잠금 화면은 유지됩니다. 준비되면 다시 시도하세요.";
+
+"Hikari could not read its library at %@. Check or restore this file, then reopen Hikari. Your videos are preserved. %@" = "%@에서 Hikari 영상 목록을 읽을 수 없습니다. 파일을 확인하거나 복원한 뒤 Hikari를 다시 열어 주세요. 영상 파일은 보존되어 있습니다. %@";

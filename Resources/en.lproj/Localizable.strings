@@ -238,3 +238,5 @@
 "Conversion failed" = "Conversion failed";
 "Retry Conversion" = "Retry Conversion";
 "Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready." = "Cancelling keeps desktop playback and the existing Lock Screen unchanged. Retry when you are ready.";
+
+"Hikari could not read its library at %@. Check or restore this file, then reopen Hikari. Your videos are preserved. %@" = "Hikari could not read its library at %@. Check or restore this file, then reopen Hikari. Your videos are preserved. %@";
