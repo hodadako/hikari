@@ -60,10 +60,8 @@ public final class VideoImporter {
             try fileManager.copyItem(at: sourceURL.resolvingSymlinksInPath(), to: temporaryURL)
             try fileManager.moveItem(at: temporaryURL, to: destinationURL)
             let copyStamp = try VideoHashIndex.FileStamp(at: destinationURL)
-            let finalSourceStamp = try? VideoHashIndex.FileStamp(at: sourceURL)
-            let copiedHash = finalSourceStamp == sourceStamp && copyStamp.size == sourceStamp.size
-                ? sourceHash : try Self.fileHash(at: destinationURL)
-            if copiedHash != sourceHash,
+            let copiedHash = try Self.fileHash(at: destinationURL)
+            if (copyStamp.size != sourceStamp.size || copiedHash != sourceHash),
                hashes.containsDuplicate(ofSize: copyStamp.size, sha256: copiedHash, in: existingContents) {
                 throw HikariError.duplicateContent
             }

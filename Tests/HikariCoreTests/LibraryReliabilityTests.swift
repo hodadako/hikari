@@ -121,4 +121,37 @@ final class LibraryReliabilityTests: XCTestCase {
         let managed = try files.contentsOfDirectory(atPath: container.mediaDirectoryURL.path)
         XCTAssertEqual(managed, ["legacy.mov"])
     }
+
+    func testImporterChecksTheBytesCopiedEvenWhenTheSourceStampIsUnchanged() async throws {
+        let source = root.appendingPathComponent("source.mov")
+        try await TestVideo.write(to: source)
+        let existing = try makeItem("existing")
+        let existingURL = container.mediaURL(for: existing)
+        var replacementBytes = try Data(contentsOf: source)
+        replacementBytes[0] ^= 1
+        try replacementBytes.write(to: existingURL)
+
+        // Simulate the source temporarily pointing to different, same-size bytes during copy.
+        let importer = VideoImporter(container: container, fileManager: SubstitutingCopy(source: existingURL))
+        do {
+            _ = try await importer.importVideo(from: source, existingContents: [existing])
+            XCTFail("The managed copy is a duplicate")
+        } catch {
+            XCTAssertEqual(error as? HikariError, .duplicateContent)
+        }
+        XCTAssertEqual(try files.contentsOfDirectory(atPath: container.mediaDirectoryURL.path), ["existing.mov"])
+    }
+}
+
+private final class SubstitutingCopy: FileManager, @unchecked Sendable {
+    let source: URL
+
+    init(source: URL) {
+        self.source = source
+        super.init()
+    }
+
+    override func copyItem(at srcURL: URL, to dstURL: URL) throws {
+        try super.copyItem(at: source, to: dstURL)
+    }
 }
