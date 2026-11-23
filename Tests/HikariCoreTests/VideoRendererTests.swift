@@ -15,7 +15,7 @@ final class VideoRendererTests: XCTestCase {
         let videoURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("hikari-renderer-\(UUID().uuidString).mov")
         defer { try? FileManager.default.removeItem(at: videoURL) }
-        try await makeVideo(at: videoURL)
+        try await TestVideo.write(to: videoURL)
         let renderer = VideoRenderer()
         defer { renderer.stopAndRelease() }
         renderer.load(url: videoURL, muted: true)
@@ -86,7 +86,10 @@ final class VideoRendererTests: XCTestCase {
         }
     }
 
-    private func makeVideo(at url: URL) async throws {
+}
+
+enum TestVideo {
+    static func write(to url: URL) async throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,

@@ -26,14 +26,12 @@ public final class VideoImporter {
             throw HikariError.unsupportedFile
         }
 
-        let sourceHash = try fileHash(at: sourceURL)
-        for content in existingContents {
-            let existingURL = container.mediaURL(for: content)
-            if fileManager.fileExists(atPath: existingURL.path),
-               let existingHash = try? fileHash(at: existingURL),
-               existingHash == sourceHash {
-                throw HikariError.duplicateContent
-            }
+        var hashes = VideoHashIndex(container: container, contents: existingContents)
+        defer { hashes.persistChanges() }
+        let sourceStamp = try VideoHashIndex.FileStamp(at: sourceURL)
+        let sourceHash = try Self.fileHash(at: sourceURL)
+        if hashes.containsDuplicate(ofSize: sourceStamp.size, sha256: sourceHash, in: existingContents) {
+            throw HikariError.duplicateContent
         }
 
         let asset = AVURLAsset(url: sourceURL)
@@ -51,7 +49,6 @@ public final class VideoImporter {
         let codec = formatDescriptions.first.map {
             Self.fourCharacterCode(CMFormatDescriptionGetMediaSubType($0))
         }
-        let fileSize = try sourceURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         let id = UUID()
         let mediaRelativePath = "Media/\(id.uuidString).\(storageExtension)"
         let thumbnailRelativePath = "Thumbnails/\(id.uuidString).jpg"
@@ -60,8 +57,15 @@ public final class VideoImporter {
             .appendingPathComponent(".\(id.uuidString).importing")
 
         do {
-            try fileManager.copyItem(at: sourceURL, to: temporaryURL)
+            try fileManager.copyItem(at: sourceURL.resolvingSymlinksInPath(), to: temporaryURL)
             try fileManager.moveItem(at: temporaryURL, to: destinationURL)
+            let copyStamp = try VideoHashIndex.FileStamp(at: destinationURL)
+            let copiedHash = try Self.fileHash(at: destinationURL)
+            if (copyStamp.size != sourceStamp.size || copiedHash != sourceHash),
+               hashes.containsDuplicate(ofSize: copyStamp.size, sha256: copiedHash, in: existingContents) {
+                throw HikariError.duplicateContent
+            }
+            hashes.remember(copiedHash, for: id, stamp: copyStamp)
             let thumbnailURL = container.rootURL.appendingPathComponent(thumbnailRelativePath)
             let generatedThumbnail = try? await generateThumbnail(
                 asset: asset,
@@ -72,7 +76,7 @@ public final class VideoImporter {
                 id: id,
                 title: sourceURL.deletingPathExtension().lastPathComponent,
                 relativePath: mediaRelativePath,
-                fileSize: Int64(fileSize),
+                fileSize: copyStamp.size,
                 duration: duration.seconds,
                 width: Int(abs(displaySize.width)),
                 height: Int(abs(displaySize.height)),
@@ -126,7 +130,7 @@ public final class VideoImporter {
         return CGImageDestinationFinalize(destination)
     }
 
-    private func fileHash(at url: URL) throws -> SHA256.Digest {
+    fileprivate static func fileHash(at url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         var hasher = SHA256()
@@ -135,7 +139,7 @@ public final class VideoImporter {
             if data.isEmpty { break }
             hasher.update(data: data)
         }
-        return hasher.finalize()
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     private static func fourCharacterCode(_ code: FourCharCode) -> String {
@@ -147,5 +151,72 @@ public final class VideoImporter {
         ]
         return String(bytes: bytes, encoding: .macOSRoman)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
+    }
+}
+
+struct VideoHashIndex {
+    struct FileStamp: Codable, Equatable {
+        let size: Int64
+        let modified: Date
+        let inode: UInt64
+
+        init(at url: URL) throws {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.resolvingSymlinksInPath().path)
+            guard let size = attributes[.size] as? NSNumber,
+                  let modified = attributes[.modificationDate] as? Date,
+                  let inode = attributes[.systemFileNumber] as? NSNumber else {
+                throw CocoaError(.fileReadUnknown)
+            }
+            self.size = size.int64Value
+            self.modified = modified
+            self.inode = inode.uint64Value
+        }
+    }
+
+    private struct Entry: Codable {
+        let stamp: FileStamp
+        let sha256: String
+    }
+
+    private let container: SharedContainer
+    private let url: URL
+    private var entries: [String: Entry]
+    private var dirty: Bool
+
+    init(container: SharedContainer, contents: [LiveContent]) {
+        self.container = container
+        url = container.rootURL.appendingPathComponent("video-hashes.json")
+        let data = try? Data(contentsOf: url)
+        let saved = data.flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
+        let ids = Set(contents.map { $0.id.uuidString })
+        entries = saved.filter { ids.contains($0.key) }
+        dirty = entries.count != saved.count
+    }
+
+    mutating func containsDuplicate(
+        ofSize size: Int64, sha256: String, in contents: [LiveContent],
+        hashFile: (URL) throws -> String = VideoImporter.fileHash
+    ) -> Bool {
+        for item in contents {
+            let media = container.mediaURL(for: item)
+            guard let stamp = try? FileStamp(at: media), stamp.size == size else { continue }
+            if entries[item.id.uuidString]?.stamp != stamp {
+                guard let hash = try? hashFile(media) else { continue }
+                remember(hash, for: item.id, stamp: stamp)
+            }
+            if entries[item.id.uuidString]?.sha256 == sha256 { return true }
+        }
+        return false
+    }
+
+    mutating func remember(_ hash: String, for id: UUID, stamp: FileStamp) {
+        entries[id.uuidString] = Entry(stamp: stamp, sha256: hash)
+        dirty = true
+    }
+
+    func persistChanges() {
+        guard dirty, let data = try? JSONEncoder().encode(entries) else { return }
+        // The cache is disposable. A write failure only costs a future rehash.
+        try? data.write(to: url, options: .atomic)
     }
 }
