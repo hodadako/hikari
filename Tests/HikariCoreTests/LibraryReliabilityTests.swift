@@ -1,4 +1,6 @@
+import CryptoKit
 import Foundation
+import ImageIO
 import XCTest
 @testable import HikariCore
 
@@ -122,6 +124,64 @@ final class LibraryReliabilityTests: XCTestCase {
         XCTAssertEqual(managed, ["legacy.mov"])
     }
 
+    func testSuccessfulImportPersistsManagedVideoAndThumbnailAcrossReopen() async throws {
+        let source = root.appendingPathComponent("holiday.mov")
+        try await TestVideo.write(to: source)
+        let original = try Data(contentsOf: source)
+        let item = try await VideoImporter(container: container).importVideo(from: source, existingContents: [])
+        try store.save([item])
+        try files.removeItem(at: source)
+
+        let reopened = try ContentStore(container: container).load()
+        let saved = try XCTUnwrap(reopened.first)
+        XCTAssertEqual(reopened.map(\.id), [item.id])
+        XCTAssertEqual(saved.title, "holiday")
+        XCTAssertEqual(saved.fileSize, Int64(original.count))
+        XCTAssertEqual(saved.width, 64)
+        XCTAssertEqual(saved.height, 64)
+        XCTAssertEqual(saved.codec, "avc1")
+        XCTAssertGreaterThan(saved.duration, 0)
+        let managedURL = container.mediaURL(for: saved)
+        XCTAssertEqual(try Data(contentsOf: managedURL), original)
+        let thumbnail = try XCTUnwrap(container.thumbnailURL(for: saved))
+        let image = try XCTUnwrap(CGImageSourceCreateWithURL(thumbnail as CFURL, nil))
+        XCTAssertNotNil(CGImageSourceCreateImageAtIndex(image, 0, nil))
+
+        var hashes = VideoHashIndex(container: container, contents: reopened)
+        // A freshly imported video's digest should survive a restart without rereading the video.
+        let digest = SHA256.hash(data: original).map { String(format: "%02x", $0) }.joined()
+        var reads: [URL] = []
+        let hashFile: (URL) throws -> String = { url in
+            reads.append(url)
+            return SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
+        }
+        XCTAssertTrue(hashes.containsDuplicate(ofSize: saved.fileSize, sha256: digest, in: reopened, hashFile: hashFile))
+        XCTAssertTrue(reads.isEmpty)
+
+        // Replacing the managed file must invalidate the imported digest, even at the same size.
+        var replacement = original
+        replacement[0] ^= 1
+        try replacement.write(to: managedURL, options: .atomic)
+        XCTAssertFalse(hashes.containsDuplicate(ofSize: saved.fileSize, sha256: digest, in: reopened, hashFile: hashFile))
+        XCTAssertEqual(reads, [managedURL])
+    }
+
+    func testFailedMoveRemovesStagedCopyAndPreservesOriginal() async throws {
+        let source = root.appendingPathComponent("holiday.mov")
+        try await TestVideo.write(to: source)
+        let original = try Data(contentsOf: source)
+        let importer = VideoImporter(container: container, fileManager: FailingMove())
+
+        do {
+            _ = try await importer.importVideo(from: source, existingContents: [])
+            XCTFail("The final move should have failed")
+        } catch HikariError.fileCopyFailed { }
+
+        XCTAssertEqual(try Data(contentsOf: source), original)
+        XCTAssertEqual(try files.contentsOfDirectory(atPath: container.mediaDirectoryURL.path), [])
+        XCTAssertEqual(try files.contentsOfDirectory(atPath: container.thumbnailsDirectoryURL.path), [])
+    }
+
     func testImporterChecksTheBytesCopiedEvenWhenTheSourceStampIsUnchanged() async throws {
         let source = root.appendingPathComponent("source.mov")
         try await TestVideo.write(to: source)
@@ -153,5 +213,11 @@ private final class SubstitutingCopy: FileManager, @unchecked Sendable {
 
     override func copyItem(at srcURL: URL, to dstURL: URL) throws {
         try super.copyItem(at: source, to: dstURL)
+    }
+}
+
+private final class FailingMove: FileManager, @unchecked Sendable {
+    override func moveItem(at srcURL: URL, to dstURL: URL) throws {
+        throw CocoaError(.fileWriteOutOfSpace)
     }
 }

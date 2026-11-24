@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      upload_coverage:
+        description: Upload coverage from the full macOS matrix to Codecov
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -20,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       is_tag: ${{ steps.version.outputs.is_tag }}
+      upload_coverage: ${{ steps.version.outputs.is_tag == 'true' || (github.event_name == 'workflow_dispatch' && inputs.upload_coverage) }}
       tag_version: ${{ steps.version.outputs.tag_version }}
       docs_only: ${{ steps.version.outputs.docs_only }}
       package_pr: ${{ steps.version.outputs.package_pr }}
@@ -127,7 +133,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
       - name: Unit test
-        if: needs.metadata.outputs.is_tag != 'true'
+        if: needs.metadata.outputs.upload_coverage != 'true'
         run: |
           set -o pipefail
           xcodebuild \
@@ -138,7 +144,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Unit test with coverage
-        if: needs.metadata.outputs.is_tag == 'true'
+        if: needs.metadata.outputs.upload_coverage == 'true'
         run: |
           set -o pipefail
           xcodebuild \
@@ -151,7 +157,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Upload Hikari coverage to Codecov
-        if: needs.metadata.outputs.is_tag == 'true'
+        if: needs.metadata.outputs.upload_coverage == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -358,7 +364,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
       - name: Upload macOS 27 coverage to Codecov
-        if: needs.metadata.outputs.is_tag == 'true'
+        if: needs.metadata.outputs.upload_coverage == 'true'
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
