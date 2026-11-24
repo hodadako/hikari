@@ -141,7 +141,8 @@ final class LibraryReliabilityTests: XCTestCase {
         XCTAssertEqual(saved.height, 64)
         XCTAssertEqual(saved.codec, "avc1")
         XCTAssertGreaterThan(saved.duration, 0)
-        XCTAssertEqual(try Data(contentsOf: container.mediaURL(for: saved)), original)
+        let managedURL = container.mediaURL(for: saved)
+        XCTAssertEqual(try Data(contentsOf: managedURL), original)
         let thumbnail = try XCTUnwrap(container.thumbnailURL(for: saved))
         let image = try XCTUnwrap(CGImageSourceCreateWithURL(thumbnail as CFURL, nil))
         XCTAssertNotNil(CGImageSourceCreateImageAtIndex(image, 0, nil))
@@ -149,10 +150,20 @@ final class LibraryReliabilityTests: XCTestCase {
         var hashes = VideoHashIndex(container: container, contents: reopened)
         // A freshly imported video's digest should survive a restart without rereading the video.
         let digest = SHA256.hash(data: original).map { String(format: "%02x", $0) }.joined()
-        XCTAssertTrue(hashes.containsDuplicate(ofSize: saved.fileSize, sha256: digest, in: reopened) { _ in
-            XCTFail("Expected the saved hash of the managed copy")
-            throw CocoaError(.fileReadUnknown)
-        })
+        var reads: [URL] = []
+        let hashFile: (URL) throws -> String = { url in
+            reads.append(url)
+            return SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
+        }
+        XCTAssertTrue(hashes.containsDuplicate(ofSize: saved.fileSize, sha256: digest, in: reopened, hashFile: hashFile))
+        XCTAssertTrue(reads.isEmpty)
+
+        // Replacing the managed file must invalidate the imported digest, even at the same size.
+        var replacement = original
+        replacement[0] ^= 1
+        try replacement.write(to: managedURL, options: .atomic)
+        XCTAssertFalse(hashes.containsDuplicate(ofSize: saved.fileSize, sha256: digest, in: reopened, hashFile: hashFile))
+        XCTAssertEqual(reads, [managedURL])
     }
 
     func testFailedMoveRemovesStagedCopyAndPreservesOriginal() async throws {
