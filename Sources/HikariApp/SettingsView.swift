@@ -126,21 +126,39 @@ private struct GeneralSettingsView: View {
     @State private var pendingRename: LiveContent?
     @State private var renamedTitle = ""
     @State private var searchQuery = ""
+    @State private var appliedQuery = ""
     @State private var favoritesOnly = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Form {
             Section("Library") {
                 HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search videos", text: $searchQuery)
-                        .textFieldStyle(.roundedBorder)
-                    if !searchQuery.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        TextField("Search videos", text: $searchQuery, prompt: Text("Search videos"))
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         Button { searchQuery = "" } label: {
                             Image(systemName: "xmark.circle.fill")
                         }
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Clear Search")
+                        .disabled(searchQuery.isEmpty)
+                        .opacity(searchQuery.isEmpty ? 0 : 1)
+                        .accessibilityHidden(searchQuery.isEmpty)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 6))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(.quaternary)
+                            .allowsHitTesting(false)
                     }
                     Toggle(isOn: $favoritesOnly) {
                         Label("Favorites only", systemImage: "star")
@@ -188,24 +206,21 @@ private struct GeneralSettingsView: View {
             Section("App Icon") {
                 HStack(spacing: 16) {
                     ForEach(AppIconStyle.allCases) { style in
-                        Button {
-                            if style == .custom {
-                                chooseCustomIcon()
-                            } else {
-                                model.setAppIconStyle(style)
+                        let isSelected = model.settings.appIconStyle == style
+                        if style == .custom {
+                            CustomIconButton(
+                                label: "Choose an image for your custom Hikari icon.",
+                                isSelected: isSelected,
+                                chooseImage: chooseCustomIcon
+                            )
+                        } else {
+                            Button { model.setAppIconStyle(style) } label: {
+                                IconPickerTile(title: appIconDisplayName(for: style), isSelected: isSelected) {
+                                    HikariIconPreview(image: model.appIconImage(for: style), size: 64)
+                                }
                             }
-                        } label: {
-                            IconPickerTile(
-                                title: appIconDisplayName(for: style),
-                                isSelected: model.settings.appIconStyle == style
-                            ) {
-                                HikariIconPreview(
-                                    image: model.appIconImage(for: style),
-                                    size: 64
-                                )
-                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -213,25 +228,21 @@ private struct GeneralSettingsView: View {
             Section("Menu Bar Icon") {
                 HStack(spacing: 16) {
                     ForEach(MenuBarIconStyle.allCases) { style in
-                        Button {
-                            if style == .custom {
-                                chooseCustomMenuBarIcon()
-                            } else {
-                                model.setMenuBarIconStyle(style)
+                        let isSelected = model.settings.menuBarIconStyle == style
+                        if style == .custom {
+                            CustomIconButton(
+                                label: "Choose an image for your custom menu bar icon.",
+                                isSelected: isSelected,
+                                chooseImage: chooseCustomMenuBarIcon
+                            )
+                        } else {
+                            Button { model.setMenuBarIconStyle(style) } label: {
+                                IconPickerTile(title: menuBarIconDisplayName(for: style), isSelected: isSelected) {
+                                    MenuBarIconPreview(image: model.menuBarIconImage(for: style), size: 58, style: style)
+                                }
                             }
-                        } label: {
-                            IconPickerTile(
-                                title: menuBarIconDisplayName(for: style),
-                                isSelected: model.settings.menuBarIconStyle == style
-                            ) {
-                                MenuBarIconPreview(
-                                    image: model.menuBarIconImage(for: style),
-                                    size: 58,
-                                    isTemplate: style.isTemplate
-                                )
-                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -253,6 +264,17 @@ private struct GeneralSettingsView: View {
             NativeLockStatusSection(model: model)
         }
         .formStyle(.grouped)
+        .task(id: searchQuery) {
+            let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !query.isEmpty {
+                do {
+                    try await Task.sleep(for: .milliseconds(200))
+                } catch { return }
+            }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
+                appliedQuery = query
+            }
+        }
         .confirmationDialog(
             "Delete this video from Hikari?",
             isPresented: Binding(
@@ -286,10 +308,9 @@ private struct GeneralSettingsView: View {
     }
 
     private var filteredContents: [LiveContent] {
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        return model.contents.filter {
+        model.contents.filter {
             (!favoritesOnly || model.isFavorite($0))
-                && (query.isEmpty || $0.title.localizedStandardContains(query))
+                && (appliedQuery.isEmpty || $0.title.localizedStandardContains(appliedQuery))
         }
     }
 
@@ -419,6 +440,28 @@ private struct GeneralSettingsView: View {
 
     private func menuBarIconDisplayName(for style: MenuBarIconStyle) -> String {
         style == .hikari ? model.appDisplayName : style.localizedName
+    }
+}
+
+private struct CustomIconButton: View {
+    let label: LocalizedStringKey
+    let isSelected: Bool
+    let chooseImage: () -> Void
+
+    var body: some View {
+        Button(action: chooseImage) {
+            IconPickerTile(title: localized("Custom"), isSelected: isSelected) {
+                Image(systemName: "plus")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 64, height: 64)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 14))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(label))
+        .help(Text(label))
     }
 }
 

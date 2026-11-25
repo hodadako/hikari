@@ -61,7 +61,6 @@ final class AppModel: ObservableObject {
     private var terminationToken: NSObjectProtocol?
     private var updateTask: Task<Void, Never>?
     private var normalizedMenuBarIconCache: [String: NSImage] = [:]
-    private var normalizedMenuBarHeartbeatCache: NSImage?
     private var hasStartedInitialPlayback = false
     private var isShuttingDown = false
     init() {
@@ -475,32 +474,6 @@ final class AppModel: ObservableObject {
                 accessibilityDescription: variant.displayName
             )
             ?? NSImage()
-    }
-
-    var menuBarHeartbeatImage: NSImage? {
-        guard settings.menuBarIconStyle == .hikari else { return nil }
-        if let normalizedMenuBarHeartbeatCache {
-            return normalizedMenuBarHeartbeatCache
-        }
-        guard let baseImage = NSImage(named: "MenuBarIconHikari"),
-              let heartbeatImage = NSImage(named: "MenuBarIconHeartbeat") else {
-            return nil
-        }
-        let normalizedImage = MenuBarIconRenderer.normalizedImage(
-            from: heartbeatImage,
-            framedBy: baseImage
-        )
-        normalizedImage.isTemplate = false
-        normalizedMenuBarHeartbeatCache = normalizedImage
-        return normalizedImage
-    }
-
-    var shouldPulseMenuBarSparkle: Bool {
-        settings.menuBarIconStyle == .hikari && isPlaying
-    }
-
-    var menuBarIconIsTemplate: Bool {
-        settings.menuBarIconStyle.isTemplate
     }
 
     var currentAppVersion: String {
