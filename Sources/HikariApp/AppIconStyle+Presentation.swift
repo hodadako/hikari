@@ -74,20 +74,41 @@ struct HikariIconPreview: View {
     }
 }
 
+struct MenuBarIconArtwork: View {
+    let image: NSImage
+    let size: CGFloat
+    let style: MenuBarIconStyle
+    let isPlaying: Bool
+
+    var body: some View {
+        Image(nsImage: image)
+            .resizable()
+            .interpolation(.high)
+            .renderingMode(style.isTemplate ? .template : .original)
+            .foregroundStyle(.primary)
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .overlay {
+                if style == .hikari && isPlaying {
+                    Image(systemName: "sparkle")
+                        .font(.system(size: size * 5.5 / 18, weight: .semibold))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.white)
+                        .offset(y: -size * 2 / 18)
+                }
+            }
+    }
+}
+
 struct MenuBarIconPreview: View {
     let image: NSImage?
     let size: CGFloat
-    let isTemplate: Bool
+    let style: MenuBarIconStyle
 
     var body: some View {
         Group {
             if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .renderingMode(isTemplate ? .template : .original)
-                    .scaledToFit()
-                    .foregroundStyle(.primary)
+                MenuBarIconArtwork(image: image, size: size, style: style, isPlaying: true)
             } else {
                 Image(systemName: "plus")
                     .font(.system(size: size * 0.3, weight: .medium))

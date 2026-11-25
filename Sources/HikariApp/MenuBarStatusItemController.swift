@@ -141,39 +141,13 @@ private struct MenuBarCompositeIconView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        ZStack {
-            Image(nsImage: model.menuBarIconImage)
-                .resizable()
-                .interpolation(.high)
-                .renderingMode(model.menuBarIconIsTemplate ? .template : .original)
-                .foregroundStyle(.primary)
-                .scaledToFit()
-
-            if model.shouldPulseMenuBarSparkle {
-                sparkle
-                    .zIndex(1)
-            }
-        }
-        .frame(width: 18, height: 18)
+        MenuBarIconArtwork(
+            image: model.menuBarIconImage,
+            size: 18,
+            style: model.settings.menuBarIconStyle,
+            isPlaying: model.isPlaying
+        )
         .contentShape(Rectangle())
         .accessibilityHidden(true)
-    }
-
-    @ViewBuilder
-    private var sparkle: some View {
-        if #available(macOS 14.0, *) {
-            Image(systemName: "sparkle")
-                .font(.system(size: 5.5, weight: .semibold))
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(.white)
-                .offset(y: -2)
-        } else if let heartbeatImage = model.menuBarHeartbeatImage {
-            Image(nsImage: heartbeatImage)
-                .resizable()
-                .interpolation(.high)
-                .scaledToFit()
-                .frame(width: 5.5, height: 5.5)
-                .offset(y: -2)
-        }
     }
 }
