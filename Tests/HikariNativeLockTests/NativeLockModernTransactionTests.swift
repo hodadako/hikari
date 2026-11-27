@@ -233,7 +233,7 @@ final class NativeLockModernTransactionTests: XCTestCase {
         )
         let materialized = try store.materializeLinkedWallpaperTopology(
             transactionID: prepared.request.transactionID,
-            assetID: "3B2922AA-19BD-4D54-B43E-B45EE5DFA56E",
+            assetID: "00000000-0000-4000-8000-000000000001",
             topology: NativeLockLinkedWallpaperTopology(
                 spaceIDs: ["SPACE-1", "SPACE-2"],
                 displayIDs: ["DISPLAY-1"]
