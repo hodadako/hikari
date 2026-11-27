@@ -895,8 +895,6 @@
   적용 전에 사용자가 별도 Apple Aerial 선택을 해야 했다.
 - 사용자가 확인한 외부 앱은 실행 직후 기존 Apple Aerial asset을 선택해 `Linked` topology를
   materialize한 뒤 적용을 진행했다.
-- 이전 Backdrop의 `BackdropWallpaper` renderer가 실행 중이면 Hikari가 쓴 `Linked` choice를
-  즉시 이전 asset으로 되돌려 자동 Apply가 `wallpaperMappingRejected`가 됐다.
 - 세로 영상의 원본과 Aerial용 변환본은 모두 1080×1920 및 정상 transform인데도 Lock Screen에서
   영상이 위아래로 늘어져 보였다. 기존 `Linked` choice의 `EncodedOptionValues`가 문자열
   `$null`인 상태였다.
@@ -928,9 +926,6 @@
   Restore하면 원본 bytes가 그대로 돌아오는지 검증했다.
 - Native Local 직접 빌드·ad-hoc 서명 검증 통과. Command Line Tools 환경의 XCTest 실행은
   `XCTest` 모듈 부재로 여전히 실행할 수 없으며 전체 Xcode CI에서 최종 확인한다.
-- Backdrop renderer를 종료한 상태에서 최신 Hikari 자동 Apply transaction
-  `1B512569-A657-461F-BD42-2BADEB04A388`가 `active`가 되고 30초 mapping 안정화 검증을
-  통과했으며, Backdrop category/asset은 manifest에 그대로 남았다.
 - 최신 옵션 수정본을 빌드·설치한 뒤 transaction `4F264DEE-DEA1-427F-BBBB-3B033D1F2918`가
   `active`가 됐고, 실제 user `Index.plist`의 Linked option을 바이너리 plist로 읽어
   `FillScreen` 값을 확인했다. Native Local 빌드는 통과했으며, Command Line Tools 환경에서는
